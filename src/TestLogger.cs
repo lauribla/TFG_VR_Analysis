@@ -1,21 +1,20 @@
-using MongoDB.Bson;
-using System;
+from pymongo import MongoClient
+from datetime import datetime
 
-class TestLogger
-{
-    static void Main(string[] args)
-    {
-        Logger.Init();
+    client = MongoClient("mongodb://localhost:27017/")
+db = client["vr_experiment"]
+col = db["events"]
 
-        var testData = new BsonDocument
-        {
-            { "task_id", "test_task_001" },
-            { "result", "success" },
-            { "note", "Este evento fue insertado desde consola C#" }
-        };
-
-        Logger.LogEvent("user_demo", "task_result", testData);
-
-        Console.WriteLine("✅ Fin de la prueba");
-    }
+doc = {
+    "user_id": "test_user_python",
+    "event_type": "test",
+    "message": "Python ha insertado en MongoDB",
+    "timestamp": datetime.utcnow()
 }
+
+col.insert_one(doc)
+print("✅ Documento insertado en MongoDB desde Python")
+
+print("📊 Documentos actuales en la colección:")
+for d in col.find().limit(5):
+print(d)
