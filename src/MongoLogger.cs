@@ -1,24 +1,30 @@
 using MongoDB.Bson;
 using MongoDB.Driver;
-using UnityEngine;
+using System;
 
-public class MongoLogger : MonoBehaviour
+public static class Logger
 {
     private static IMongoCollection<BsonDocument> collection;
 
-    void Start()
+    public static void Init()
     {
         var client = new MongoClient("mongodb://localhost:27017");
         var database = client.GetDatabase("vr_experiment");
         collection = database.GetCollection<BsonDocument>("events");
+        Console.WriteLine("✔️ Conectado a MongoDB");
+    }
 
-        var doc = new BsonDocument {
-            { "timestamp", System.DateTime.UtcNow },
-            { "user_id", "unity_user" },
-            { "event_type", "unity_test" }
+    public static void LogEvent(string userId, string eventType, BsonDocument data)
+    {
+        var doc = new BsonDocument
+        {
+            { "timestamp", DateTime.UtcNow },
+            { "user_id", userId },
+            { "event_type", eventType },
+            { "data", data }
         };
 
         collection.InsertOne(doc);
-        Debug.Log("Evento enviado a MongoDB");
+        Console.WriteLine($"📤 Evento insertado: {eventType}");
     }
 }

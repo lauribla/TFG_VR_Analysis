@@ -1,19 +1,21 @@
 using MongoDB.Bson;
 using System;
 
-class Program
+class TestLogger
 {
     static void Main(string[] args)
     {
         Logger.Init();
 
-        var data = new BsonDocument {
-            { "task_id", "T1" },
-            { "result", "success" }
+        var testData = new BsonDocument
+        {
+            { "task_id", "test_task_001" },
+            { "result", "success" },
+            { "note", "Este evento fue insertado desde consola C#" }
         };
 
-        Logger.LogEvent("user001", "task_result", data);
+        Logger.LogEvent("user_demo", "task_result", testData);
 
-        Console.WriteLine("✔️ Evento insertado correctamente");
+        Console.WriteLine("✅ Fin de la prueba");
     }
 }
