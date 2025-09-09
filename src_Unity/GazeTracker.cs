@@ -3,6 +3,8 @@ using System;
 
 public class GazeTracker : MonoBehaviour
 {
+//se dedica a coger la trayectoria periódicamente de las gafas y ahcer logs con ellas 
+//no tiene que estar dentro de solution "src_bd_unity" porque esto lo llamará unity y las solutions es para hacer run manual nosotros 
     [Header("Tracking settings")]
     public float checkInterval = 0.25f;           // Intervalo entre raycasts
     public float fixationThreshold = 2.0f;        // Tiempo necesario para considerar fijación

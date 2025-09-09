@@ -1,13 +1,14 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Driver;
 
+//esto es lo que se hace "run" e inserta algo en la bd, es el "main" de la solution
 class Program
 {
     static void Main()
     {
         var client = new MongoClient("mongodb://localhost:27017/");
-        var db = client.GetDatabase("admin");
-        var col = db.GetCollection<BsonDocument>("events");
+        var db = client.GetDatabase("test");
+        var col = db.GetCollection<BsonDocument>("tfg");
 
         var doc = new BsonDocument
         {

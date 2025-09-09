@@ -1,13 +1,11 @@
 from pymongo import MongoClient
 
+# Conexión a Mongo
 client = MongoClient("mongodb://localhost:27017/")
-db = client["vr_experiment"]
-collection = db["events"]
+db = client["test"]
+collection = db["tfg"]
 
-collection.insert_one({
-    "user_id": "test_user",
-    "event_type": "test",
-    "message": "MongoDB está funcionando en Windows"
-})
-
-print("¡Evento insertado correctamente!")
+# Leer los últimos 5 documentos
+print("📊 Últimos documentos en la colección 'tfg':")
+for doc in collection.find().sort("timestamp", -1).limit(5):
+    print(doc)

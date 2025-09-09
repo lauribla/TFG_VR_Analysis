@@ -604,11 +604,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\mllhz\\RiderProjects\\TFG\\tools\\MongoSmokeTest\\MongoSmokeTest.csproj",
+      "projectUniqueName": "C:\\Users\\mllhz\\RiderProjects\\TFG\\src_Unity\\src_bd_unity\\MongoSmokeTest\\MongoSmokeTest.csproj",
       "projectName": "MongoSmokeTest",
-      "projectPath": "C:\\Users\\mllhz\\RiderProjects\\TFG\\tools\\MongoSmokeTest\\MongoSmokeTest.csproj",
+      "projectPath": "C:\\Users\\mllhz\\RiderProjects\\TFG\\src_Unity\\src_bd_unity\\MongoSmokeTest\\MongoSmokeTest.csproj",
       "packagesPath": "C:\\Users\\mllhz\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\mllhz\\RiderProjects\\TFG\\tools\\MongoSmokeTest\\obj\\",
+      "outputPath": "C:\\Users\\mllhz\\RiderProjects\\TFG\\src_Unity\\src_bd_unity\\MongoSmokeTest\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\mllhz\\AppData\\Roaming\\NuGet\\NuGet.Config"

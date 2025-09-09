@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "KIWGJWDYFEY=",
+  "dgSpecHash": "iFWAixju25A=",
   "success": true,
-  "projectFilePath": "C:\\Users\\mllhz\\RiderProjects\\TFG\\tools\\MongoSmokeTest\\MongoSmokeTest.csproj",
+  "projectFilePath": "C:\\Users\\mllhz\\RiderProjects\\TFG\\src_Unity\\src_bd_unity\\MongoSmokeTest\\MongoSmokeTest.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\mllhz\\.nuget\\packages\\dnsclient\\1.6.1\\dnsclient.1.6.1.nupkg.sha512",
     "C:\\Users\\mllhz\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\2.0.0\\microsoft.extensions.logging.abstractions.2.0.0.nupkg.sha512",
