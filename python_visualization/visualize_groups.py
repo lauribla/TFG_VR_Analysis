@@ -5,7 +5,8 @@ import seaborn as sns
 from pathlib import Path
 
 class Visualizer:
-    X_LABEL = "Grupo / Usuario"  # constante reutilizable
+    X_LABEL = "Grupo / Usuario"
+
     def __init__(self, input_file, output_dir="figures"):
         """
         input_file: archivo JSON o CSV exportado por MetricsExporter.export_multiple()
@@ -18,7 +19,6 @@ class Visualizer:
         if input_file.endswith(".json"):
             with open(input_file, "r", encoding="utf-8") as f:
                 self.results = json.load(f)
-            # results viene en formato {id: {efectividad: {...}, ...}}
             self.df = self._json_to_dataframe(self.results)
         elif input_file.endswith(".csv"):
             self.df = pd.read_csv(input_file)
@@ -42,49 +42,49 @@ class Visualizer:
     # ============================================================
     def plot_hit_ratio(self):
         plt.figure(figsize=(8, 5))
-        sns.barplot(data=self.df, x="id", y="efectividad_hit_ratio", palette="Blues_d")
-        plt.title("Efectividad: Ratio de aciertos por grupo/usuario")
+        sns.barplot(data=self.df, x="id", y="efectividad_hit_ratio", hue="id",
+                    palette="Blues_d", legend=False)
+        plt.title("Efectividad: Ratio de aciertos")
         plt.xlabel(self.X_LABEL)
         plt.ylabel("Hit Ratio")
         plt.ylim(0, 1)
         filepath = self.output_dir / "hit_ratio.png"
         plt.savefig(filepath)
         plt.close()
-        print(f"[Visualizer] Gráfico guardado en {filepath}")
 
     def plot_reaction_time(self):
         plt.figure(figsize=(8, 5))
-        sns.barplot(data=self.df, x="id", y="eficiencia_avg_reaction_time_ms", palette="Greens_d")
+        sns.barplot(data=self.df, x="id", y="eficiencia_avg_reaction_time_ms", hue="id",
+                    palette="Greens_d", legend=False)
         plt.title("Eficiencia: Tiempo medio de reacción")
         plt.xlabel(self.X_LABEL)
         plt.ylabel("Tiempo medio (ms)")
         filepath = self.output_dir / "reaction_time.png"
         plt.savefig(filepath)
         plt.close()
-        print(f"[Visualizer] Gráfico guardado en {filepath}")
 
     def plot_task_success(self):
         plt.figure(figsize=(8, 5))
-        sns.barplot(data=self.df, x="id", y="efectividad_success_rate", palette="Purples_d")
-        plt.title("Efectividad: Porcentaje de tareas completadas con éxito")
+        sns.barplot(data=self.df, x="id", y="efectividad_success_rate", hue="id",
+                    palette="Purples_d", legend=False)
+        plt.title("Efectividad: Porcentaje de tareas completadas")
         plt.xlabel(self.X_LABEL)
         plt.ylabel("Success Rate")
         plt.ylim(0, 1)
         filepath = self.output_dir / "success_rate.png"
         plt.savefig(filepath)
         plt.close()
-        print(f"[Visualizer] Gráfico guardado en {filepath}")
 
     def plot_activity_level(self):
         plt.figure(figsize=(8, 5))
-        sns.barplot(data=self.df, x="id", y="presencia_activity_level_per_min", palette="Oranges_d")
+        sns.barplot(data=self.df, x="id", y="presencia_activity_level_per_min", hue="id",
+                    palette="Oranges_d", legend=False)
         plt.title("Presencia: Nivel de actividad en el entorno")
         plt.xlabel(self.X_LABEL)
         plt.ylabel("Eventos por minuto")
         filepath = self.output_dir / "activity_level.png"
         plt.savefig(filepath)
         plt.close()
-        print(f"[Visualizer] Gráfico guardado en {filepath}")
 
     # ============================================================
     # VISUALIZACIÓN DE CUSTOM EVENTS
@@ -93,7 +93,6 @@ class Visualizer:
         """
         Genera un gráfico de barras apiladas con la frecuencia de custom events por grupo/usuario.
         """
-        # Extraer columnas que empiezan por "custom_events"
         custom_cols = [c for c in self.df.columns if c.startswith("custom_events_")]
         if not custom_cols:
             print("[Visualizer] No hay eventos personalizados en los datos.")
@@ -112,7 +111,6 @@ class Visualizer:
         filepath = self.output_dir / "custom_events.png"
         plt.savefig(filepath, bbox_inches="tight")
         plt.close()
-        print(f"[Visualizer] Gráfico de custom events guardado en {filepath}")
 
     # ============================================================
     # EJECUCIÓN COMPLETA

@@ -1,11 +1,13 @@
 import pandas as pd
-from log_parser import LogParser   # usa el tuyo
-from metrics import MetricsCalculator
-from exporter import MetricsExporter
-from visualize_groups import Visualizer
-from pdf_reporter import PDFReport
+from python_analysis.log_parser import LogParser
+from python_analysis.metrics import MetricsCalculator
+from python_analysis.exporter import MetricsExporter
+from python_visualization.visualize_groups import Visualizer
+from python_visualization.pdf_reporter import PDFReport
 import json
 import os
+
+#sirve para probar python-analysis entero (sin el Log_parser que necesita de al BD)
 
 # ============================================================
 # 1. Crear logs de prueba (simulados, sin Unity ni MongoDB)
