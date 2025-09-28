@@ -1,16 +1,24 @@
 import pandas as pd
-from python_analysis.log_parser import LogParser
 from python_analysis.metrics import MetricsCalculator
 from python_analysis.exporter import MetricsExporter
 from python_visualization.visualize_groups import Visualizer
 from python_visualization.pdf_reporter import PDFReport
 import json
 import os
-
-#sirve para probar python-analysis entero (sin el Log_parser que necesita de al BD)
+from datetime import datetime
 
 # ============================================================
-# 1. Crear logs de prueba (simulados, sin Unity ni MongoDB)
+# Crear un timestamp único para cada ejecución
+# ============================================================
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+base_export_dir = f"exports_{timestamp}"
+base_figures_dir = f"figures_{timestamp}"
+
+os.makedirs(base_export_dir, exist_ok=True)
+os.makedirs(base_figures_dir, exist_ok=True)
+
+# ============================================================
+# 1. Crear logs de prueba (simulados)
 # ============================================================
 fake_logs = [
     {"timestamp": "2025-09-26T14:36:12Z", "user_id": "U001", "event_type": "task",
@@ -25,20 +33,16 @@ fake_logs = [
     {"timestamp": "2025-09-26T14:39:12Z", "user_id": "U001", "event_type": "gaze",
      "event_name": "gaze_frame", "event_value": None,
      "event_context": {"session_id": "S1", "group_id": "control", "target": "Enemy_01"}},
-    # Custom inventado
     {"timestamp": "2025-09-26T14:40:12Z", "user_id": "U001", "event_type": "custom",
      "event_name": "hand_gesture", "event_value": None,
      "event_context": {"session_id": "S1", "group_id": "control", "gesture_id": 3}}
 ]
 
-# ============================================================
-# 2. Parsear (simulamos lo que haría LogParser.parse_logs)
-# ============================================================
 df = pd.DataFrame(fake_logs)
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 
 # ============================================================
-# 3. Calcular métricas
+# 2. Calcular métricas
 # ============================================================
 metrics = MetricsCalculator(df)
 results = metrics.compute_all()
@@ -47,30 +51,28 @@ print("\n=== Resultados calculados ===")
 print(json.dumps(results, indent=4))
 
 # ============================================================
-# 4. Exportar resultados (JSON y CSV)
+# 3. Exportar resultados
 # ============================================================
-os.makedirs("exports", exist_ok=True)
-exporter = MetricsExporter(results, output_dir="exports/U001")
+exporter = MetricsExporter(results, output_dir=f"{base_export_dir}/U001")
 exporter.to_json("results.json")
 exporter.to_csv("results.csv")
 
-# Para simular varios usuarios/grupos:
-MetricsExporter.export_multiple([results], ["U001"], mode="json", filename="group_results")
+MetricsExporter.export_multiple([results], ["U001"], mode="json", output_dir=base_export_dir, filename="group_results")
 
 # ============================================================
-# 5. Generar gráficos
+# 4. Generar gráficos
 # ============================================================
-viz = Visualizer("exports/group_results.json", output_dir="figures")
+viz = Visualizer(f"{base_export_dir}/group_results.json", output_dir=base_figures_dir)
 viz.generate_all()
 
 # ============================================================
-# 6. Generar PDF final
+# 5. Generar PDF final
 # ============================================================
 report = PDFReport(
-    results_file="exports/group_results.json",
-    figures_dir="figures",
-    output_file="exports/final_report.pdf"
+    results_file=f"{base_export_dir}/group_results.json",
+    figures_dir=base_figures_dir,
+    output_file=f"{base_export_dir}/final_report.pdf"
 )
 report.generate()
 
-print("\n✅ Pipeline de prueba completado: revisa exports/ y figures/")
+print(f"\n✅ Pipeline de prueba completado: revisa {base_export_dir}/ y {base_figures_dir}/")
