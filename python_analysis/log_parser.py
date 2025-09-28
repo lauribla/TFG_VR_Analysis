@@ -3,7 +3,7 @@ from pymongo import MongoClient
 import json
 
 class LogParser:
-    def __init__(self, mongo_uri="mongodb://localhost:27017", db_name="VRLogsDB", collection_name="events"):
+    def __init__(self, mongo_uri="mongodb://localhost:27017", db_name="test", collection_name="tfg"):
         self.client = MongoClient(mongo_uri)
         self.collection = self.client[db_name][collection_name]
 
