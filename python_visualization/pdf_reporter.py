@@ -2,14 +2,23 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Tabl
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-import json
 from pathlib import Path
+import json
+from datetime import datetime
+import os
 
 class PDFReport:
-    def __init__(self, results_file, figures_dir="figures", output_file="report.pdf"):
+    def __init__(self, results_file, figures_dir="figures", base_dir="pruebas"):
         self.results_file = Path(results_file)
         self.figures_dir = Path(figures_dir)
-        self.output_file = Path(output_file)
+        self.base_dir = Path(base_dir)
+
+        # Crear carpeta con timestamp para guardar el PDF
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.export_dir = self.base_dir / f"exports_{timestamp}"
+        self.export_dir.mkdir(parents=True, exist_ok=True)
+
+        self.output_file = self.export_dir / "final_report.pdf"
 
     def generate(self):
         # Cargar resultados
@@ -49,7 +58,13 @@ class PDFReport:
             elements.append(Spacer(1, 20))
 
             # Insertar gráficos si existen
-            for fig_name in ["hit_ratio.png", "reaction_time.png", "success_rate.png", "activity_level.png", "custom_events.png"]:
+            for fig_name in [
+                "hit_ratio.png",
+                "reaction_time.png",
+                "success_rate.png",
+                "activity_level.png",
+                "custom_events.png"
+            ]:
                 fig_path = self.figures_dir / fig_name
                 if fig_path.exists():
                     elements.append(Image(str(fig_path), width=400, height=250))

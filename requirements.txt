@@ -1,0 +1,17 @@
+# Core análisis de datos
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Conexión con MongoDB
+pymongo>=4.5.0
+
+# Visualización estática (para PDF)
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Visualización interactiva
+plotly>=5.18.0
+streamlit>=1.28.0
+
+# Generación de informes PDF
+reportlab>=4.0.4
