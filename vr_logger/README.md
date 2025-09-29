@@ -28,6 +28,22 @@ Unity descargará el paquete automáticamente junto con sus dependencias declara
 1. Descarga el repositorio como `.zip`.
 2. Copia la carpeta `vr_logger/` en `Packages/` de tu proyecto Unity.
 
+### DLLs de Mongo Db
+
+MongoDB no es un paquete oficial de Unity, por lo que se debe incluir el driver oficial de MongoDB para C# en el paquete:
+
+ * Descarga desde MongoDB .NET Driver.
+
+ * Copia al directorio vr_logger/Runtime/Plugins/ los siguientes DLLs:
+
+     * MongoDB.Driver.dll
+
+     * MongoDB.Bson.dll
+
+     * MongoDB.Driver.Core.dll
+
+Unity los compilará junto a tus scripts y permitirán conectar directamente con MongoDB desde C#.
+
 ---
 
 ## 📂 Estructura del paquete

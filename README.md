@@ -74,6 +74,23 @@ TFG_VR_Analysis/
 * `plotly`, `streamlit` → visualización interactiva (dashboard web)
 * `reportlab` → informes PDF
 
+### DLLs de Mongo Db
+
+MongoDB no es un paquete oficial de Unity, por lo que se debe incluir el driver oficial de MongoDB para C# en el paquete:
+
+ * Descarga desde MongoDB .NET Driver.
+
+ * Copia al directorio vr_logger/Runtime/Plugins/ los siguientes DLLs:
+
+     * MongoDB.Driver.dll
+
+     * MongoDB.Bson.dll
+
+     * MongoDB.Driver.Core.dll
+
+Unity los compilará junto a tus scripts y permitirán conectar directamente con MongoDB desde C#.
+
+
 ---
 
 ## ⚙️ Requisitos (Unity – vr-logger)
