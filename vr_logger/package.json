@@ -1,14 +1,17 @@
 {
-  "name": "com.tuorg.vrlogger",
+  "name": "com.github.lauribla.vr_logger",
   "version": "1.0.0",
   "displayName": "VR Logger",
   "description": "Sistema de logging para experimentos VR con Unity.",
-  "unity": "2022.3.30f1",
+  "unity": "2022.3",
   "author": {
     "name": "Laura Hernández",
     "email": "laura.hhernandez@alumnos.upm.es",
     "url": "https://github.com/lauribla/TFG_VR_Analysis"
   },
   "dependencies": {
+    "com.unity.xr.management": "4.2.0",
+    "com.unity.xr.openxr": "1.8.2",
+    "com.unity.inputsystem": "1.5.1"
   }
 }
