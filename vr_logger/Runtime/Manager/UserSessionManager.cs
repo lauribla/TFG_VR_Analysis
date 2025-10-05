@@ -17,7 +17,10 @@ namespace VRLogger
 
         private string sessionId;
 
-        void Start()
+       
+
+        void Awake()
+
         {
             // Generar session_id único
             sessionId = Guid.NewGuid().ToString();
@@ -28,6 +31,8 @@ namespace VRLogger
             // Log de inicio de sesión
             _ = LogAPI.LogSessionStart(sessionId);
             Debug.Log($"[UserSessionManager] Session started: {sessionId} (User {userId}, Group {groupId})");
+
+
         }
 
         void OnApplicationQuit()
