@@ -8,8 +8,8 @@ namespace VRLogger
         public string userId = "U001";
         public string sessionId = "S001";
         public string mongoConnection = "mongodb://localhost:27017";
-        public string dbName = "VRLogsDB";
-        public string collectionName = "events";
+        public string dbName = "test";
+        public string collectionName = "tfg";
 
         [Header("Modules")]
         public bool useGazeTracker = true;
