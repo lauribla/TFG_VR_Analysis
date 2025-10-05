@@ -2,7 +2,7 @@
 
 namespace VRLogger
 {
-    public class UserSessionManager : MonoBehaviour
+    public class UserSessionLogger : MonoBehaviour
     {
         [Header("Mongo Config")]
         public string connectionString = "mongodb://localhost:27017";
