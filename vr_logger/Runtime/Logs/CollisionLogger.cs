@@ -52,7 +52,13 @@ namespace VRLogger
                 event_context = context
             };
 
-            await LoggerService.SendLog(log);
+            await LoggerService.LogEvent(
+    log.event_type,
+    log.event_name,
+    log.event_value,
+    log.event_context
+);
+
         }
     }
 }
