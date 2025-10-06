@@ -10,7 +10,8 @@ class MetricsCalculator:
         """
         self.df = df.copy()
         if "timestamp" in self.df.columns:
-            self.df["timestamp"] = pd.to_datetime(self.df["timestamp"])
+            self.df["timestamp"] = pd.to_datetime(self.df["timestamp"], utc=True, errors="coerce")
+
 
         # Eventos que forman parte de la tabla oficial de indicadores
         self.official_events = {

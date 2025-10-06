@@ -36,7 +36,7 @@ def main():
     st.title("📊 VR User Evaluation - Dashboard Interactivo")
 
     # Buscar automáticamente el último group_results.json
-    default_files = sorted(glob.glob("pruebas/exports_*/group_results.json"), reverse=True)
+    default_files = sorted(glob.glob("python_analysis/pruebas/exports_*/group_results.json"), reverse=True)
     default_file = default_files[0] if default_files else ""
 
     # Input de usuario con valor por defecto
