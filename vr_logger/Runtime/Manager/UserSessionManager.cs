@@ -6,6 +6,9 @@ namespace VRLogger
 {
     public class UserSessionManager : MonoBehaviour
     {
+        // ✅ NUEVO: patrón Singleton
+        public static UserSessionManager Instance;
+
         [Header("Mongo Config")]
         public string connectionString = "mongodb://localhost:27017";
         public string dbName = "test";
@@ -17,11 +20,14 @@ namespace VRLogger
 
         private string sessionId;
 
-       
-
         void Awake()
-
         {
+            // ✅ NUEVO: establecer la instancia global
+            if (Instance == null)
+                Instance = this;
+            else
+                Destroy(gameObject); // evita duplicados si se carga otra escena
+
             // Generar session_id único
             sessionId = Guid.NewGuid().ToString();
 
@@ -31,8 +37,6 @@ namespace VRLogger
             // Log de inicio de sesión
             _ = LogAPI.LogSessionStart(sessionId);
             Debug.Log($"[UserSessionManager] Session started: {sessionId} (User {userId}, Group {groupId})");
-
-
         }
 
         void OnApplicationQuit()
