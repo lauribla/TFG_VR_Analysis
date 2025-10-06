@@ -1,174 +1,304 @@
-# 🛠️ Manual del Desarrollador – VR User Evaluation
+# 👨‍💻 VR LOGGER – MANUAL DEL DESARROLLADOR
 
-Este documento explica cómo funciona el proyecto a nivel técnico y cómo mantener o extender el código.
-Está pensado para desarrolladores que quieran **modificar el sistema**, **añadir nuevos indicadores** o **usar el paquete Unity (`vr_logger`) en otros proyectos**.
+## 📘 Introducción
+
+Este documento sirve como **manual técnico para desarrolladores** que integren el sistema de logging VR en sus proyectos Unity.
+Explica **cómo importar, usar y extender los logs**, además de cómo preparar los datos para el análisis de indicadores automáticos (eficiencia, efectividad, satisfacción y presencia).
 
 ---
 
-## 📂 Estructura del proyecto
+## ⚙️ 1️⃣ Instalación e Importación
+
+### Paso 1. Instalar dependencias
+
+Descomprime `DLLS_MONGO_Unity.zip` (incluido en el repositorio principal) y copia los siguientes archivos dentro de:
 
 ```
-TFG_VR_Analysis/
-├── vr_logger/                   # Paquete Unity (C#)
-│   ├── package.json              # Metadatos y dependencias Unity
-│   └── Runtime/                  # Código fuente del paquete
-│       ├── Logs/                 # Logging en MongoDB
-│       ├── Manager/              # Gestión de sesiones y trackers
-│       ├── Trackers/             # Gaze, movimiento, manos, pies
-│       └── src_bd_unity/         # Test de conexión Mongo
-│
-├── python_analysis/              # Análisis de datos (Python)
-│   ├── log_parser.py
-│   ├── metrics.py
-│   ├── exporter.py
-│   └── test_mongo.py
-│
-├── python_visualization/         # Visualización y reportes (Python)
-│   ├── visualize_groups.py
-│   ├── pdf_reporter.py
-│   └── visual_dashboard.py
-│
-├── pruebas/                      # Pruebas de integración end-to-end
-│   ├── test_pipeline.py
-│   ├── test_pipeline_db.py
-│   ├── exports_*/                # Resultados (ignorado en git)
-│   └── figures_*/                # Gráficos (ignorado en git)
+Assets/Plugins/
+```
+
+**DLLs requeridas:**
+
+* MongoDB.Driver.dll
+* MongoDB.Driver.Core.dll
+* MongoDB.Bson.dll
+* DnsClient.dll
+* System.Buffers.dll
+
+Unity los detectará automáticamente como plugins de .NET 4.x.
+
+### Paso 2. Importar el paquete `vr_logger`
+
+Copia la carpeta completa `vr_logger/` (con su subcarpeta `Runtime/`) dentro de tu proyecto Unity.
+
+Verás en el explorador algo así:
+
+```
+Assets/
+ ├─ Plugins/
+ ├─ vr_logger/
+ │   ├─ Runtime/
+ │   │   ├─ Logs/
+ │   │   ├─ Manager/
+ │   │   └─ Trackers/
 ```
 
 ---
 
-## ⚙️ Flujo general del sistema
+## 🧠 2️⃣ Arquitectura general
 
-1. **Unity (vr_logger)**
+El sistema se divide en tres módulos:
 
-   * Genera eventos (posición, orientación, trayectorias, interacción, etc.).
-   * Los serializa como JSON y los guarda en **MongoDB**.
+### 🔹 1. **LoggerService.cs**
 
-2. **Python Analysis**
+Es el núcleo de comunicación con MongoDB. Permite enviar eventos mediante `LogEvent()` y gestiona la conexión.
 
-   * `log_parser.py`: carga logs desde Mongo o archivos JSON/CSV.
-   * `metrics.py`: calcula indicadores de efectividad, eficiencia, satisfacción, presencia y custom.
-   * `exporter.py`: exporta resultados (JSON/CSV).
+### 🔹 2. **UserSessionManager.cs**
 
-3. **Python Visualization**
+Controla la sesión del usuario y el `session_id`. También sirve de helper para agregar `group_id` o `user_id` automáticamente a cada evento.
 
-   * `visualize_groups.py`: gráficos estáticos (para PDF).
-   * `pdf_reporter.py`: genera informes PDF.
-   * `visual_dashboard.py`: dashboard web interactivo con Streamlit + Plotly.
+### 🔹 3. **Loggers especializados**
 
-4. **Pruebas (pipelines)**
-
-   * `test_pipeline.py`: logs simulados → análisis completo.
-   * `test_pipeline_db.py`: inserta logs en Mongo, los procesa y genera outputs completos.
+* `CollisionLogger.cs`: registra colisiones físicas.
+* `RaycastLogger.cs`: registra impactos de raycasts (mirada o puntero).
+* `UserSessionLogger.cs`: marca inicio y fin de sesión.
+* `HandTracker`, `GazeTracker`, `FootTracker`, `MovementTracker`: capturan movimiento físico para correlación de presencia.
 
 ---
 
-## 📦 Paquete Unity (`vr_logger`)
+## 🚀 3️⃣ Inicialización del sistema
 
-Este proyecto está empaquetado como **Unity Package** para que pueda importarse en otros proyectos.
+### Opción A – Inicialización automática (recomendada)
 
-### `package.json`
+Añade el componente `UserSessionManager` a un objeto de la escena (por ejemplo `VRManager`).
+
+```csharp
+using UnityEngine;
+using VRLogger;
+
+public class VRManager : MonoBehaviour
+{
+    void Awake()
+    {
+        LoggerService.Init(
+            connectionString: "mongodb://localhost:27017",
+            dbName: "test",
+            collectionName: "tfg",
+            userId: "U001"
+        );
+        Debug.Log("[VRLogger] Conectado a MongoDB.");
+    }
+}
+```
+
+### Opción B – Inicialización manual
+
+Si necesitas enviar logs desde scripts sin un `UserSessionManager`:
+
+```csharp
+if (!LoggerService.IsInitialized)
+{
+    LoggerService.Init("mongodb://localhost:27017", "test", "tfg", "U001");
+}
+```
+
+Esto asegura que el sistema siempre esté listo antes de registrar eventos.
+
+---
+
+## ✍️ 4️⃣ Creación y envío de logs
+
+### A. Estructura de un log
+
+Cada evento sigue este modelo:
 
 ```json
 {
-  "name": "com.github.lauribla.vr_logger",
-  "version": "1.0.0",
-  "displayName": "VR Logger",
-  "description": "Sistema de logging para experimentos VR con Unity.",
-  "unity": "2022.3",
-  "author": {
-    "name": "Laura Hernández",
-    "email": "laura.hhernandez@alumnos.upm.es",
-    "url": "https://github.com/lauribla/TFG_VR_Analysis"
+  "timestamp": "2025-10-06T10:25:00Z",
+  "user_id": "U001",
+  "event_type": "collision",
+  "event_name": "bullet_hit",
+  "event_value": 1,
+  "event_context": {
+    "object_name": "Target_01",
+    "speed": 3.2
   },
-  "dependencies": {
-    "com.unity.xr.management": "4.2.0",
-    "com.unity.xr.openxr": "1.8.2",
-    "com.unity.inputsystem": "1.5.1"
-  }
+  "session_id": "GUID",
+  "group_id": "control"
 }
 ```
 
-### Importación en otro proyecto Unity
+### B. Ejemplo simple de envío
 
-En el `manifest.json` del proyecto final añade:
+```csharp
+await LoggerService.LogEvent(
+    eventType: "interaction",
+    eventName: "button_press",
+    eventValue: 1,
+    eventContext: new {
+        object_name = "PlayButton",
+        pressed = true,
+        time = Time.time
+    }
+);
+```
 
-```json
-"dependencies": {
-  "com.github.lauribla.vr_logger": "https://github.com/lauribla/TFG_VR_Analysis.git?path=/vr_logger#main"
+### C. Ejemplo con sesión
+
+Usando `UserSessionManager.Instance` para añadir metadatos automáticamente:
+
+```csharp
+await UserSessionManager.Instance.LogEventWithSession(
+    eventType: "collision",
+    eventName: "bullet_hit",
+    eventValue: 1,
+    eventContext: new {
+        object_hit = collision.gameObject.name,
+        velocity = collision.relativeVelocity.magnitude
+    }
+);
+```
+
+### D. Ejemplo de logger automático (colisiones)
+
+```csharp
+void OnCollisionEnter(Collision collision)
+{
+    if (!LoggerService.IsInitialized)
+        LoggerService.Init("mongodb://localhost:27017", "test", "tfg", "U001");
+
+    var context = new {
+        this_object = gameObject.name,
+        other_object = collision.gameObject.name,
+        velocity = collision.relativeVelocity.magnitude
+    };
+
+    await LoggerService.LogEvent("collision", "collision_enter", 1, context);
 }
 ```
 
-⚠️ Unity descargará automáticamente las dependencias declaradas en `package.json`.
+---
 
-### DLLs de Mongo Db
+## 📈 5️⃣ Indicadores medibles (análisis automático)
 
-MongoDB no es un paquete oficial de Unity, por lo que se debe incluir el driver oficial de MongoDB para C# en el paquete:
+Los eventos registrados son analizados por el módulo Python (`python_analysis/vr_analysis.py`), que calcula automáticamente indicadores clave:
 
- * Descarga desde MongoDB .NET Driver.
+| Categoría        | Indicador                      | Fuente de datos (log)                         |
+| ---------------- | ------------------------------ | --------------------------------------------- |
+| **Efectividad**  | Porcentaje de aciertos         | `event_name`: `target_hit` vs `target_miss`   |
+| **Eficiencia**   | Tiempo medio de reacción       | Diferencia entre spawn y hit                  |
+| **Satisfacción** | Adaptación y confianza         | Frecuencia y tipo de errores (ej. retries)    |
+| **Presencia**    | Nivel de actividad / inmersión | Eventos de movimiento (`Trackers`) y latencia |
 
- * Copia al directorio vr_logger/Runtime/Plugins/ los siguientes DLLs:
+Para garantizar que tus logs alimentan correctamente el análisis, usa **nombres estándar de eventos**:
 
-     * MongoDB.Driver.dll
-
-     * MongoDB.Bson.dll
-
-     * MongoDB.Driver.Core.dll
-
-Unity los compilará junto a tus scripts y permitirán conectar directamente con MongoDB desde C#.
+```text
+- target_hit / target_miss
+- task_start / task_end
+- collision_enter / collision_exit
+- teleport / movement
+- gaze_focus / gaze_lost
+```
 
 ---
 
-## 🔧 Desarrollo en Python
+## 🧪 6️⃣ Prueba y validación
 
-### Añadir nuevos indicadores
+### A. Probar conexión con MongoDB
 
-* Editar `metrics.py` → añadir tu función de cálculo en `compute_all()`.
-* El valor aparecerá automáticamente en:
+En consola, verifica:
 
-  * `exporter.py` (JSON/CSV)
-  * `visualize_groups.py` (si añades gráfico)
-  * `pdf_reporter.py` (tabla + gráfico)
-  * `visual_dashboard.py` (dashboard web)
+```
+[LoggerService] Connected to MongoDB: test/tfg
+```
 
-### Añadir nuevos eventos personalizados
+Y revisa en **MongoDB Compass** que aparecen los documentos en la colección `tfg`.
 
-* Basta con añadir logs con `"event_type": "custom"` en Unity.
-* `metrics.py` los detecta y los pasa como `custom_events`.
-* `visualize_groups.py` y el dashboard web los grafican automáticamente.
+### B. Forzar prueba manual
 
----
+```csharp
+void Start()
+{
+    if (!LoggerService.IsInitialized)
+        LoggerService.Init("mongodb://localhost:27017", "test", "tfg", "U001");
 
-## 📄 Convenciones
-
-* **C# (Unity)**: cada tracker (gaze, movimiento, manos, pies) va en `Runtime/Trackers/`.
-* **Python**: todo sigue convención snake_case.
-* **Pruebas**: cada pipeline genera carpetas con timestamp (`exports_2025...`, `figures_2025...`).
+    LoggerService.LogEvent("test", "manual_log", 1, new { msg = "Test log OK" });
+}
+```
 
 ---
 
-## 🚀 Checklist para contribuir
+## 📊 7️⃣ Análisis de datos (Python)
 
-1. Clonar el repo.
-2. Instalar dependencias Python:
+1. Ejecuta el análisis completo:
 
    ```bash
-   pip install -r requirements.txt
+   python python_analysis/vr_analysis.py
    ```
-3. Tener MongoDB corriendo (`mongod`).
-4. Probar el pipeline:
+
+   Generará los resultados en `python_analysis/pruebas/exports_*/`.
+
+2. Para visualizar los indicadores:
 
    ```bash
-   python pruebas/test_pipeline_db.py
+   streamlit run python_visualization/visual_dashboard.py
    ```
-5. Si modificas el paquete Unity, revisa que el `package.json` esté actualizado.
-6. Si añades indicadores nuevos, actualiza el `DEVELOPER_GUIDE.md` y el `README.md`.
+
+3. El dashboard mostrará métricas por usuario y grupo en tiempo real.
 
 ---
 
-## ✨ Estado actual
+## 🛡️ 8️⃣ Buenas prácticas de desarrollo
 
-* VR Logger (Unity) funcional como paquete.
-* Python Analysis/Visualization integrado.
-* Exportación en JSON/CSV + gráficos + PDF + dashboard web.
-* Pipelines para pruebas unitarias y end-to-end.
+✅ Inicializa siempre el logger en `Awake()` o `Start()`.
+✅ Usa logs estructurados con objetos anónimos para el contexto.
+✅ No hagas `await` dentro de `Update()`; usa corrutinas o colas de envío.
+✅ Evita enviar logs excesivos por frame (controla frecuencia).
+✅ Usa nombres coherentes para eventos según las categorías oficiales.
+✅ Comprueba en consola que se conecta correctamente antes de analizar.
+
+---
+
+## 🧩 9️⃣ Extender el sistema
+
+Puedes crear nuevos tipos de loggers personalizados:
+
+```csharp
+using UnityEngine;
+using VRLogger;
+
+public class CustomEventLogger : MonoBehaviour
+{
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            var context = new { key = "Space", state = "pressed" };
+            LoggerService.LogEvent("input", "key_press", 1, context);
+        }
+    }
+}
+```
+
+Añade tus propios `event_type` y `event_name` según tus necesidades.
+
+---
+
+## 🧾 10️⃣ Resumen
+
+| Módulo             | Función principal                | Uso                     |
+| ------------------ | -------------------------------- | ----------------------- |
+| LoggerService      | Conexión MongoDB + envío de logs | `LogEvent()`            |
+| UserSessionManager | Control de sesión + helpers      | `LogEventWithSession()` |
+| CollisionLogger    | Captura colisiones               | Automático              |
+| RaycastLogger      | Captura raycasts (mirada)        | Automático              |
+| Trackers           | Captura movimiento físico        | Configurable            |
+
+---
+
+## 📚 Créditos
+
+**VR LOGGER – Módulo Unity para MongoDB Logging**
+Desarrollado dentro del proyecto *VR User Evaluation*.
+Tecnologías: Unity, MongoDB, C#, .NET 4.x.
+Autoría: Lauribla / Proyecto académico ETSIINF.
