@@ -161,8 +161,20 @@ class PDFReport:
                 for cat, metrics in res.items():
                     elements.append(Paragraph(cat.title(), styles["Heading3"]))
                     data = [["Métrica", "Valor"]]
-                    for key, value in metrics.items():
-                        data.append([key.replace("_", " ").title(), str(value)])
+                    # 🔹 Manejo seguro de métricas, incluso si hay listas o estructuras anidadas
+                    if isinstance(metrics, dict):
+                        for key, value in metrics.items():
+                            if isinstance(value, (list, dict)):
+                                # Convertir listas o dicts en texto legible (truncado si son largos)
+                                value = str(value)[:300] + ("..." if len(str(value)) > 300 else "")
+                            data.append([key.replace("_", " ").title(), str(value)])
+                    elif isinstance(metrics, list):
+                        # Si metrics es una lista (p. ej. 'learning_curve'), mostrar la longitud y primeros valores
+                        preview = str(metrics[:5]) + ("..." if len(metrics) > 5 else "")
+                        data.append(["Lista de valores", preview])
+                    else:
+                        # Si es un valor simple
+                        data.append(["Valor", str(metrics)])
 
                     table = Table(data, repeatRows=1, colWidths=[250, 150])
                     table.setStyle(TableStyle([
