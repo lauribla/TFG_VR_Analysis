@@ -72,7 +72,35 @@ namespace VRLogger
         { "user_id", _userId },
         { "event_type", eventType ?? "undefined" },
         { "event_name", eventName ?? "undefined" },
-        { "event_value", eventValue?.ToString() ?? "null" },
+        // Añadir event_value correctamente tipado
+if (eventValue != null)
+{
+    if (eventValue is string s)
+    {
+        logDoc.Add("event_value", s);
+    }
+    else
+    {
+        try
+        {
+            // Si es un objeto o estructura, lo convertimos a BSON válido
+            var valJson = Newtonsoft.Json.JsonConvert.SerializeObject(eventValue);
+            var valBson = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BsonValue>(valJson);
+            logDoc.Add("event_value", valBson);
+        }
+        catch
+        {
+            // En caso de error, lo guardamos como texto
+            logDoc.Add("event_value", eventValue.ToString());
+        }
+    }
+}
+else
+{
+    // Si no hay valor, guardamos un nulo real
+    logDoc.Add("event_value", BsonNull.Value);
+}
+
         { "save", save }
     };
 
