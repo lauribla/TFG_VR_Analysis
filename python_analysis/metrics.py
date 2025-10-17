@@ -12,6 +12,10 @@ class MetricsCalculator:
         if "timestamp" in self.df.columns:
             self.df["timestamp"] = pd.to_datetime(self.df["timestamp"], utc=True, errors="coerce")
 
+        # Normalizar campos críticos
+        self.df["user_id"] = self.df.get("user_id", "UNKNOWN").fillna("UNKNOWN")
+        self.df["group_id"] = self.df.get("group_id", "UNDEFINED").fillna("UNDEFINED")
+        self.df["session_id"] = self.df.get("session_id", "NO_SESSION").fillna("NO_SESSION")
 
         # Eventos que forman parte de la tabla oficial de indicadores
         self.official_events = {
@@ -20,136 +24,174 @@ class MetricsCalculator:
             "navigation_error", "collision", "controller_error", "wrong_button",
             "help_requested", "guide_used", "hint_used",
             "gaze_sustained", "gaze_target_change", "gaze_frame",
-            "movement_frame", "sharp_turn", "audio_triggered", "head_turn"
+            "movement_frame", "sharp_turn", "audio_triggered", "head_turn",
+            "session_start", "session_end"
         }
 
     # ============================================================
-    # EFECTIVIDAD
+    # --- EFECTIVIDAD ---
     # ============================================================
-    def hit_ratio(self):
-        hits = len(self.df[self.df["event_name"] == "target_hit"])
-        misses = len(self.df[self.df["event_name"] == "target_miss"])
+    def hit_ratio(self, df=None):
+        df = df or self.df
+        hits = len(df[df["event_name"] == "target_hit"])
+        misses = len(df[df["event_name"] == "target_miss"])
         total = hits + misses
-        return hits / total if total > 0 else None
+        return hits / total if total > 0 else np.nan
 
-    def precision(self):
-        hits = len(self.df[self.df["event_name"] == "target_hit"])
-        shots = len(self.df[self.df["event_name"].isin(["trigger_pull", "target_hit", "target_miss"])])
-        return hits / shots if shots > 0 else None
+    def precision(self, df=None):
+        df = df or self.df
+        hits = len(df[df["event_name"] == "target_hit"])
+        shots = len(df[df["event_name"].isin(["trigger_pull", "target_hit", "target_miss"])])
+        return hits / shots if shots > 0 else np.nan
 
-    def success_rate(self):
-        tasks = self.df[self.df["event_name"] == "task_end"]
+    def success_rate(self, df=None):
+        df = df or self.df
+        tasks = df[df["event_name"] == "task_end"]
         success = len(tasks[tasks["event_value"] == "success"])
-        return success / len(tasks) if len(tasks) > 0 else None
+        return success / len(tasks) if len(tasks) > 0 else np.nan
 
-    def learning_curve(self, block_size=5):
-        """Devuelve % aciertos por bloques de intentos"""
-        attempts = self.df[self.df["event_name"].isin(["target_hit", "target_miss"])]
+    def learning_curve(self, df=None, block_size=5):
+        df = df or self.df
+        attempts = df[df["event_name"].isin(["target_hit", "target_miss"])]
         results = []
         for i in range(0, len(attempts), block_size):
             block = attempts.iloc[i:i+block_size]
             hits = len(block[block["event_name"] == "target_hit"])
-            ratio = hits / len(block) if len(block) > 0 else None
+            ratio = hits / len(block) if len(block) > 0 else np.nan
             results.append(ratio)
         return results
 
-    def progression(self):
-        """Número de tareas completadas con éxito"""
-        return len(self.df[(self.df["event_name"] == "task_end") & (self.df["event_value"] == "success")])
+    def progression(self, df=None):
+        df = df or self.df
+        return len(df[(df["event_name"] == "task_end") & (df["event_value"] == "success")])
 
     # ============================================================
-    # EFICIENCIA
+    # --- EFICIENCIA ---
     # ============================================================
-    def avg_reaction_time(self):
-        if "reaction_time_ms" in self.df.columns:
-            return self.df["reaction_time_ms"].dropna().mean()
-        return None
+    def avg_reaction_time(self, df=None):
+        df = df or self.df
+        if "reaction_time_ms" in df.columns:
+            return df["reaction_time_ms"].dropna().mean()
+        return np.nan
 
-    def avg_task_duration(self):
-        tasks = self.df[self.df["event_name"] == "task_end"]
+    def avg_task_duration(self, df=None):
+        df = df or self.df
+        tasks = df[df["event_name"] == "task_end"]
         if "duration_ms" in tasks.columns:
             return tasks["duration_ms"].dropna().mean()
-        return None
+        return np.nan
 
-    def time_per_success(self):
-        hits = self.df[self.df["event_name"] == "target_hit"]
-        tasks = self.df[self.df["event_name"] == "task_end"]
+    def time_per_success(self, df=None):
+        df = df or self.df
+        hits = df[df["event_name"] == "target_hit"]
+        tasks = df[df["event_name"] == "task_end"]
         if not tasks.empty and not hits.empty:
             total_time = (tasks["timestamp"].max() - tasks["timestamp"].min()).total_seconds()
-            return total_time / len(hits) if len(hits) > 0 else None
-        return None
+            return total_time / len(hits) if len(hits) > 0 else np.nan
+        return np.nan
 
-    def navigation_errors(self):
-        return len(self.df[self.df["event_name"].isin(["navigation_error", "collision"])])
+    def navigation_errors(self, df=None):
+        df = df or self.df
+        return len(df[df["event_name"].isin(["navigation_error", "collision"])])
 
-    def aim_errors(self):
-        """Nº intentos por objetivo"""
-        attempts = self.df[self.df["event_name"].isin(["target_hit", "target_miss"])]
+    def aim_errors(self, df=None):
+        df = df or self.df
+        attempts = df[df["event_name"].isin(["target_hit", "target_miss"])]
         return len(attempts)
 
     # ============================================================
-    # SATISFACCIÓN (indicadores indirectos)
+    # --- SATISFACCIÓN ---
     # ============================================================
-    def retries_after_end(self):
-        return len(self.df[self.df["event_name"] == "task_restart"])
+    def retries_after_end(self, df=None):
+        df = df or self.df
+        return len(df[df["event_name"] == "task_restart"])
 
-    def voluntary_play_time(self):
-        session_end = self.df[self.df["event_name"] == "session_end"]["timestamp"].min()
-        task_end = self.df[self.df["event_name"] == "task_end"]["timestamp"].max()
+    def voluntary_play_time(self, df=None):
+        df = df or self.df
+        session_end = df[df["event_name"] == "session_end"]["timestamp"].min()
+        task_end = df[df["event_name"] == "task_end"]["timestamp"].max()
         if pd.notna(session_end) and pd.notna(task_end):
             return (session_end - task_end).total_seconds()
-        return None
+        return np.nan
 
-    def aid_usage(self):
-        return len(self.df[self.df["event_name"].isin(["help_requested", "guide_used", "hint_used"])])
+    def aid_usage(self, df=None):
+        df = df or self.df
+        return len(df[df["event_name"].isin(["help_requested", "guide_used", "hint_used"])])
 
-    def interface_errors(self):
-        return len(self.df[self.df["event_name"].isin(["controller_error", "wrong_button"])])
+    def interface_errors(self, df=None):
+        df = df or self.df
+        return len(df[df["event_name"].isin(["controller_error", "wrong_button"])])
 
     # ============================================================
-    # PRESENCIA
+    # --- PRESENCIA ---
     # ============================================================
-    def inactivity_time(self, threshold=5):
-        ts = self.df["timestamp"].sort_values()
+    def inactivity_time(self, df=None, threshold=5):
+        df = df or self.df
+        ts = df["timestamp"].sort_values()
         diffs = ts.diff().dt.total_seconds()
         return diffs[diffs > threshold].sum()
 
-    def first_success_time(self):
-        session_start = self.df[self.df["event_name"] == "session_start"]["timestamp"].min()
-        first_hit = self.df[self.df["event_name"] == "target_hit"]["timestamp"].min()
+    def first_success_time(self, df=None):
+        df = df or self.df
+        session_start = df[df["event_name"] == "session_start"]["timestamp"].min()
+        first_hit = df[df["event_name"] == "target_hit"]["timestamp"].min()
         if pd.notna(session_start) and pd.notna(first_hit):
             return (first_hit - session_start).total_seconds()
-        return None
+        return np.nan
 
-    def sound_localization_time(self):
-        audio = self.df[self.df["event_name"] == "audio_triggered"]["timestamp"].min()
-        head_turn = self.df[self.df["event_name"] == "head_turn"]["timestamp"].min()
+    def sound_localization_time(self, df=None):
+        df = df or self.df
+        audio = df[df["event_name"] == "audio_triggered"]["timestamp"].min()
+        head_turn = df[df["event_name"] == "head_turn"]["timestamp"].min()
         if pd.notna(audio) and pd.notna(head_turn):
             return (head_turn - audio).total_seconds()
-        return None
+        return np.nan
 
-    def activity_level(self):
-        """Actividad dentro del entorno (acciones por minuto)"""
-        if "timestamp" in self.df.columns:
-            total_time = (self.df["timestamp"].max() - self.df["timestamp"].min()).total_seconds() / 60
-            return len(self.df) / total_time if total_time > 0 else None
-        return None
+    def activity_level(self, df=None):
+        df = df or self.df
+        if "timestamp" in df.columns:
+            total_time = (df["timestamp"].max() - df["timestamp"].min()).total_seconds() / 60
+            return len(df) / total_time if total_time > 0 else np.nan
+        return np.nan
 
     # ============================================================
-    # CUSTOM EVENTS
+    # --- CUSTOM EVENTS ---
     # ============================================================
-    def custom_events_summary(self):
-        """
-        Devuelve un resumen de todos los eventos que no están en la lista oficial.
-        Ejemplo: {'hand_gesture': 12, 'special_power': 5}
-        """
-        custom = self.df[~self.df["event_name"].isin(self.official_events)]
+    def custom_events_summary(self, df=None):
+        df = df or self.df
+        custom = df[~df["event_name"].isin(self.official_events)]
         if custom.empty:
             return {}
         return custom["event_name"].value_counts().to_dict()
 
     # ============================================================
-    # AGREGADO GENERAL
+    # --- AGREGADOS MULTIUSUARIO / MULTISESIÓN ---
+    # ============================================================
+    def compute_grouped_metrics(self):
+        """
+        Devuelve un DataFrame con métricas calculadas por usuario y sesión.
+        """
+        grouped_results = []
+
+        for (user, group, session), subdf in self.df.groupby(["user_id", "group_id", "session_id"]):
+            calc = {
+                "user_id": user,
+                "group_id": group,
+                "session_id": session,
+                "hit_ratio": self.hit_ratio(subdf),
+                "precision": self.precision(subdf),
+                "success_rate": self.success_rate(subdf),
+                "avg_reaction_time_ms": self.avg_reaction_time(subdf),
+                "avg_task_duration_ms": self.avg_task_duration(subdf),
+                "navigation_errors": self.navigation_errors(subdf),
+                "activity_level": self.activity_level(subdf)
+            }
+            grouped_results.append(calc)
+
+        return pd.DataFrame(grouped_results)
+
+    # ============================================================
+    # --- AGREGADO GENERAL (individual o global) ---
     # ============================================================
     def compute_all(self):
         return {
@@ -179,5 +221,6 @@ class MetricsCalculator:
                 "sound_localization_time_s": self.sound_localization_time(),
                 "activity_level_per_min": self.activity_level(),
             },
-            "custom_events": self.custom_events_summary()
+            "custom_events": self.custom_events_summary(),
+            "agrupado_por_usuario_y_sesion": self.compute_grouped_metrics().to_dict(orient="records")
         }

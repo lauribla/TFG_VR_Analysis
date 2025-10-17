@@ -24,7 +24,7 @@ from pathlib import Path
 # 1️⃣ Conectar con tu base de datos real
 # ============================================================
 DB_NAME = "test"          # Cambia a "vr_experiment" si usas la base definitiva
-COLLECTION_NAME = "tfg"   # Debe coincidir con la colección de Unity
+COLLECTION_NAME = "tfg"   # Debe coincidir con la colección usada por Unity
 MONGO_URI = "mongodb://localhost:27017"
 
 # Crear parser y leer los logs desde MongoDB
@@ -38,20 +38,36 @@ if df.empty:
     print("⚠️  No se encontraron logs en la base de datos. Asegúrate de que Unity ha enviado datos.")
     exit()
 
-print(f"✅ {len(df)} documentos cargados correctamente desde MongoDB.")
+print(f"✅ {len(df)} documentos cargados correctamente desde MongoDB.\n")
 
 # ============================================================
-# 2️⃣ Calcular métricas de usuario y grupo
+# 2️⃣ Resumen inicial de sesiones y usuarios
+# ============================================================
+print("👥 Resumen de usuarios y sesiones detectadas:\n")
+
+usuarios = df["user_id"].nunique()
+grupos = df["group_id"].nunique()
+sesiones = df["session_id"].nunique()
+
+print(f"  • Usuarios únicos: {usuarios}")
+print(f"  • Grupos experimentales: {grupos}")
+print(f"  • Sesiones registradas: {sesiones}\n")
+
+print("📄 Detalle de sesiones:")
+print(df[["user_id", "group_id", "session_id"]].drop_duplicates().to_string(index=False))
+
+# ============================================================
+# 3️⃣ Calcular métricas de usuario y grupo
 # ============================================================
 print("\n📊 Calculando métricas (eficiencia, efectividad, satisfacción)...")
 metrics = MetricsCalculator(df)
 results = metrics.compute_all()
 
-print("\n=== Resultados ===")
+print("\n=== Resultados globales ===")
 print(json.dumps(results, indent=4))
 
 # ============================================================
-# 3️⃣ Crear estructura de carpetas con timestamp
+# 4️⃣ Crear estructura de carpetas con timestamp
 # ============================================================
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -67,12 +83,19 @@ print(f"  - Exportaciones: {export_dir}")
 print(f"  - Figuras: {figures_dir}")
 
 # ============================================================
-# 4️⃣ Exportar resultados a JSON y CSV
+# 5️⃣ Exportar resultados a JSON y CSV
 # ============================================================
 print("\n💾 Exportando resultados...")
+
+# Exportador global
 exporter = MetricsExporter(results, output_dir=export_dir)
 exporter.to_json("results.json")
 exporter.to_csv("results.csv")
+
+# Exportar métricas agrupadas por usuario y sesión
+grouped_df = metrics.compute_grouped_metrics()
+grouped_path = export_dir / "grouped_metrics.csv"
+grouped_df.to_csv(grouped_path, index=False)
 
 MetricsExporter.export_multiple(
     [results],
@@ -83,9 +106,10 @@ MetricsExporter.export_multiple(
 )
 
 print(f"✅ Resultados exportados correctamente en {export_dir}")
+print(f"✅ Resultados detallados por usuario/sesión guardados en {grouped_path}")
 
 # ============================================================
-# 5️⃣ Generar visualizaciones
+# 6️⃣ Generar visualizaciones
 # ============================================================
 print("\n📈 Generando gráficas...")
 viz = Visualizer(str(export_dir / "group_results.json"), output_dir=figures_dir)
@@ -93,7 +117,7 @@ viz.generate_all()
 print(f"✅ Figuras generadas en {figures_dir}")
 
 # ============================================================
-# 6️⃣ Generar informe PDF final
+# 7️⃣ Generar informe PDF final
 # ============================================================
 print("\n📄 Creando informe PDF final...")
 report = PDFReport(
