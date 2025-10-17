@@ -108,23 +108,82 @@ MetricsExporter.export_multiple(
 print(f"✅ Resultados exportados correctamente en {export_dir}")
 print(f"✅ Resultados detallados por usuario/sesión guardados en {grouped_path}")
 
+#SI NO SE DESACTIVA EL MODO AGRUPADO, POR DEFECTO SE VERÁ ESTE EN EL PDF (en el dashboard se podrá elegir el modo)
+# ============================================================
+# CONFIGURACIÓN DE MODOS
+# ============================================================
+GENERAR_GLOBAL = True          # ⬅️ Cambia a False para omitir el modo global
+GENERAR_AGRUPADO = True        # ⬅️ Cambia a False para omitir el modo agrupado
+
 # ============================================================
 # 6️⃣ Generar visualizaciones
 # ============================================================
+from python_visualization.visualize_groups import Visualizer
+
 print("\n📈 Generando gráficas...")
-viz = Visualizer(str(export_dir / "group_results.json"), output_dir=figures_dir)
-viz.generate_all()
-print(f"✅ Figuras generadas en {figures_dir}")
+
+group_results_path = export_dir / "group_results.json"
+grouped_metrics_path = export_dir / "grouped_metrics.csv"
+
+generated_figures = 0
+
+# --- FIGURAS GLOBALES ---
+if GENERAR_GLOBAL and group_results_path.exists():
+    print(f"[vr_analysis] 🔍 Generando figuras globales desde {group_results_path.name}")
+    global_dir = figures_dir / "global"
+    viz_global = Visualizer(str(group_results_path), output_dir=global_dir)
+    viz_global.generate_all()
+    generated_figures += len(list(global_dir.glob("*.png")))
+elif GENERAR_GLOBAL:
+    print("[vr_analysis] ⚠️ No se encontró group_results.json, se omiten las gráficas globales.")
+else:
+    print("[vr_analysis] ⏩ Modo global desactivado por el usuario.")
+
+# --- FIGURAS AGRUPADAS ---
+if GENERAR_AGRUPADO and grouped_metrics_path.exists():
+    print(f"[vr_analysis] 🔍 Generando figuras agrupadas desde {grouped_metrics_path.name}")
+    grouped_dir = figures_dir / "agrupado"
+    viz_grouped = Visualizer(str(grouped_metrics_path), output_dir=grouped_dir)
+    viz_grouped.generate_all()
+    generated_figures += len(list(grouped_dir.glob("*.png")))
+elif GENERAR_AGRUPADO:
+    print("[vr_analysis] ⚠️ No se encontró grouped_metrics.csv, se omiten las gráficas agrupadas.")
+else:
+    print("[vr_analysis] ⏩ Modo agrupado desactivado por el usuario.")
+
+if generated_figures > 0:
+    print(f"✅ {generated_figures} figuras generadas en total dentro de {figures_dir}")
+else:
+    print("⚠️ No se generaron figuras. Verifica que los resultados contengan métricas numéricas.")
 
 # ============================================================
-# 7️⃣ Generar informe PDF final
+# 7️⃣ Generar informes PDF
 # ============================================================
+from python_visualization.pdf_reporter import PDFReport
+
 print("\n📄 Creando informe PDF final...")
-report = PDFReport(
-    results_file=str(export_dir / "group_results.json"),
-    figures_dir=figures_dir
-)
-report.generate()
-print(f"✅ Informe PDF generado en {report.output_file}")
 
+# PDF global
+if GENERAR_GLOBAL and group_results_path.exists():
+    report_global = PDFReport(
+        results_file=str(group_results_path),
+        figures_dir=figures_dir / "global",
+        base_dir=base_dir
+    )
+    report_global.generate()
+elif GENERAR_GLOBAL:
+    print("[vr_analysis] ⚠️ No se generó PDF global (no hay archivo JSON).")
+
+# PDF agrupado
+if GENERAR_AGRUPADO and grouped_metrics_path.exists():
+    report_grouped = PDFReport(
+        results_file=str(grouped_metrics_path),
+        figures_dir=figures_dir / "agrupado",
+        base_dir=base_dir
+    )
+    report_grouped.generate()
+elif GENERAR_AGRUPADO:
+    print("[vr_analysis] ⚠️ No se generó PDF agrupado (no hay archivo CSV).")
+
+print(f"✅ Informes PDF generados en {base_dir}")
 print("\n🎉 Análisis completo terminado con éxito. Revisa las carpetas generadas.")

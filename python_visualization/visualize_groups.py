@@ -1,22 +1,25 @@
 import json
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # backend no interactivo para evitar errores en servidores/headless
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
+
 
 class Visualizer:
     X_LABEL = "Grupo / Usuario"
 
     def __init__(self, input_file, output_dir="figures"):
         """
-        input_file: archivo JSON o CSV exportado por MetricsExporter (global o agrupado)
+        input_file: archivo JSON o CSV exportado por MetricsExporter
         output_dir: carpeta donde guardar los gráficos
         """
         self.input_file = Path(input_file)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # --- Detectar y cargar el tipo de archivo ---
+        # --- Cargar archivo ---
         if input_file.endswith(".json"):
             with open(input_file, "r", encoding="utf-8") as f:
                 self.results = json.load(f)
@@ -26,14 +29,13 @@ class Visualizer:
         else:
             raise ValueError("Formato de archivo no soportado (usa .json o .csv)")
 
-        # --- Detectar automáticamente columnas de agrupación ---
+        # --- Detectar modo ---
         self.mode = self._detect_mode()
-
         print(f"[Visualizer] ✅ Datos cargados desde {input_file}")
         print(f"[Visualizer] Modo detectado: {self.mode}")
 
     # ============================================================
-    # UTILIDADES INTERNAS
+    # UTILIDADES
     # ============================================================
     def _json_to_dataframe(self, results):
         """Convierte resultados JSON jerárquicos en DataFrame plano"""
@@ -49,86 +51,106 @@ class Visualizer:
 
     def _detect_mode(self):
         """Determina si los datos provienen del bloque global o agrupado"""
-        cols = self.df.columns
+        cols = set(self.df.columns)
         if {"user_id", "group_id", "session_id"}.issubset(cols):
-            return "agrupado"  # DataFrame de MetricsCalculator.compute_grouped_metrics()
+            return "agrupado"
         return "global"
 
     def _get_x_col(self):
-        """Devuelve la columna que se usará como eje X según el tipo de datos"""
+        """Devuelve la columna más adecuada para el eje X"""
         if self.mode == "agrupado":
             if "group_id" in self.df.columns:
                 return "group_id"
             elif "user_id" in self.df.columns:
                 return "user_id"
-        return "id"  # caso global
+        return "id"
+
+    def _find_col(self, *candidates):
+        """Busca la primera columna existente en el DataFrame"""
+        for c in candidates:
+            if c in self.df.columns:
+                return c
+        return None
 
     # ============================================================
-    # VISUALIZACIONES DE INDICADORES OFICIALES
+    # FUNCIÓN GENÉRICA DE GRAFICADO
     # ============================================================
-    def plot_hit_ratio(self):
-        plt.figure(figsize=(8, 5))
-        x_col = self._get_x_col()
-        sns.barplot(data=self.df, x=x_col, y="hit_ratio", hue=x_col,
-                    palette="Blues_d", legend=False)
-        plt.title("Efectividad: Ratio de aciertos")
-        plt.xlabel(self.X_LABEL)
-        plt.ylabel("Hit Ratio")
-        plt.ylim(0, 1)
-        plt.tight_layout()
-        plt.savefig(self.output_dir / "hit_ratio.png")
-        plt.close()
+    def _plot_metric(self, y_candidates, title, ylabel, palette="Blues_d", ylim=None):
+        y_col = self._find_col(*y_candidates)
+        if y_col is None:
+            print(f"[Visualizer] ⚠️ Métrica no encontrada: {y_candidates}")
+            return
 
-    def plot_reaction_time(self):
-        plt.figure(figsize=(8, 5))
         x_col = self._get_x_col()
-        y_col = "avg_reaction_time_ms" if self.mode == "agrupado" else "eficiencia_avg_reaction_time_ms"
-        sns.barplot(data=self.df, x=x_col, y=y_col, hue=x_col,
-                    palette="Greens_d", legend=False)
-        plt.title("Eficiencia: Tiempo medio de reacción")
-        plt.xlabel(self.X_LABEL)
-        plt.ylabel("Tiempo medio (ms)")
-        plt.tight_layout()
-        plt.savefig(self.output_dir / "reaction_time.png")
-        plt.close()
+        if x_col not in self.df.columns:
+            print(f"[Visualizer] ⚠️ No se encontró columna de eje X ({x_col}).")
+            return
 
-    def plot_task_success(self):
         plt.figure(figsize=(8, 5))
-        x_col = self._get_x_col()
-        y_col = "success_rate" if self.mode == "agrupado" else "efectividad_success_rate"
-        sns.barplot(data=self.df, x=x_col, y=y_col, hue=x_col,
-                    palette="Purples_d", legend=False)
-        plt.title("Efectividad: Porcentaje de tareas completadas")
+        sns.barplot(data=self.df, x=x_col, y=y_col, hue=x_col, palette=palette, legend=False)
+        plt.title(title)
         plt.xlabel(self.X_LABEL)
-        plt.ylabel("Success Rate")
-        plt.ylim(0, 1)
+        plt.ylabel(ylabel)
+        if ylim:
+            plt.ylim(ylim)
         plt.tight_layout()
-        plt.savefig(self.output_dir / "success_rate.png")
-        plt.close()
 
-    def plot_activity_level(self):
-        plt.figure(figsize=(8, 5))
-        x_col = self._get_x_col()
-        y_col = "activity_level" if self.mode == "agrupado" else "presencia_activity_level_per_min"
-        sns.barplot(data=self.df, x=x_col, y=y_col, hue=x_col,
-                    palette="Oranges_d", legend=False)
-        plt.title("Presencia: Nivel de actividad en el entorno")
-        plt.xlabel(self.X_LABEL)
-        plt.ylabel("Eventos por minuto")
-        plt.tight_layout()
-        plt.savefig(self.output_dir / "activity_level.png")
+        safe_name = y_col.replace("/", "_").replace("\\", "_").replace(" ", "_")
+        filepath = self.output_dir / f"{safe_name}.png"
+        plt.savefig(filepath)
         plt.close()
+        print(f"[Visualizer] ✅ Figura generada: {filepath.name}")
 
     # ============================================================
-    # VISUALIZACIÓN DE CUSTOM EVENTS
+    # GRÁFICAS ESTÁNDAR
     # ============================================================
-    def plot_custom_events(self):
-        """
-        Genera un gráfico de barras apiladas con la frecuencia de custom events por grupo/usuario.
-        """
+    def generate_standard_figures(self):
+        """Genera los gráficos de los indicadores más comunes, si existen"""
+        self._plot_metric(
+            ["hit_ratio", "efectividad_hit_ratio"],
+            "Efectividad: Ratio de aciertos",
+            "Hit Ratio",
+            palette="Blues_d",
+            ylim=(0, 1)
+        )
+
+        self._plot_metric(
+            ["success_rate", "efectividad_success_rate"],
+            "Efectividad: Porcentaje de tareas completadas",
+            "Success Rate",
+            palette="Purples_d",
+            ylim=(0, 1)
+        )
+
+        self._plot_metric(
+            ["avg_reaction_time_ms", "eficiencia_avg_reaction_time_ms"],
+            "Eficiencia: Tiempo medio de reacción",
+            "Tiempo medio (ms)",
+            palette="Greens_d"
+        )
+
+        self._plot_metric(
+            ["avg_task_duration_ms", "eficiencia_avg_task_duration_ms"],
+            "Eficiencia: Duración media de tarea",
+            "Duración (ms)",
+            palette="Greens_d"
+        )
+
+        self._plot_metric(
+            ["activity_level", "presencia_activity_level_per_min"],
+            "Presencia: Nivel de actividad en el entorno",
+            "Eventos por minuto",
+            palette="Oranges_d"
+        )
+
+    # ============================================================
+    # CUSTOM EVENTS DINÁMICOS
+    # ============================================================
+    def generate_custom_events(self):
+        """Genera gráficos de todos los eventos personalizados presentes"""
         custom_cols = [c for c in self.df.columns if c.startswith("custom_events_")]
         if not custom_cols:
-            print("[Visualizer] No hay eventos personalizados en los datos.")
+            print("[Visualizer] ℹ️ No hay eventos personalizados en los datos.")
             return
 
         id_col = self._get_x_col()
@@ -143,22 +165,19 @@ class Visualizer:
         plt.ylabel("Frecuencia")
         plt.legend(title="Evento personalizado", bbox_to_anchor=(1.05, 1), loc="upper left")
         plt.tight_layout()
-        plt.savefig(self.output_dir / "custom_events.png", bbox_inches="tight")
+        filepath = self.output_dir / "custom_events.png"
+        plt.savefig(filepath, bbox_inches="tight")
         plt.close()
+        print(f"[Visualizer] ✅ Figura generada: {filepath.name}")
 
     # ============================================================
     # EJECUCIÓN COMPLETA
     # ============================================================
     def generate_all(self):
-        """
-        Genera todos los gráficos estándar.
-        """
+        """Genera todas las figuras posibles basándose en las columnas detectadas"""
         try:
-            self.plot_hit_ratio()
-            self.plot_reaction_time()
-            self.plot_task_success()
-            self.plot_activity_level()
-            self.plot_custom_events()
+            self.generate_standard_figures()
+            self.generate_custom_events()
             print(f"[Visualizer] ✅ Todas las figuras generadas en {self.output_dir}")
         except Exception as e:
             print(f"[Visualizer] ⚠️ Error al generar figuras: {e}")
