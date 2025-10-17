@@ -1,15 +1,15 @@
-# 🧠 VR USER EVALUATION – README COMPLETO (MongoDB + Unity + Python)
+# 🧠 VR USER EVALUATION – README ACTUALIZADO (Mapeo Semántico + Modos Global/Agrupado)
 
 ## 📘 Descripción general
 
-Sistema completo para **monitorizar el comportamiento del usuario en entornos VR**, almacenar los eventos en **MongoDB**, y **analizarlos/visualizarlos** con Python (métricas + PDF + dashboard web).
+Sistema modular para **monitorizar, almacenar y analizar el comportamiento de usuarios en entornos VR**, combinando **Unity + MongoDB + Python**.
 
 Incluye:
 
-* SDK de **logging para Unity** (eventos, sesión, trackers).
-* **Almacenamiento en MongoDB** (local o remoto).
-* **Pipeline de análisis** (métricas: efectividad, eficiencia, satisfacción, presencia).
-* **Informe PDF** y **dashboard web interactivo** (Streamlit/Plotly).
+* SDK de **logging universal para Unity** (eventos, sesiones, trackers, roles semánticos).
+* **Base de datos MongoDB** (local o remota) para registro estructurado.
+* **Pipeline de análisis automático** en Python (efectividad, eficiencia, satisfacción, presencia, custom events).
+* **Informes PDF** y **dashboard interactivo** (Streamlit/Plotly).
 
 ---
 
@@ -18,289 +18,202 @@ Incluye:
 ```
 TFG_VR_Analysis/
 │
-├─ pruebas/                             # Scripts de prueba / orquestación
-│  ├─ test_pipeline.py
-│  └─ test_pipeline_db.py
+├─ python_analysis/                     # Análisis y métricas
+│  ├─ metrics.py                        # Cálculo de indicadores + mapeo de eventos
+│  ├─ log_parser.py                     # Lectura de logs desde MongoDB
+│  ├─ exporter.py                       # Exportación JSON/CSV
+│  ├─ vr_analysis.py                    # Orquestador principal
+│  └─ __init__.py
 │
-├─ python_analysis/                     # Núcleo de análisis de datos
-│  ├─ __init__.py
-│  ├─ exporter.py
-│  ├─ log_parser.py
-│  ├─ metrics.py
-│  └─ vr_analysis.py                    # 🔹 Script principal del pipeline
-│  
-├─ python_visualization/                # Visualización / informes
-│  ├─ __init__.py
-│  ├─ pdf_reporter.py                   # Generador de informe PDF
-│  ├─ visual_dashboard.py               # 🔹 Dashboard web (Streamlit)
-│  └─ visualize_groups.py               # Utilidades de gráficos
+├─ python_visualization/                # Visualización e informes
+│  ├─ visualize_groups.py               # Gráficas automáticas
+│  ├─ visual_dashboard.py               # Dashboard Streamlit
+│  ├─ pdf_reporter.py                   # Informe PDF (global + agrupado)
+│  └─ __init__.py
 │
-├─ vr_logger/                           # Paquete Unity (runtime)
-│  ├─ README.md
-│  ├─ package.json
-│  └─ Runtime/
-│     ├─ Logs/
-│     │  ├─ CollisionLogger.cs
-│     │  ├─ LogAPI.cs
-│     │  ├─ LogEventModel.cs
-│     │  ├─ LoggerService.cs           # Comunicación con MongoDB
-│     │  ├─ MongoLogger.cs
-│     │  ├─ RaycastLogger.cs
-│     │  └─ UserSessionLogger.cs
-│     ├─ Manager/
-│     │  ├─ UserSessionManager.cs      # Gestión de usuario/sesión y helper de logs
-│     │  └─ VRTrackingManager.cs
-│     └─ Trackers/
-│        ├─ FootTracker.cs
-│        ├─ GazeTracker.cs
-│        ├─ HandTracker.cs
-│        └─ MovementTracker.cs
+├─ vr_logger/                           # SDK Unity (logging runtime)
+│  ├─ Runtime/
+│  │              
+│  │  ├─ Manager/          
+│  │  ├─ Trackers/                      # Gaze, Hand, Movement, Foot trackers
+│  │  └─ Logs/                          # Loggers específicos (collision, raycast...)
+│  └─ README.md                         # Manual Unity SDK
 │
-├─ DLLS_MONGO_Unity.zip                 # 🔹 Librerías .dll necesarias para Unity
-├─ requirements.txt                     # 🔹 Dependencias Python
-├─ VR_Analysis.sln
+├─ requirements.txt                     # Dependencias Python
+├─ DLLS_MONGO_Unity.zip                 # Librerías MongoDB para Unity
 └─ README.md (este archivo)
 ```
 
-> 📦 **Exportaciones y figuras** se crean automáticamente en:
+> 📦 Exportaciones automáticas: `python_analysis/pruebas/exports_YYYYMMDD_HHMMSS/`
 >
-> `python_analysis/pruebas/exports_YYYYMMDD_HHMMSS/`
->
-> `python_analysis/pruebas/figures_YYYYMMDD_HHMMSS/`
+> Figuras y PDF: `python_analysis/pruebas/figures_YYYYMMDD_HHMMSS/`
 
 ---
 
-## ⚙️ Requisitos
+## ⚙️ Novedades principales
 
-### Unity
+### 🔗 Sistema de Mapeo Semántico de Eventos (`event_role`)
 
-* Unity 2021.3+ (scripting runtime .NET 4.x).
-* Copia las DLL a `Assets/Plugins/` (vienen en `DLLS_MONGO_Unity.zip`):
+Para garantizar compatibilidad entre distintos tipos de experimentos (disparos, parkour, manipulación de objetos, etc.), el sistema introduce **roles de evento estandarizados**.
 
-  * `MongoDB.Driver.dll`
-  * `MongoDB.Driver.Core.dll`
-  * `MongoDB.Bson.dll`
-  * `DnsClient.dll`
-  * `System.Buffers.dll`
+Cada evento puede etiquetarse con un rol genérico, independientemente de su nombre:
 
-### MongoDB
+| Rol semántico (`event_role`) | Ejemplos detectados automáticamente           |
+| ---------------------------- | --------------------------------------------- |
+| `action_success`             | `target_hit`, `goal_reached`, `object_placed` |
+| `action_fail`                | `target_miss`, `fall_detected`, `drop_error`  |
+| `task_start`                 | `task_start`, `mission_begin`                 |
+| `task_end`                   | `task_end`, `mission_complete`                |
+| `navigation_error`           | `collision`, `path_error`                     |
+| `interaction_help`           | `help_requested`, `hint_used`, `guide_used`   |
 
-* Instancia local (por defecto): `mongodb://localhost:27017`
-* BD y colección por defecto (configurables):
+Esto permite calcular indicadores (efectividad, eficiencia, etc.) **sin depender de nombres concretos**.
+El mapeo se gestiona automáticamente en `metrics.py`, pero también puede ampliarse manualmente según el dominio del experimento.
 
-  * **DB:** `test`
-  * **Collection:** `tfg`
+---
 
-### Python
+### 🔄 Modos de Análisis: *Global* y *Agrupado*
 
-* Python 3.10+.
-* Instala dependencias:
+El pipeline Python ahora permite dos modos complementarios:
 
-```bash
-pip install -r requirements.txt
+| Modo         | Descripción                                                                                                                   | Salida                                   |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| **Global**   | Agrega todas las sesiones y usuarios. Ideal para comparar condiciones experimentales o grupos.                                | `group_results.json`, `final_report.pdf` |
+| **Agrupado** | Calcula todas las métricas por `user_id`, `group_id` y `session_id`. Permite ver el rendimiento individual y la variabilidad. | `grouped_metrics.csv`, `PDF agrupado`    |
+
+Los modos pueden activarse/desactivarse desde `vr_analysis.py`:
+
+```python
+GENERAR_GLOBAL = True
+GENERAR_AGRUPADO = True
 ```
 
-Dependencias principales: `pymongo`, `pandas`, `numpy`, `matplotlib`, `plotly`, `reportlab`, `streamlit`.
+Ambos se generan en carpetas separadas dentro de `python_analysis/pruebas/figures_*`.
+
+El dashboard y el PDF reconocen automáticamente el modo al cargar los datos.
 
 ---
 
-## 🚀 Guía rápida (de 0 a resultados)
+## 🚀 Flujo completo de uso
 
-1. **Ejecuta tu escena Unity** → los eventos se guardan en MongoDB (`test.tfg`).
-2. **Analiza** con:
+1. **Unity (VR Logger)**
+
+   * Envía eventos a MongoDB con `LoggerService.LogEvent()`.
+   * `UserSessionManager` agrega automáticamente `user_id`, `group_id`, `session_id`.
+
+2. **MongoDB**
+
+   * Recibe y almacena eventos en JSON estructurado.
+
+3. **Python Analysis**
+
+   * `log_parser.py` convierte los eventos en un `DataFrame`.
+   * `metrics.py` calcula todas las métricas oficiales y personalizadas.
+
+4. **Resultados automáticos**
+
+   * Exportación de resultados globales y agrupados.
+   * Generación de gráficas y PDF final.
+
+5. **Dashboard interactivo**
+
+   * Permite filtrar por usuario, grupo o sesión.
+   * Visualiza indicadores agrupados o globales.
+
+---
+
+## 📊 Indicadores calculados
+
+El sistema genera automáticamente indicadores de las cuatro categorías principales:
+
+| Categoría        | Ejemplos de indicadores                                                                            |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| **Efectividad**  | `hit_ratio`, `precision`, `success_rate`, `progression`, `learning_curve_mean`                     |
+| **Eficiencia**   | `avg_reaction_time_ms`, `avg_task_duration_ms`, `time_per_success_s`, `navigation_errors`          |
+| **Satisfacción** | `aid_usage`, `interface_errors`, `retries_after_end`, `learning_stability`                         |
+| **Presencia**    | `activity_level_per_min`, `first_success_time_s`, `inactivity_time_s`, `sound_localization_time_s` |
+
+Además, se generan **eventos personalizados** detectados automáticamente (“custom_events”),
+y pueden incorporarse nuevos roles de evento en el mapeo para expandir el sistema a diferentes tareas experimentales.
+
+---
+
+## 📊 Ejecución rápida
 
 ```bash
+# 1. Recoger datos desde Unity (ya almacenados en MongoDB)
 python python_analysis/vr_analysis.py
-```
 
-3. **Mira el PDF** en `python_analysis/pruebas/exports_*/final_report.pdf`.
-4. **Abre el dashboard web**:
-
-```bash
+# 2. Ver resultados globales / agrupados
 streamlit run python_visualization/visual_dashboard.py
 ```
 
+Genera:
+
+* `results.json` / `results.csv`
+* `grouped_metrics.csv`
+* `group_results.json`
+* `figures_*/`
+* `final_report.pdf`
+
 ---
 
-## 🎯 Uso en Unity
+## 🔨 Extensibilidad
 
-### 1) Añade `UserSessionManager` a la escena
+### Ampliar el mapeo de roles
 
-Asegura la inicialización de MongoDB al arrancar la escena.
+En `metrics.py`, modifica el diccionario de equivalencias para incluir nuevos tipos de tareas.
 
-```csharp
-using UnityEngine;
-using VRLogger;
-
-public class Bootstrap : MonoBehaviour
-{
-    [Header("Mongo Config")]
-    public string connectionString = "mongodb://localhost:27017";
-    public string dbName = "test";
-    public string collectionName = "tfg";
-
-    [Header("User Config")]
-    public string userId = "U001";
-    public string groupId = "control";
-
-    void Awake()
-    {
-        // Inicializa el Logger al inicio de la escena
-        LoggerService.Init(connectionString, dbName, collectionName, userId);
-        Debug.Log($"[UserSessionManager] Conectado a {dbName}.{collectionName} como {userId}");
-    }
+```python
+self.event_role_map = {
+    "object_grabbed": "action_success",
+    "object_dropped": "action_fail",
+    "door_opened": "task_end",
 }
 ```
 
-> ✅ **Orden de ejecución recomendado:** coloca este script arriba en *Project Settings → Script Execution Order* para garantizar que se inicializa antes de enviar eventos.
+### Agregar nuevas métricas
 
-### 2) Enviar eventos (API del logger)
+Cada nueva función que opere sobre `self.df` o un `subdf` puede añadirse al diccionario de salida en `compute_grouped_metrics()`.
 
-**Opción A – Con contexto de sesión (recomendado)**
+### Compatibilidad experimental
 
-```csharp
-// Requiere que exista UserSessionManager con el helper LogEventWithSession
-await UserSessionManager.Instance.LogEventWithSession(
-    eventType: "collision",
-    eventName: "bullet_hit",
-    eventValue: 1,
-    eventContext: new { object_name = target.name, speed = 3.2f }
-);
-```
-
-**Opción B – Envío directo** (funciona aunque no haya `UserSessionManager`)
-
-```csharp
-// 🔒 Buen práctica: inicialización de respaldo
-if (!LoggerService.IsInitialized)
-{
-    LoggerService.Init("mongodb://localhost:27017", "test", "tfg", "U001");
-}
-
-await LoggerService.LogEvent(
-    eventType: "spawn",
-    eventName: "spawn_object",
-    eventValue: 1,
-    eventContext: new { object_name = obj.name, spawn_time = Time.time }
-);
-```
-
-> ℹ️ En repos anteriores se usaba `SendLog(...)`. **Sustitúyelo por** `LoggerService.LogEvent(...)`.
-
-### 3) Ejemplos listos (incluidos en `vr_logger/Runtime/Logs/`)
-
-* `CollisionLogger.cs` → envía `collision_enter/exit` + contexto de colisión.
-* `RaycastLogger.cs` → envía impactos de raycast (`raycast_hit`).
-* `UserSessionLogger.cs` → resumen de inicio/fin de sesión.
-
-### 4) Trackers (opcionales)
-
-En `vr_logger/Runtime/Trackers/` hay capturas de `Gaze`, `Hands`, `Movement`, `Foot`. Puedes activarlos y adaptar la frecuencia de muestreo en tus escenas.
-
----
-
-## 🧮 Pipeline de Análisis (Python)
-
-### 1) `vr_analysis.py` – Orquestador
-
-Ejecuta todo el flujo:
-
-* carga desde MongoDB (`test.tfg`),
-* calcula métricas (efectividad, eficiencia, satisfacción, presencia),
-* exporta CSV/JSON,
-* genera figuras,
-* crea el informe PDF.
-
-```bash
-python python_analysis/vr_analysis.py
-```
-
-**Exporta en:**
-
-```
-python_analysis/pruebas/
-  ├─ exports_YYYYMMDD_HHMMSS/
-  │  ├─ results.json
-  │  ├─ results.csv
-  │  ├─ group_results.json
-  │  └─ final_report.pdf
-  └─ figures_YYYYMMDD_HHMMSS/
-```
-
-### 2) Dashboard web (Streamlit)
-
-```bash
-streamlit run python_visualization/visual_dashboard.py
-```
-
-El panel detecta por defecto el último `group_results.json` dentro de `python_analysis/pruebas/exports_*/` y muestra:
-
-* Indicadores oficiales (hit ratio, success rate, reaction time, activity level...).
-* Conteo de eventos personalizados.
-* Tabla de métricas completa (por usuario/grupo).
-
-### 3) Scripts de prueba
-
-En `pruebas/` hay dos pipelines de ejemplo:
-
-* `test_pipeline.py` → prueba local con ficheros.
-* `test_pipeline_db.py` → prueba conectando a la base de datos.
-
----
-
-## 🧩 Campos del documento (MongoDB)
-
-Cada evento guardado incluye:
+El sistema funciona con cualquier entorno VR siempre que los eventos sigan el formato MongoDB estándar:
 
 ```json
 {
-  "timestamp": ISODate("2025-10-06T10:02:45Z"),
+  "timestamp": ISODate(),
   "user_id": "U001",
-  "event_type": "collision",
-  "event_name": "bullet_hit",
-  "event_value": 1,
-  "event_context": {
-    "session_id": "...",
-    "group_id": "control",
-    "context": { "object_name": "Target_01", "speed": 3.2 }
-  }
+  "event_name": "target_hit",
+  "event_role": "action_success",
+  "event_context": { "session_id": "...", "group_id": "control" }
 }
 ```
 
-> `UserSessionManager.LogEventWithSession(...)` añade automáticamente `session_id` y `group_id` al contexto.
+---
+
+## 📊 Resultados generados
+
+| Tipo         | Archivo                     | Descripción                                  |
+| ------------ | --------------------------- | -------------------------------------------- |
+| Global JSON  | `group_results.json`        | Métricas globales por categoría              |
+| Agrupado CSV | `grouped_metrics.csv`       | Una fila por usuario/sesión                  |
+| PDF Global   | `final_report.pdf`          | Informe visual global                        |
+| PDF Agrupado | `final_report_agrupado.pdf` | Informe detallado individual                 |
+| Dashboard    | `visual_dashboard.py`       | Web interactiva (filtros por usuario/sesión) |
 
 ---
 
-## 🛡️ Buenas prácticas
+## 📅 Autoría y licencia
 
-* **Inicialización defensiva:** antes de cualquier `LogEvent`, comprueba `LoggerService.IsInitialized` y llama a `Init(...)` si es necesario.
-* **Orden de ejecución:** inicializa el logger cuanto antes en la escena.
-* **Variables por escena:** puedes configurar `userId`, `groupId`, `dbName`, `collectionName` desde el inspector del `UserSessionManager`.
-* **Entornos separados:** usa `test.tfg` para desarrollo y otra BD/colección para datos reales.
-
----
-
-## 🧰 Solución de problemas
-
-**Unity – “Not initialized! Llama primero a LoggerService.Init()”**
-→ Añade init defensivo donde envíes logs (ver ejemplos arriba).
-
-**Unity – Errores de DLL (SharpCompress, DiagnosticSource, etc.)**
-→ Asegúrate de copiar **todas** las DLL del ZIP a `Assets/Plugins/` (ver lista en requisitos). Vuelve a compilar.
-
-**Python – Error `tz-naive vs tz-aware`**
-→ Ya gestionado en `metrics.py` usando `pd.to_datetime(..., utc=True, errors='coerce')`.
-
-**Streamlit – “File does not exist: …”**
-→ Ejecuta desde la raíz del repo o pasa la ruta completa:
-`streamlit run python_visualization/visual_dashboard.py`
+Proyecto **VR USER EVALUATION**
+Autor: *[Nombre del autor o grupo de investigación]*
+Licencia: Uso académico y experimental.
 
 ---
 
-## 🧾 Licencia y créditos
-
-* Proyecto académico **VR USER EVALUATION**.
-* Tecnologías: Unity, MongoDB, Python (pandas, plotly, reportlab, streamlit).
-* Autoría: ver historial de commits.
-
-¡Listo! Si necesitas un **README rápido para el subpaquete `vr_logger`** o una **plantilla de escenas de ejemplo**, dímelo y lo añadimos al repo.
+> Este README refleja la versión actualizada del sistema con:
+>
+> * **Mapeo semántico universal de eventos (event_role)**.
+> * **Modos Global y Agrupado** para experimentos multiusuario.
+> * **Pipeline de análisis automatizado** con exportación y visualización completa.
