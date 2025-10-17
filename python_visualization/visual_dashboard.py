@@ -18,9 +18,22 @@ def load_results(results_file):
 
         # --- Caso GLOBAL: dict con categorías anidadas ---
         if isinstance(results, dict):
-            # Si tiene clave "Global", úsala directamente
+            # Compatibilidad: si no hay "Global", trátalo como global igualmente
             if "Global" in results:
                 results = {"Global": results["Global"]}
+            else:
+                results = {"Global": results}
+
+            rows = []
+            for id_, res in results.items():
+                flat = {"id": id_}
+                for cat, metrics in res.items():
+                    if isinstance(metrics, dict):
+                        for key, value in metrics.items():
+                            flat[f"{cat}_{key}"] = value
+                    # Si una métrica viene como lista (p.ej. learning_curve), la ignoramos en tablas/gráficas
+                rows.append(flat)
+            return pd.DataFrame(rows), "global"
 
             rows = []
             for id_, res in results.items():
@@ -37,6 +50,7 @@ def load_results(results_file):
             return pd.DataFrame(results), "agrupado"
 
         elif isinstance(results, list):
+
             return pd.DataFrame(results), "agrupado"
     elif results_path.suffix == ".csv":
         df = pd.read_csv(results_path)
@@ -94,6 +108,17 @@ def main():
             & df["session_id"].isin(selected_sessions)
         ]
         st.info(f"{len(df)} filas después de aplicar filtros.")
+    # Normalizar nombres en modo GLOBAL: crear alias sin prefijo
+    if detected_mode == "global":
+        prefixes = ["efectividad", "eficiencia", "satisfaccion", "presencia"]
+        for p in prefixes:
+            pref = f"{p}_"
+            pref_cols = [c for c in df.columns if c.startswith(pref)]
+            for c in pref_cols:
+                alias = c[len(pref):]  # quita "efectividad_", etc.
+                # No sobreescribimos si ya existiera una columna sin prefijo
+                if alias not in df.columns:
+                    df[alias] = df[c]
 
     # ============================================================
     # 🔹 Definir categorías de métricas
