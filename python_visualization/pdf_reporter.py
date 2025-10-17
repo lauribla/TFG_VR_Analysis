@@ -8,6 +8,7 @@ import pandas as pd
 from datetime import datetime
 import os
 
+
 class PDFReport:
     def __init__(self, results_file, figures_dir="figures", base_dir="pruebas"):
         self.results_file = Path(results_file)
@@ -53,12 +54,14 @@ class PDFReport:
         # ============================================================
         elements.append(Paragraph("VR USER EVALUATION - Informe de Resultados", styles["Title"]))
         elements.append(Spacer(1, 20))
-
-        elements.append(Paragraph(f"Generado automáticamente el {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles["Normal"]))
+        elements.append(Paragraph(f"Generado el {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles["Normal"]))
         elements.append(Spacer(1, 10))
         elements.append(Paragraph(f"Archivo de resultados: {self.results_file.name}", styles["Normal"]))
         elements.append(Spacer(1, 20))
 
+        # ============================================================
+        # 📋 Resumen general
+        # ============================================================
         if df is not None and not df.empty:
             n_users = df["user_id"].nunique() if "user_id" in df.columns else "-"
             n_groups = df["group_id"].nunique() if "group_id" in df.columns else "-"
@@ -75,8 +78,29 @@ class PDFReport:
                 ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
             ]))
             elements.append(table)
-
         elements.append(PageBreak())
+
+        # ============================================================
+        # 🔸 CATEGORÍAS OFICIALES
+        # ============================================================
+        category_blocks = {
+            "🟢 Efectividad": [
+                "hit_ratio", "precision", "success_rate", "learning_curve_mean",
+                "progression", "success_after_restart", "attempts_per_target"
+            ],
+            "🟠 Eficiencia": [
+                "avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s",
+                "navigation_errors", "aim_errors", "task_duration_success", "task_duration_fail"
+            ],
+            "🟣 Satisfacción": [
+                "retries_after_end", "voluntary_play_time_s", "aid_usage",
+                "interface_errors", "learning_stability", "error_reduction_rate"
+            ],
+            "🔵 Presencia": [
+                "inactivity_time_s", "first_success_time_s", "sound_localization_time_s",
+                "activity_level_per_min", "audio_performance_gain"
+            ],
+        }
 
         # ============================================================
         # 📊 Resultados detallados (modo agrupado)
@@ -91,21 +115,36 @@ class PDFReport:
                 sid = row.get("session_id", "N/A")
 
                 elements.append(Paragraph(f"<b>Usuario:</b> {uid} — <b>Grupo:</b> {gid} — <b>Sesión:</b> {sid}", styles["Heading3"]))
-                elements.append(Spacer(1, 6))
+                elements.append(Spacer(1, 8))
 
-                # Mostrar las métricas principales
-                metrics = {k: v for k, v in row.items() if k not in ["user_id", "group_id", "session_id"]}
-                data = [["Métrica", "Valor"]] + [[k, str(v)] for k, v in metrics.items()]
-                table = Table(data, repeatRows=1, colWidths=[250, 150])
-                table.setStyle(TableStyle([
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                    ("GRID", (0, 0), (-1, -1), 0.25, colors.black),
-                ]))
-                elements.append(table)
-                elements.append(Spacer(1, 20))
-            elements.append(PageBreak())
+                # 🔹 Para cada categoría principal
+                for cat, keys in category_blocks.items():
+                    elements.append(Paragraph(cat, styles["Heading2"]))
+                    data = [["Métrica", "Valor"]]
+                    for key in keys:
+                        if key in row:
+                            data.append([key.replace("_", " ").title(), str(row[key])])
+
+                    table = Table(data, repeatRows=1, colWidths=[250, 150])
+                    table.setStyle(TableStyle([
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("GRID", (0, 0), (-1, -1), 0.25, colors.black),
+                    ]))
+                    elements.append(table)
+                    elements.append(Spacer(1, 8))
+
+                    # 🖼️ Añadir imágenes de la categoría
+                    category_key = cat.split(" ")[1].lower()
+                    cat_dir = self.figures_dir / "agrupado"
+                    if not cat_dir.exists():
+                        cat_dir = self.figures_dir
+                    for img in cat_dir.glob("*.png"):
+                        if category_key in img.name.lower():
+                            elements.append(Image(str(img), width=400, height=250))
+                            elements.append(Spacer(1, 10))
+                elements.append(PageBreak())
 
         # ============================================================
         # 📈 Resultados globales (modo global JSON)
@@ -118,39 +157,47 @@ class PDFReport:
                 elements.append(Paragraph(f"Resultados para: {id_}", styles["Heading2"]))
                 elements.append(Spacer(1, 10))
 
-                data = [["Categoría", "Métrica", "Valor"]]
+                # 🔹 Para cada categoría (efectividad, eficiencia, etc.)
                 for cat, metrics in res.items():
-                    if isinstance(metrics, dict):
-                        for key, value in metrics.items():
-                            data.append([cat, key, str(value)])
+                    elements.append(Paragraph(cat.title(), styles["Heading3"]))
+                    data = [["Métrica", "Valor"]]
+                    for key, value in metrics.items():
+                        data.append([key.replace("_", " ").title(), str(value)])
 
-                table = Table(data, repeatRows=1)
-                table.setStyle(TableStyle([
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                    ("GRID", (0, 0), (-1, -1), 0.25, colors.black),
-                ]))
-                elements.append(table)
-                elements.append(Spacer(1, 20))
+                    table = Table(data, repeatRows=1, colWidths=[250, 150])
+                    table.setStyle(TableStyle([
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("GRID", (0, 0), (-1, -1), 0.25, colors.black),
+                    ]))
+                    elements.append(table)
+                    elements.append(Spacer(1, 8))
+
+                    # 🖼️ Añadir gráficos globales debajo de cada categoría
+                    cat_dir = self.figures_dir / "global"
+                    if not cat_dir.exists():
+                        cat_dir = self.figures_dir
+                    for img in cat_dir.glob("*.png"):
+                        if cat.lower() in img.name.lower():
+                            elements.append(Image(str(img), width=400, height=250))
+                            elements.append(Spacer(1, 10))
                 elements.append(PageBreak())
 
         # ============================================================
-        # 🖼️ Inserción de gráficos (si existen)
+        # 🎯 Eventos personalizados
         # ============================================================
-        elements.append(Paragraph("Visualizaciones Generadas", styles["Heading1"]))
+        elements.append(Paragraph("Eventos Personalizados", styles["Heading1"]))
         elements.append(Spacer(1, 10))
 
-        # Buscar imágenes en figures_dir y subcarpetas
-        figure_paths = list(self.figures_dir.glob("*.png")) + list((self.figures_dir / "global").glob("*.png")) + list((self.figures_dir / "agrupado").glob("*.png"))
-
-        if not figure_paths:
-            elements.append(Paragraph("⚠️ No se encontraron figuras para insertar.", styles["Normal"]))
+        custom_paths = list(self.figures_dir.glob("*custom*.png"))
+        if not custom_paths:
+            elements.append(Paragraph("No se encontraron gráficos de eventos personalizados.", styles["Normal"]))
         else:
-            for fig_path in figure_paths:
-                elements.append(Paragraph(fig_path.name, styles["Heading3"]))
-                elements.append(Image(str(fig_path), width=400, height=250))
-                elements.append(Spacer(1, 15))
+            for path in custom_paths:
+                elements.append(Paragraph(path.name, styles["Heading3"]))
+                elements.append(Image(str(path), width=400, height=250))
+                elements.append(Spacer(1, 10))
 
         # ============================================================
         # 📦 Generar el PDF final

@@ -15,8 +15,7 @@ def load_results(results_file):
     if results_path.suffix == ".json":
         with open(results_path, "r", encoding="utf-8") as f:
             results = json.load(f)
-
-        # Caso 1: JSON jerárquico (global)
+        # Si es dict anidado → global
         if isinstance(results, dict) and all(isinstance(v, dict) for v in results.values()):
             rows = []
             for id_, res in results.items():
@@ -27,18 +26,13 @@ def load_results(results_file):
                             flat[f"{cat}_{key}"] = value
                 rows.append(flat)
             return pd.DataFrame(rows), "global"
-
-        # Caso 2: JSON plano (lista de dicts agrupados)
         elif isinstance(results, list):
             return pd.DataFrame(results), "agrupado"
-
     elif results_path.suffix == ".csv":
         df = pd.read_csv(results_path)
-        # Detectar modo automáticamente por columnas
         mode = "agrupado" if {"user_id", "group_id", "session_id"}.issubset(df.columns) else "global"
         return df, mode
-
-    st.error("Formato de archivo no soportado. Usa JSON o CSV.")
+    st.error("Formato de archivo no soportado.")
     return pd.DataFrame(), "desconocido"
 
 # ============================================================
@@ -48,114 +42,109 @@ def main():
     st.set_page_config(page_title="VR User Evaluation Dashboard", layout="wide")
     st.title("📊 VR User Evaluation - Dashboard Interactivo")
 
-    # Buscar los últimos resultados exportados automáticamente
+    # Buscar exportaciones recientes
     export_dirs = sorted(glob.glob("python_analysis/pruebas/exports_*"), reverse=True)
     if not export_dirs:
         st.warning("No se encontraron resultados exportados. Ejecuta primero vr_analysis.py.")
         return
 
     latest_dir = Path(export_dirs[0])
-
-    # Detectar archivos disponibles
     group_results = latest_dir / "group_results.json"
     grouped_metrics = latest_dir / "grouped_metrics.csv"
 
-    # Selección de modo visual
+    # Selector de modo
     available_modes = []
     if group_results.exists():
         available_modes.append("Global")
     if grouped_metrics.exists():
         available_modes.append("Agrupado")
-
-    if not available_modes:
-        st.error("No se encontraron archivos de resultados (ni global ni agrupado).")
-        return
-
     mode_choice = st.radio("🎚️ Modo de análisis", available_modes, horizontal=True)
-
-    # Determinar archivo según el modo elegido
-    if mode_choice == "Global":
-        results_file = group_results
-    else:
-        results_file = grouped_metrics
-
-    st.write(f"📁 Analizando archivo: `{results_file.name}`")
+    results_file = group_results if mode_choice == "Global" else grouped_metrics
 
     df, detected_mode = load_results(results_file)
-
     if df.empty:
         st.warning("⚠️ No se pudieron cargar los datos.")
         return
-
     st.success(f"✅ Datos cargados correctamente ({detected_mode.upper()})")
 
     # ============================================================
-    # 🔹 Filtros interactivos (solo modo agrupado)
+    # 🔹 Filtros (solo agrupado)
     # ============================================================
     if detected_mode == "agrupado":
-        st.sidebar.header("Filtros de exploración")
-
+        st.sidebar.header("Filtros")
         groups = sorted(df["group_id"].dropna().unique())
         users = sorted(df["user_id"].dropna().unique())
         sessions = sorted(df["session_id"].dropna().unique())
-
-        selected_groups = st.sidebar.multiselect("Selecciona grupos:", groups, default=groups)
-        selected_users = st.sidebar.multiselect("Selecciona usuarios:", users, default=users)
-        selected_sessions = st.sidebar.multiselect("Selecciona sesiones:", sessions, default=sessions)
-
-        df_filtered = df[
+        selected_groups = st.sidebar.multiselect("Grupos:", groups, default=groups)
+        selected_users = st.sidebar.multiselect("Usuarios:", users, default=users)
+        selected_sessions = st.sidebar.multiselect("Sesiones:", sessions, default=sessions)
+        df = df[
             df["group_id"].isin(selected_groups)
             & df["user_id"].isin(selected_users)
             & df["session_id"].isin(selected_sessions)
         ]
-        st.info(f"{len(df_filtered)} filas después de aplicar filtros.")
-    else:
-        df_filtered = df
+        st.info(f"{len(df)} filas después de aplicar filtros.")
 
     # ============================================================
-    # 🔹 Indicadores oficiales (auto-detección)
+    # 🔹 Definir categorías de métricas
     # ============================================================
-    st.header("📈 Indicadores de la Tabla Oficial")
-
-    numeric_cols = [c for c in df_filtered.columns if df_filtered[c].dtype in ["float64", "int64"]]
-
-    if not numeric_cols:
-        st.warning("No se encontraron métricas numéricas para graficar.")
-        return
+    cat_cols = {
+        "🟢 Efectividad": [
+            "hit_ratio", "precision", "success_rate", "learning_curve_mean",
+            "progression", "success_after_restart", "attempts_per_target"
+        ],
+        "🟠 Eficiencia": [
+            "avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s",
+            "navigation_errors", "aim_errors", "task_duration_success", "task_duration_fail"
+        ],
+        "🟣 Satisfacción": [
+            "retries_after_end", "voluntary_play_time_s", "aid_usage",
+            "interface_errors", "learning_stability", "error_reduction_rate"
+        ],
+        "🔵 Presencia": [
+            "inactivity_time_s", "first_success_time_s", "sound_localization_time_s",
+            "activity_level_per_min", "audio_performance_gain"
+        ]
+    }
 
     eje_x = "group_id" if detected_mode == "agrupado" else "id"
 
-    for col in numeric_cols[:12]:  # limita a las primeras 12 métricas para no saturar
-        fig = px.bar(df_filtered, x=eje_x, y=col, color=eje_x,
-                     title=col.replace("_", " ").title(), text_auto=True)
+    # ============================================================
+    # 🔹 Mostrar gráficas por categoría
+    # ============================================================
+    for cat_name, cols in cat_cols.items():
+        st.header(cat_name)
+        found = [c for c in cols if c in df.columns]
+        if not found:
+            st.info(f"No hay métricas de {cat_name}.")
+            continue
+        for col in found:
+            fig = px.bar(df, x=eje_x, y=col, color=eje_x,
+                         title=col.replace("_", " ").title(), text_auto=True)
+            st.plotly_chart(fig, use_container_width=True)
+
+    # ============================================================
+    # 🔹 Eventos personalizados
+    # ============================================================
+    st.header("🎯 Custom Events")
+    custom_cols = [c for c in df.columns if c.startswith("custom_events_")]
+    if not custom_cols:
+        st.info("No se encontraron eventos personalizados.")
+    else:
+        melted = df.melt(id_vars=eje_x, value_vars=custom_cols,
+                         var_name="custom_event", value_name="count")
+        melted["custom_event"] = melted["custom_event"].str.replace("custom_events_", "")
+        fig = px.bar(melted, x=eje_x, y="count", color="custom_event",
+                     title="Frecuencia de Custom Events", barmode="group", text_auto=True)
         st.plotly_chart(fig, use_container_width=True)
 
     # ============================================================
-    # 🔹 Comparación personalizada
-    # ============================================================
-    st.header("🔍 Comparación personalizada")
-
-    col_x = st.selectbox("Eje X:", options=[eje_x])
-    col_y = st.selectbox("Métrica:", options=numeric_cols)
-
-    if col_y:
-        fig = px.box(df_filtered, x=col_x, y=col_y, color=col_x,
-                     title=f"Comparativa de {col_y} por {col_x}")
-        st.plotly_chart(fig, use_container_width=True)
-
-    # ============================================================
-    # 🔹 Tabla completa de métricas
+    # 🔹 Tabla completa
     # ============================================================
     st.header("📋 Tabla completa de métricas")
-    st.dataframe(df_filtered)
-
-    csv = df_filtered.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="💾 Descargar datos filtrados (CSV)",
-        data=csv,
-        file_name=f"vr_user_{mode_choice.lower()}_filtered.csv",
-        mime="text/csv"
-    )
+    st.dataframe(df)
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button("💾 Descargar CSV filtrado", data=csv, file_name="vr_user_metrics.csv", mime="text/csv")
 
 
 if __name__ == "__main__":
