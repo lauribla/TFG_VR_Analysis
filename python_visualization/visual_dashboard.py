@@ -15,8 +15,13 @@ def load_results(results_file):
     if results_path.suffix == ".json":
         with open(results_path, "r", encoding="utf-8") as f:
             results = json.load(f)
-        # Si es dict anidado → global
-        if isinstance(results, dict) and all(isinstance(v, dict) for v in results.values()):
+
+        # --- Caso GLOBAL: dict con categorías anidadas ---
+        if isinstance(results, dict):
+            # Si tiene clave "Global", úsala directamente
+            if "Global" in results:
+                results = {"Global": results["Global"]}
+
             rows = []
             for id_, res in results.items():
                 flat = {"id": id_}
@@ -26,6 +31,11 @@ def load_results(results_file):
                             flat[f"{cat}_{key}"] = value
                 rows.append(flat)
             return pd.DataFrame(rows), "global"
+
+        # --- Caso AGRUPADO (lista de diccionarios) ---
+        elif isinstance(results, list):
+            return pd.DataFrame(results), "agrupado"
+
         elif isinstance(results, list):
             return pd.DataFrame(results), "agrupado"
     elif results_path.suffix == ".csv":
