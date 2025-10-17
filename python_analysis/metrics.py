@@ -203,52 +203,122 @@ class MetricsCalculator:
         return custom["event_name"].value_counts().to_dict()
 
     # ============================================================
-    # --- AGREGADOS MULTIUSUARIO / MULTISESIÓN ---
+    # AGRUPADO POR USUARIO Y SESIÓN (versión extendida)
     # ============================================================
     def compute_grouped_metrics(self):
         """
-        Devuelve un DataFrame con métricas calculadas por usuario y sesión.
+        Calcula todas las métricas por usuario, grupo y sesión,
+        alineadas con la tabla oficial de indicadores del TFG.
         """
-        grouped_results = []
+        if not {"user_id", "group_id", "session_id"}.issubset(self.df.columns):
+            print(
+                "[MetricsCalculator] ⚠️ No hay columnas de identificación suficientes para agrupar (user_id, group_id, session_id).")
+            return pd.DataFrame()
 
-        for (user, group, session), subdf in self.df.groupby(["user_id", "group_id", "session_id"]):
+        grouped = self.df.groupby(["user_id", "group_id", "session_id"])
+        results = []
+
+        for (user, group, session), subdf in grouped:
             calc = {
                 "user_id": user,
                 "group_id": group,
                 "session_id": session,
 
-                # --- EFECTIVIDAD ---
+                # ============================================================
+                # 🟢 EFECTIVIDAD
+                # ============================================================
                 "hit_ratio": self.hit_ratio(subdf),
                 "precision": self.precision(subdf),
                 "success_rate": self.success_rate(subdf),
+                "learning_curve_mean": np.nanmean(self.learning_curve(subdf)) if self.learning_curve(subdf) else None,
                 "progression": self.progression(subdf),
+                "success_after_restart": self._success_after_restart(subdf),
+                "attempts_per_target": self.aim_errors(subdf),
 
-                # --- EFICIENCIA ---
+                # ============================================================
+                # 🟠 EFICIENCIA
+                # ============================================================
                 "avg_reaction_time_ms": self.avg_reaction_time(subdf),
                 "avg_task_duration_ms": self.avg_task_duration(subdf),
                 "time_per_success_s": self.time_per_success(subdf),
                 "navigation_errors": self.navigation_errors(subdf),
                 "aim_errors": self.aim_errors(subdf),
+                "task_duration_success": self._task_duration_by_result(subdf, "success"),
+                "task_duration_fail": self._task_duration_by_result(subdf, "fail"),
 
-                # --- SATISFACCIÓN ---
+                # ============================================================
+                # 🟣 SATISFACCIÓN
+                # ============================================================
+                "retries_after_end": self.retries_after_end(subdf),
                 "voluntary_play_time_s": self.voluntary_play_time(subdf),
                 "aid_usage": self.aid_usage(subdf),
                 "interface_errors": self.interface_errors(subdf),
-                "retries_after_end": self.retries_after_end(subdf),
+                "learning_stability": self._learning_stability(subdf),
+                "error_reduction_rate": self._error_reduction_rate(subdf),
 
-                # --- PRESENCIA ---
+                # ============================================================
+                # 🔵 PRESENCIA
+                # ============================================================
                 "inactivity_time_s": self.inactivity_time(subdf),
                 "first_success_time_s": self.first_success_time(subdf),
                 "sound_localization_time_s": self.sound_localization_time(subdf),
-                "activity_level": self.activity_level(subdf),
-
-                # --- CUSTOM EVENTS ---
-                "custom_events_count": len(subdf[subdf["event_name"].str.startswith("custom_")])
+                "activity_level_per_min": self.activity_level(subdf),
+                "audio_performance_gain": self._audio_performance_gain(subdf),
             }
 
-            grouped_results.append(calc)
+            results.append(calc)
 
-        return pd.DataFrame(grouped_results)
+        return pd.DataFrame(results)
+
+    # ============================================================
+    # AUXILIARES NUEVAS (indicadores derivados)
+    # ============================================================
+    def _success_after_restart(self, df):
+        """% de tareas exitosas tras un reinicio"""
+        restarts = df[df["event_name"] == "task_restart"]["timestamp"]
+        if restarts.empty:
+            return None
+        tasks_after_restart = df[(df["event_name"] == "task_end") & (df["timestamp"] > restarts.min())]
+        if tasks_after_restart.empty:
+            return None
+        success = len(tasks_after_restart[tasks_after_restart["event_value"] == "success"])
+        return success / len(tasks_after_restart)
+
+    def _task_duration_by_result(self, df, result):
+        """Duración media de tareas con un tipo de resultado (success/fail)"""
+        tasks = df[(df["event_name"] == "task_end") & (df["event_value"] == result)]
+        if "duration_ms" in tasks.columns and not tasks.empty:
+            return tasks["duration_ms"].dropna().mean()
+        return None
+
+    def _learning_stability(self, df):
+        """Medida inversa de la variabilidad de la curva de aprendizaje"""
+        curve = self.learning_curve(df)
+        if not curve:
+            return None
+        return 1 - np.nanstd(curve)  # 1 - desviación estándar normalizada
+
+    def _error_reduction_rate(self, df):
+        """Cambio relativo en errores entre primera y última mitad"""
+        errors = df[df["event_name"].isin(["target_miss", "controller_error", "wrong_button"])]
+        if errors.empty:
+            return None
+        half = len(errors) // 2
+        first_half = errors.iloc[:half]
+        second_half = errors.iloc[half:]
+        if len(first_half) == 0:
+            return None
+        return (len(first_half) - len(second_half)) / len(first_half)
+
+    def _audio_performance_gain(self, df):
+        """Diferencia de efectividad entre condiciones con/sin audio (si existe columna condition_audio)"""
+        if "condition_audio" not in df.columns:
+            return None
+        with_audio = df[df["condition_audio"] == True]
+        without_audio = df[df["condition_audio"] == False]
+        if with_audio.empty or without_audio.empty:
+            return None
+        return self.hit_ratio(with_audio) - self.hit_ratio(without_audio)
 
     # ============================================================
     # --- AGREGADO GENERAL (individual o global) ---
