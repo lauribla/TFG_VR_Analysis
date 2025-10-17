@@ -44,65 +44,87 @@ namespace VRLogger
         // ==============================================================
         // 🔸 LOG EVENT
         // ==============================================================
-        public static async Task LogEvent(string eventType, string eventName, object eventValue = null, object eventContext = null, bool save = true)
+        public static async Task LogEvent(
+    string eventType,
+    string eventName,
+    object eventValue = null,
+    object eventContext = null,
+    bool save = true)
+{
+    if (!_initialized)
+    {
+        UnityEngine.Debug.LogError("[LoggerService] ⚠️ Not initialized! Llama primero a LoggerService.Init().");
+        return;
+    }
+
+    if (_collection == null)
+    {
+        UnityEngine.Debug.LogError("[LoggerService] ❌ Colección nula. Revisa el nombre de la base o colección.");
+        return;
+    }
+
+    // -------------------------
+    // Construir documento BSON
+    // -------------------------
+    var logDoc = new BsonDocument
+    {
+        { "timestamp", DateTime.UtcNow },
+        { "user_id", _userId },
+        { "event_type", eventType ?? "undefined" },
+        { "event_name", eventName ?? "undefined" },
+        { "event_value", eventValue?.ToString() ?? "null" },
+        { "save", save }
+    };
+
+    // Añadir sesión y grupo automáticamente si hay UserSessionManager activo
+    if (UserSessionManager.Instance != null)
+    {
+        logDoc.Add("session_id", UserSessionManager.Instance.GetSessionId());
+        logDoc.Add("group_id", UserSessionManager.Instance.GetGroupId());
+    }
+
+    // Añadir contexto (si hay)
+    if (eventContext != null)
+    {
+        try
         {
-            if (!_initialized)
-            {
-                UnityEngine.Debug.LogError("[LoggerService] ⚠️ Not initialized! Llama primero a LoggerService.Init().");
-                return;
-            }
-
-            if (_collection == null)
-            {
-                UnityEngine.Debug.LogError("[LoggerService] ❌ Colección nula. Revisa el nombre de la base o colección.");
-                return;
-            }
-
-            // Construir documento BSON
-            var logDoc = new BsonDocument
-            {
-                { "timestamp", DateTime.UtcNow },
-                { "user_id", _userId },
-                { "event_type", eventType ?? "undefined" },
-                { "event_name", eventName ?? "undefined" },
-                { "event_value", eventValue?.ToString() ?? "null" },
-                { "save", save }
-            };
-
-            if (eventContext != null)
-            {
-                try
-                {
-                    var contextJson = Newtonsoft.Json.JsonConvert.SerializeObject(eventContext);
-                    var contextBson = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BsonDocument>(contextJson);
-                    logDoc.Add("event_context", contextBson);
-                }
-                catch (Exception ex)
-                {
-                    UnityEngine.Debug.LogWarning($"[LoggerService] ⚠️ No se pudo serializar event_context: {ex.Message}");
-                }
-            }
-
-            // Mostrar log antes de guardar
-            UnityEngine.Debug.Log($"[LoggerService] 📨 Insertando documento en MongoDB...");
-            UnityEngine.Debug.Log($"[LoggerService] Documento JSON → {logDoc.ToJson()}");
-
-            try
-            {
-                if (save)
-                {
-                    await _collection.InsertOneAsync(logDoc);
-                    UnityEngine.Debug.Log($"[LoggerService] ✅ Documento insertado correctamente en MongoDB ({eventName})");
-                }
-                else
-                {
-                    UnityEngine.Debug.Log($"[LoggerService] 💾 Simulación: no se guardó (save=false)");
-                }
-            }
-            catch (Exception ex)
-            {
-                UnityEngine.Debug.LogError($"[LoggerService] ❌ Error al insertar documento: {ex.Message}");
-            }
+            var contextJson = Newtonsoft.Json.JsonConvert.SerializeObject(eventContext);
+            var contextBson = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BsonDocument>(contextJson);
+            logDoc.Add("event_context", contextBson);
         }
+        catch (Exception ex)
+        {
+            UnityEngine.Debug.LogWarning($"[LoggerService] ⚠️ No se pudo serializar event_context: {ex.Message}");
+        }
+    }
+
+    // -------------------------
+    // Log de depuración
+    // -------------------------
+    UnityEngine.Debug.Log($"[LoggerService] 📨 Insertando documento en MongoDB...");
+    UnityEngine.Debug.Log($"[LoggerService] Documento JSON → {logDoc.ToJson()}");
+
+    // -------------------------
+    // Inserción en MongoDB
+    // -------------------------
+    try
+    {
+        if (save)
+        {
+            await _collection.InsertOneAsync(logDoc);
+            UnityEngine.Debug.Log($"[LoggerService] ✅ Documento insertado correctamente en MongoDB ({eventName})");
+        }
+        else
+        {
+            UnityEngine.Debug.Log($"[LoggerService] 💾 Simulación: no se guardó (save=false)");
+        }
+    }
+    catch (Exception ex)
+    {
+        UnityEngine.Debug.LogError($"[LoggerService] ❌ Error al insertar documento: {ex.Message}");
+    }
+}
+
+
     }
 }
