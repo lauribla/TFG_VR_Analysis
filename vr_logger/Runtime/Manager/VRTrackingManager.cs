@@ -4,13 +4,6 @@ namespace VRLogger
 {
     public class VRTrackingManager : MonoBehaviour
     {
-        [Header("General Config")]
-        public string userId = "U001";
-        public string sessionId = "S001";
-        public string mongoConnection = "mongodb://localhost:27017";
-        public string dbName = "test";
-        public string collectionName = "tfg";
-
         [Header("Modules")]
         public bool useGazeTracker = true;
         public bool useMovementTracker = true;
@@ -27,15 +20,32 @@ namespace VRLogger
         public Transform leftHand;
         public Transform rightHand;
 
+        private string userId;
+        private string sessionId;
+
         void Start()
         {
-            // Inicializar logger
-            LoggerService.Init(mongoConnection, dbName, collectionName, userId);
+            // ✅ Obtener datos del UserSessionManager
+            if (UserSessionManager.Instance == null)
+            {
+                Debug.LogError("[VRTrackingManager] No se encontró UserSessionManager en la escena.");
+                return;
+            }
 
-            // Log inicio de sesión
+            userId = UserSessionManager.Instance.GetUserId();
+            sessionId = UserSessionManager.Instance.GetSessionId();
+
+            // ✅ Inicializar logger con los mismos parámetros globales
+            LoggerService.Init(
+                UserSessionManager.Instance.connectionString,
+                UserSessionManager.Instance.dbName,
+                UserSessionManager.Instance.collectionName,
+                userId
+            );
+
             _ = LogAPI.LogSessionStart(sessionId);
 
-            // Activar módulos
+            // ✅ Activar módulos de tracking
             if (useGazeTracker && vrCamera != null)
             {
                 var gaze = vrCamera.gameObject.AddComponent<GazeTracker>();
@@ -50,18 +60,32 @@ namespace VRLogger
 
             if (useFootTracker)
             {
-                var left = leftFoot.gameObject.AddComponent<FootTracker>();
-                left.footName = "left";
-                var right = rightFoot.gameObject.AddComponent<FootTracker>();
-                right.footName = "right";
+                if (leftFoot != null)
+                {
+                    var left = leftFoot.gameObject.AddComponent<FootTracker>();
+                    left.footName = "left";
+                }
+
+                if (rightFoot != null)
+                {
+                    var right = rightFoot.gameObject.AddComponent<FootTracker>();
+                    right.footName = "right";
+                }
             }
 
             if (useHandTracker)
             {
-                var left = leftHand.gameObject.AddComponent<HandTracker>();
-                left.handName = "left";
-                var right = rightHand.gameObject.AddComponent<HandTracker>();
-                right.handName = "right";
+                if (leftHand != null)
+                {
+                    var left = leftHand.gameObject.AddComponent<HandTracker>();
+                    left.handName = "left";
+                }
+
+                if (rightHand != null)
+                {
+                    var right = rightHand.gameObject.AddComponent<HandTracker>();
+                    right.handName = "right";
+                }
             }
 
             if (useRaycastLogger)
@@ -73,6 +97,8 @@ namespace VRLogger
             {
                 gameObject.AddComponent<CollisionLogger>();
             }
+
+            Debug.Log($"[VRTrackingManager] Tracking initialized for user {userId} (session {sessionId}).");
         }
 
         void OnApplicationQuit()
