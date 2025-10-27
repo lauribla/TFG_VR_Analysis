@@ -67,42 +67,32 @@ namespace VRLogger
     // Construir documento BSON
     // -------------------------
     var logDoc = new BsonDocument
-    {
-        { "timestamp", DateTime.UtcNow },
-        { "user_id", _userId },
-        { "event_type", eventType ?? "undefined" },
-        { "event_name", eventName ?? "undefined" },
-        // Añadir event_value correctamente tipado
+{
+    { "timestamp", DateTime.UtcNow },
+    { "user_id", _userId },
+    { "event_type", eventType ?? "undefined" },
+    { "event_name", eventName ?? "undefined" },
+    { "save", save }
+};
+
 if (eventValue != null)
 {
-    if (eventValue is string s)
+    try
     {
-        logDoc.Add("event_value", s);
+        var valJson = Newtonsoft.Json.JsonConvert.SerializeObject(eventValue);
+        var valBson = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BsonValue>(valJson);
+        logDoc.Add("event_value", valBson);
     }
-    else
+    catch
     {
-        try
-        {
-            // Si es un objeto o estructura, lo convertimos a BSON válido
-            var valJson = Newtonsoft.Json.JsonConvert.SerializeObject(eventValue);
-            var valBson = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BsonValue>(valJson);
-            logDoc.Add("event_value", valBson);
-        }
-        catch
-        {
-            // En caso de error, lo guardamos como texto
-            logDoc.Add("event_value", eventValue.ToString());
-        }
+        logDoc.Add("event_value", eventValue.ToString());
     }
 }
 else
 {
-    // Si no hay valor, guardamos un nulo real
     logDoc.Add("event_value", BsonNull.Value);
 }
 
-        { "save", save }
-    };
 
     // Añadir sesión y grupo automáticamente si hay UserSessionManager activo
     if (UserSessionManager.Instance != null)
