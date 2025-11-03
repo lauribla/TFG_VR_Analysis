@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-from python_analysis.event_roles import EVENT_ROLE_MAP
+from python_analysis.config_system import ConfigSystem
+
 
 
 class MetricsCalculator:
@@ -18,8 +19,11 @@ class MetricsCalculator:
         self.df["group_id"] = self.df.get("group_id", "UNDEFINED").fillna("UNDEFINED")
         self.df["session_id"] = self.df.get("session_id", "NO_SESSION").fillna("NO_SESSION")
 
+        # Cargar Config System
+        self.config = ConfigSystem(config_path="python_analysis/configs/config_system.json")
         # Asignar roles semánticos
-        self.df["event_role"] = self.df["event_name"].map(EVENT_ROLE_MAP).fillna("other")
+        self.df["event_role"] = self.df["event_name"].apply(lambda e: self.config.get_event_role(e))
+
 
         # Eventos base conocidos
         self.official_roles = {
@@ -218,47 +222,35 @@ class MetricsCalculator:
     # --- FÓRMULA PONDERADA ---
     # ============================================================
     def _weighted_scores(self, row):
-        """Calcula las puntuaciones ponderadas por categoría."""
+        """Calcula puntuaciones ponderadas dinámicamente según el config_system.json."""
         n = self.normalize  # alias
+        categories = self.config.get_all_metric_configs()
+        scores = {}
 
-        efectividad = (
-            0.35 * (row.get("hit_ratio") or 0) +
-            0.30 * (row.get("success_rate") or 0) +
-            0.15 * (row.get("learning_curve_mean") or 0) +
-            0.10 * n(row.get("progression") or 0, 0, 10) +
-            0.10 * n(row.get("success_after_restart") or 0, 0, 1)
-        )
+        for cat_name, indicators in categories.items():
+            total = 0
+            for metric_name, meta in indicators.items():
+                val = row.get(metric_name)
+                if val is None or pd.isna(val):
+                    continue
+                weight = meta.get("weight", 0)
+                min_v = meta.get("min", 0)
+                max_v = meta.get("max", 1)
+                invert = meta.get("invert", False)
+                total += weight * n(val, min_v, max_v, invert)
+            scores[f"{cat_name}_score"] = round(total * 100, 2)
 
-        eficiencia = (
-            0.4 * n(row.get("avg_reaction_time_ms") or 0, 100, 2000, invert=True) +
-            0.3 * n(row.get("avg_task_duration_ms") or 0, 1000, 30000, invert=True) +
-            0.2 * n(row.get("time_per_success_s") or 0, 0, 60, invert=True) +
-            0.1 * n(row.get("navigation_errors") or 0, 0, 10, invert=True)
-        )
+        # Score global (promedio entre categorías disponibles)
+        if scores:
+            valid_scores = [v for k, v in scores.items() if not pd.isna(v)]
+            if valid_scores:
+                scores["total_score"] = round(np.nanmean(valid_scores), 2)
+        else:
+            scores["total_score"] = np.nan
 
-        satisfaccion = (
-            0.3 * (row.get("learning_stability") or 0) +
-            0.25 * n(row.get("error_reduction_rate") or 0, 0, 1) +
-            0.25 * n(row.get("voluntary_play_time_s") or 0, 0, 60) +
-            0.1 * n(row.get("aid_usage") or 0, 0, 5, invert=True) +
-            0.1 * n(row.get("interface_errors") or 0, 0, 5, invert=True)
-        )
+        return scores
 
-        presencia = (
-            0.25 * n(row.get("activity_level_per_min") or 0, 0, 100) +
-            0.25 * n(row.get("first_success_time_s") or 0, 0, 30, invert=True) +
-            0.2 * n(row.get("inactivity_time_s") or 0, 0, 60, invert=True) +
-            0.15 * n(row.get("sound_localization_time_s") or 0, 0, 10, invert=True) +
-            0.15 * n(row.get("audio_performance_gain") or 0, -1, 1)
-        )
 
-        return {
-            "efectividad_score": round(efectividad * 100, 2),
-            "eficiencia_score": round(eficiencia * 100, 2),
-            "satisfaccion_score": round(satisfaccion * 100, 2),
-            "presencia_score": round(presencia * 100, 2),
-            "total_score": round((efectividad + eficiencia + satisfaccion + presencia) / 4 * 100, 2)
-        }
 
     # ============================================================
     # --- AGRUPADO POR USUARIO Y SESIÓN ---
