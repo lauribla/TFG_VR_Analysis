@@ -159,6 +159,33 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
 
     # ============================================================
+    # 🔹 Resumen de Scores Ponderados
+    # ============================================================
+    st.header("🏁 Resultados ponderados por categoría")
+
+    score_cols = [
+        "efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "total_score"
+    ]
+
+    found_scores = [c for c in score_cols if c in df.columns]
+    if not found_scores:
+        st.info("No se encontraron puntuaciones ponderadas en los resultados.")
+    else:
+        st.dataframe(df[["id"] + found_scores] if "id" in df.columns else df[found_scores])
+
+        # Mostrar gráfico de barras de resumen
+        avg_scores = df[found_scores].mean(numeric_only=True)
+        score_df = pd.DataFrame({
+            "Métrica": avg_scores.index,
+            "Valor promedio (%)": avg_scores.values
+        })
+
+        fig_scores = px.bar(score_df, x="Métrica", y="Valor promedio (%)",
+                            color="Métrica", text_auto=True,
+                            title="Resumen promedio de puntuaciones por categoría")
+        st.plotly_chart(fig_scores, use_container_width=True)
+
+    # ============================================================
     # 🔹 Eventos personalizados
     # ============================================================
     st.header("🎯 Custom Events")
