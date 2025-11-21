@@ -90,6 +90,12 @@
     "performance_drop": "system_event",
     "latency_spike": "system_event",
 
+    "spawn_object": "task_start",
+    "bullet_hit": "action_success",
+    "reaction_time": "performance_measure",
+    "manual_despawn": "action_fail",
+
+
     "custom_event": "custom_event"
   },
 

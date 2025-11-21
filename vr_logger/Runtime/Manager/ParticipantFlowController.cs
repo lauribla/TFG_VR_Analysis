@@ -51,6 +51,7 @@ namespace VRLogger
             Debug.Log($"[ParticipantFlow] Loaded {participantOrder.Length} participants.");
             Debug.Log($"[ParticipantFlow] Turn duration: {turnDurationSeconds} seconds.");
 
+            ExperimentConfig.Instance.SendConfigAsLog();
             BeginParticipant();
         }
 

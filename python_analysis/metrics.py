@@ -24,7 +24,12 @@ class MetricsCalculator:
         # ------------------------------------------------------------------
         # Asignación de roles desde config
         # ------------------------------------------------------------------
-        roles_cfg = self.config.get("event_roles", {}).get("roles", {})
+        roles_cfg = self.config.get("event_roles", {})
+
+        def resolve_role(ev):
+            return roles_cfg.get(ev, "custom_event")
+
+        self.df["event_role"] = self.df["event_name"].apply(resolve_role)
         def resolve_role(ev):
             return roles_cfg.get(ev, "custom_event")
         self.df["event_role"] = self.df["event_name"].apply(resolve_role)
