@@ -20,7 +20,7 @@ class MetricsCalculator:
         self.df["session_id"] = self.df.get("session_id", "NO_SESSION").fillna("NO_SESSION")
 
         # Cargar Config System
-        self.config = ConfigSystem(config_path="python_analysis/configs/config_system.json")
+        self.config = ConfigSystem(config_path="configs/config_system.json")
         # Asignar roles semánticos
         self.df["event_role"] = self.df["event_name"].apply(lambda e: self.config.get_event_role(e))
 
@@ -46,26 +46,30 @@ class MetricsCalculator:
     # --- EFECTIVIDAD ---
     # ============================================================
     def hit_ratio(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         hits = len(df[df["event_role"] == "action_success"])
         fails = len(df[df["event_role"] == "action_fail"])
         total = hits + fails
         return hits / total if total > 0 else np.nan
 
     def precision(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         actions = df[df["event_role"].isin(["action_success", "action_fail"])]
         hits = len(actions[actions["event_role"] == "action_success"])
         return hits / len(actions) if len(actions) > 0 else np.nan
 
     def success_rate(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         tasks = df[df["event_role"] == "task_end"]
         success = len(tasks[tasks["event_value"].astype(str).str.lower() == "success"])
         return success / len(tasks) if len(tasks) > 0 else np.nan
 
     def learning_curve(self, df=None, block_size=5):
-        df = df or self.df
+        if df is None:
+            df = self.df
         actions = df[df["event_role"].isin(["action_success", "action_fail"])]
         results = []
         for i in range(0, len(actions), block_size):
@@ -76,23 +80,27 @@ class MetricsCalculator:
         return results
 
     def progression(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         return len(df[(df["event_role"] == "task_end") & (df["event_value"].astype(str).str.lower() == "success")])
 
     # ============================================================
     # --- EFICIENCIA ---
     # ============================================================
     def avg_reaction_time(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         return df["reaction_time_ms"].dropna().mean() if "reaction_time_ms" in df.columns else np.nan
 
     def avg_task_duration(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         tasks = df[df["event_role"] == "task_end"]
         return tasks["duration_ms"].dropna().mean() if "duration_ms" in tasks.columns else np.nan
 
     def time_per_success(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         hits = df[df["event_role"] == "action_success"]
         tasks = df[df["event_role"] == "task_end"]
         if not tasks.empty and not hits.empty:
@@ -101,11 +109,13 @@ class MetricsCalculator:
         return np.nan
 
     def navigation_errors(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         return len(df[df["event_role"] == "navigation_error"])
 
     def aim_errors(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         attempts = df[df["event_role"].isin(["action_success", "action_fail"])]
         return len(attempts)
 
@@ -113,11 +123,13 @@ class MetricsCalculator:
     # --- SATISFACCIÓN ---
     # ============================================================
     def retries_after_end(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         return len(df[df["event_role"] == "task_restart"])
 
     def voluntary_play_time(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         session_end = df[df["event_role"] == "session_end"]["timestamp"].min()
         task_end = df[df["event_role"] == "task_end"]["timestamp"].max()
         if pd.notna(session_end) and pd.notna(task_end):
@@ -125,24 +137,28 @@ class MetricsCalculator:
         return np.nan
 
     def aid_usage(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         return len(df[df["event_role"] == "help_event"])
 
     def interface_errors(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         return len(df[df["event_role"] == "interface_error"])
 
     # ============================================================
     # --- PRESENCIA ---
     # ============================================================
     def inactivity_time(self, df=None, threshold=5):
-        df = df or self.df
+        if df is None:
+            df = self.df
         ts = df["timestamp"].sort_values()
         diffs = ts.diff().dt.total_seconds()
         return diffs[diffs > threshold].sum()
 
     def first_success_time(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         start = df[df["event_role"] == "session_start"]["timestamp"].min()
         first_success = df[df["event_role"] == "action_success"]["timestamp"].min()
         if pd.notna(start) and pd.notna(first_success):
@@ -150,7 +166,8 @@ class MetricsCalculator:
         return np.nan
 
     def sound_localization_time(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         audio = df[df["event_name"] == "audio_triggered"]["timestamp"].min()
         head_turn = df[df["event_name"] == "head_turn"]["timestamp"].min()
         if pd.notna(audio) and pd.notna(head_turn):
@@ -158,7 +175,8 @@ class MetricsCalculator:
         return np.nan
 
     def activity_level(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         if "timestamp" in df.columns:
             total_time = (df["timestamp"].max() - df["timestamp"].min()).total_seconds() / 60
             return len(df) / total_time if total_time > 0 else np.nan
@@ -168,7 +186,8 @@ class MetricsCalculator:
     # --- CUSTOM EVENTS ---
     # ============================================================
     def custom_events_summary(self, df=None):
-        df = df or self.df
+        if df is None:
+            df = self.df
         custom = df[~df["event_role"].isin(self.official_roles)]
         if custom.empty:
             return {}

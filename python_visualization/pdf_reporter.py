@@ -109,6 +109,30 @@ class PDFReport:
             elements.append(Paragraph("Resultados Detallados por Usuario / Sesión", styles["Heading1"]))
             elements.append(Spacer(1, 10))
 
+            # 🔹 Resumen de Scores Ponderados (global promedio)
+            if any(c in df.columns for c in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score"]):
+                elements.append(Paragraph("<b>Resumen de puntuaciones ponderadas</b>", styles["Heading2"]))
+
+                mean_scores = {}
+                for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "total_score"]:
+                    if col in df.columns:
+                        mean_scores[col] = round(df[col].mean(), 2)
+
+                data = [["Categoría", "Puntuación promedio (%)"]] + [
+                    [k.replace("_score", "").capitalize(), v] for k, v in mean_scores.items()
+                ]
+
+                table = Table(data, hAlign="LEFT")
+                table.setStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("ALIGN", (1, 1), (-1, -1), "CENTER")
+                ])
+                elements.append(table)
+                elements.append(Spacer(1, 12))
+                elements.append(PageBreak())
+
             for _, row in df.iterrows():
                 uid = row.get("user_id", "N/A")
                 gid = row.get("group_id", "N/A")
@@ -116,6 +140,23 @@ class PDFReport:
 
                 elements.append(Paragraph(f"<b>Usuario:</b> {uid} — <b>Grupo:</b> {gid} — <b>Sesión:</b> {sid}", styles["Heading3"]))
                 elements.append(Spacer(1, 8))
+
+                # 🔹 Mostrar los scores del usuario
+                user_scores = []
+                for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "total_score"]:
+                    if col in row:
+                        user_scores.append([col.replace("_score", "").capitalize(), f"{round(row[col], 2)}%"])
+                if user_scores:
+                    elements.append(Paragraph("Puntuaciones ponderadas", styles["Heading4"]))
+                    table = Table([["Categoría", "Valor (%)"]] + user_scores, hAlign="LEFT")
+                    table.setStyle([
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("ALIGN", (1, 1), (-1, -1), "CENTER")
+                    ])
+                    elements.append(table)
+                    elements.append(Spacer(1, 10))
 
                 # 🔹 Para cada categoría principal
                 for cat, keys in category_blocks.items():
@@ -157,23 +198,37 @@ class PDFReport:
                 elements.append(Paragraph(f"Resultados para: {id_}", styles["Heading2"]))
                 elements.append(Spacer(1, 10))
 
+                # 🔹 Si hay bloque de scores globales
+                if "scores" in res and isinstance(res["scores"], dict):
+                    elements.append(Paragraph("Resumen de puntuaciones ponderadas", styles["Heading3"]))
+                    data = [["Categoría", "Valor (%)"]]
+                    for k, v in res["scores"].items():
+                        data.append([k.replace("_score", "").capitalize(), f"{round(v, 2)}"])
+                    table = Table(data, hAlign="LEFT")
+                    table.setStyle([
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("ALIGN", (1, 1), (-1, -1), "CENTER")
+                    ])
+                    elements.append(table)
+                    elements.append(Spacer(1, 10))
+
                 # 🔹 Para cada categoría (efectividad, eficiencia, etc.)
                 for cat, metrics in res.items():
+                    if cat == "scores":
+                        continue
                     elements.append(Paragraph(cat.title(), styles["Heading3"]))
                     data = [["Métrica", "Valor"]]
-                    # 🔹 Manejo seguro de métricas, incluso si hay listas o estructuras anidadas
                     if isinstance(metrics, dict):
                         for key, value in metrics.items():
                             if isinstance(value, (list, dict)):
-                                # Convertir listas o dicts en texto legible (truncado si son largos)
                                 value = str(value)[:300] + ("..." if len(str(value)) > 300 else "")
                             data.append([key.replace("_", " ").title(), str(value)])
                     elif isinstance(metrics, list):
-                        # Si metrics es una lista (p. ej. 'learning_curve'), mostrar la longitud y primeros valores
                         preview = str(metrics[:5]) + ("..." if len(metrics) > 5 else "")
                         data.append(["Lista de valores", preview])
                     else:
-                        # Si es un valor simple
                         data.append(["Valor", str(metrics)])
 
                     table = Table(data, repeatRows=1, colWidths=[250, 150])
@@ -186,7 +241,6 @@ class PDFReport:
                     elements.append(table)
                     elements.append(Spacer(1, 8))
 
-                    # 🖼️ Añadir gráficos globales debajo de cada categoría
                     cat_dir = self.figures_dir / "global"
                     if not cat_dir.exists():
                         cat_dir = self.figures_dir
