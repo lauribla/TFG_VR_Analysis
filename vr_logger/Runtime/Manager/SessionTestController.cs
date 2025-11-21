@@ -6,9 +6,10 @@ public class SessionTestController : MonoBehaviour
 {
     private IEnumerator Start()
     {
-        // Esperamos un frame para asegurarnos de que UserSessionManager ya ha hecho Awake()
+        // Esperar un frame para asegurar que ExperimentConfig y UserSessionManager ya se han inicializado
         yield return null;
 
+        // Obtener instancia del UserSessionManager
         var sessionManager = UserSessionManager.Instance;
 
         if (sessionManager == null)
@@ -17,21 +18,20 @@ public class SessionTestController : MonoBehaviour
             yield break;
         }
 
-        // Mostramos info básica
-        Debug.Log($"✅ Sesión iniciada correctamente:\n" +
-                  $"- User ID: {sessionManager.GetUserId()}\n" +
-                  $"- Group ID: {sessionManager.GetGroupId()}\n" +
-                  $"- Session ID: {sessionManager.GetSessionId()}");
+        // Mostrar datos básicos
+        Debug.Log($"[SessionTestController] 🟢 Sesión iniciada con éxito:");
+        Debug.Log($"- User ID: {sessionManager.GetUserId()}");
+        Debug.Log($"- Group ID: {sessionManager.GetGroupId()}");
+        Debug.Log($"- Session ID: {sessionManager.GetSessionId()}");
 
-        // Simulamos algunos eventos con logs
-        Debug.Log("🟢 Registrando eventos de prueba...");
+        // =====================================================
+        // PRIMER LOG ESPECIAL → CONFIG DEL EXPERIMENTO
+        // =====================================================
 
-        yield return sessionManager.LogEventWithSession("task", "task_start", new { task_name = "shooting_test" });
-        yield return new WaitForSeconds(1.5f);
-        yield return sessionManager.LogEventWithSession("task", "target_hit", new { target_id = "TGT_001", reaction_time_ms = 850 });
-        yield return new WaitForSeconds(0.8f);
-        yield return sessionManager.LogEventWithSession("task", "task_end", new { success = true, total_time_s = 2.3f });
+        Debug.Log("[SessionTestController] 🟡 Enviando configuración del experimento a MongoDB...");
 
-        Debug.Log("🟩 Fin de prueba de sesión.");
+        ExperimentConfig.Instance.SendConfigAsLog();
+
+        Debug.Log("[SessionTestController] 🟢 Configuración del experimento registrada como primer log.");
     }
 }
