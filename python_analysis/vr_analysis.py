@@ -3,10 +3,11 @@ VR USER EVALUATION - Análisis completo de la base de datos MongoDB
 ------------------------------------------------------------------
 Este script conecta con la base de datos donde Unity guarda los logs (test.tfg),
 los analiza y genera automáticamente:
-    - Métricas de usuario y grupo (eficiencia, efectividad, satisfacción)
+    - Métricas por categoría (efectividad, eficiencia, satisfacción, presencia)
+    - Métricas globales ponderadas
     - Archivos CSV/JSON exportados
     - Gráficas comparativas
-    - Informe PDF final con resultados.
+    - Informe PDF con los resultados
 """
 
 import pandas as pd
@@ -21,7 +22,7 @@ import json
 from pathlib import Path
 
 # ============================================================
-# 1️⃣ Conectar con tu base de datos real
+# 1️⃣ Conectar con MongoDB y cargar logs
 # ============================================================
 
 DB_NAME = "test"
@@ -32,67 +33,87 @@ print(f"🔗 Conectando a MongoDB → {MONGO_URI}/{DB_NAME}.{COLLECTION_NAME}")
 parser = LogParser(db_name=DB_NAME, collection_name=COLLECTION_NAME)
 logs = parser.fetch_logs()
 
-# A) df_raw: SIN expandir para poder recuperar config original
+# df sin expandir → recuperar config
 df_raw = parser.parse_logs(logs, expand_context=False)
 
-# B) df: expandido para análisis de métricas
+# df expandido → métricas
 df = parser.parse_logs(logs, expand_context=True)
 
 parser.close()
 
 if df.empty:
-    print("⚠️  No se encontraron logs en la base de datos. Asegúrate de que Unity ha enviado datos.")
+    print("⚠️  No se encontraron logs en Mongo.")
     exit()
 
-print(f"✅ {len(df)} documentos cargados correctamente desde MongoDB.\n")
+print(f"✅ {len(df)} documentos cargados desde Mongo.\n")
 
 
 # ============================================================
-# EXTRAER CONFIG INICIAL DEL LOG — MÉTODO ROBUSTO
+# 2️⃣ Extraer config ORIGINAL desde logs sin expandir
 # ============================================================
 
-print("\n⚙️  Buscando configuración del experimento en MongoDB...")
+print("⚙️  Leyendo configuración del experimento...\n")
 
 experiment_config = None
 
-for entry in logs:  # <-- leer directamente los documentos Mongo sin Pandas
+for entry in logs:
     if entry.get("event_type") == "config":
         experiment_config = entry.get("event_context")
         break
 
 if experiment_config is not None:
-    print("✅ Config encontrada y cargada directamente desde los logs.\n")
+    print("✅ Config cargada correctamente.\n")
 else:
-    print("⚠️  No existe configuración registrada (event_type='config').\n")
+    print("⚠️  No existe configuración en los logs.\n")
+
 
 # ============================================================
-# 3️⃣ Resumen inicial de sesiones y usuarios
+# 3️⃣ Resumen de sesiones y usuarios
 # ============================================================
 
-print("👥 Resumen de usuarios y sesiones detectadas:\n")
+print("👥 Resumen de usuarios, grupos y sesiones:")
 
 usuarios = df["user_id"].nunique()
 grupos = df["group_id"].nunique()
 sesiones = df["session_id"].nunique()
 
-print(f"  • Usuarios únicos: {usuarios}")
-print(f"  • Grupos experimentales: {grupos}")
-print(f"  • Sesiones registradas: {sesiones}\n")
+print(f"  • Usuarios: {usuarios}")
+print(f"  • Grupos: {grupos}")
+print(f"  • Sesiones: {sesiones}\n")
 
-print("📄 Detalle de sesiones:")
+print("📄 Lista de sesiones detectadas:")
 print(df[["user_id", "group_id", "session_id"]].drop_duplicates().to_string(index=False))
 
 
 # ============================================================
-# 4️⃣ Calcular métricas
+# 4️⃣ Calcular métricas usando MetricsCalculator
 # ============================================================
 
-print("\n📊 Calculando métricas (eficiencia, efectividad, satisfacción)...")
-metrics = MetricsCalculator(df, experiment_config=experiment_config)
-results = metrics.compute_all()
+print("\n📊 Calculando métricas ponderadas del experimento...\n")
 
-print("\n=== Resultados globales ===")
-print(json.dumps(results, indent=4))
+metrics = MetricsCalculator(df, experiment_config=experiment_config)
+raw_results = metrics.compute_all()
+
+# ------------------------------------------------------------
+# ADAPTAR RESULTADO a FORMATO PARA EL PDF Y EXPORTER
+# ------------------------------------------------------------
+results_for_export = {}
+
+for categoria, contenido in raw_results["categorias"].items():
+
+    # Subestructura compatible con PDFReporter
+    results_for_export[categoria] = {
+        "score": contenido["score"]
+    }
+
+    for metric_name, metric_data in contenido.items():
+        if isinstance(metric_data, dict):
+            results_for_export[categoria][metric_name] = metric_data["raw"]
+
+# añadir puntuación global
+results_for_export["global_score"] = raw_results["global_score"]
+
+print(json.dumps(results_for_export, indent=4))
 
 
 # ============================================================
@@ -108,31 +129,25 @@ figures_dir = base_dir / f"pruebas/figures_{timestamp}"
 os.makedirs(export_dir, exist_ok=True)
 os.makedirs(figures_dir, exist_ok=True)
 
-print(f"\n📁 Directorios creados:")
-print(f"  - Exportaciones: {export_dir}")
-print(f"  - Figuras:       {figures_dir}")
-
 
 # ============================================================
-# 6️⃣ Guardar CONFIG extraído
+# 6️⃣ Guardar config en archivo
 # ============================================================
 
 if experiment_config is not None:
     config_path = export_dir / "experiment_config_from_mongo.json"
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(experiment_config, f, indent=4)
-    print(f"📄 Config del experimento exportado a {config_path}")
-else:
-    print("⚠️  No se pudo exportar config (no existe).")
+    print(f"📄 Config exportada: {config_path}\n")
 
 
 # ============================================================
-# 7️⃣ Exportar resultados a JSON y CSV
+# 7️⃣ Exportar resultados JSON + CSV
 # ============================================================
 
-print("\n💾 Exportando resultados...")
+print("💾 Exportando métricas...")
 
-exporter = MetricsExporter(results, output_dir=export_dir)
+exporter = MetricsExporter(results_for_export, output_dir=export_dir)
 exporter.to_json("results.json")
 exporter.to_csv("results.csv")
 
@@ -140,66 +155,62 @@ grouped_df = metrics.compute_grouped_metrics()
 grouped_path = export_dir / "grouped_metrics.csv"
 grouped_df.to_csv(grouped_path, index=False)
 
+# También exportar versión agrupada como JSON
 MetricsExporter.export_multiple(
-    [results],
+    [results_for_export],
     ["Global"],
     mode="json",
     output_dir=export_dir,
     filename="group_results"
 )
 
-print(f"✅ Resultados exportados correctamente.\n")
+print("✅ Exportación completada.\n")
 
 
 # ============================================================
 # 8️⃣ Generar figuras
 # ============================================================
 
-GENERAR_GLOBAL = True
-GENERAR_AGRUPADO = True
-
 print("📈 Generando gráficas...")
 
-group_results_path = export_dir / "group_results.json"
-grouped_metrics_path = export_dir / "grouped_metrics.csv"
-
+global_json = export_dir / "group_results.json"
 generated_figures = 0
 
-if GENERAR_GLOBAL and group_results_path.exists():
+if global_json.exists():
     global_dir = figures_dir / "global"
-    viz_global = Visualizer(str(group_results_path), output_dir=global_dir)
+    viz_global = Visualizer(str(global_json), output_dir=global_dir)
     viz_global.generate_all()
     generated_figures += len(list(global_dir.glob("*.png")))
 
-if GENERAR_AGRUPADO and grouped_metrics_path.exists():
+if grouped_path.exists():
     grouped_dir = figures_dir / "agrupado"
-    viz_grouped = Visualizer(str(grouped_metrics_path), output_dir=grouped_dir)
+    viz_grouped = Visualizer(str(grouped_path), output_dir=grouped_dir)
     viz_grouped.generate_all()
     generated_figures += len(list(grouped_dir.glob("*.png")))
 
-print(f"📊 Figuras generadas: {generated_figures}")
+print(f"📊 Figuras generadas: {generated_figures}\n")
 
 
 # ============================================================
 # 9️⃣ Generar informes PDF
 # ============================================================
 
-print("\n📄 Generando informe PDF...")
+print("📄 Generando informe PDF...\n")
 
-if GENERAR_GLOBAL and group_results_path.exists():
+if global_json.exists():
     report_global = PDFReport(
-        results_file=str(group_results_path),
+        results_file=str(global_json),
         figures_dir=figures_dir / "global",
         base_dir=base_dir
     )
     report_global.generate()
 
-if GENERAR_AGRUPADO and grouped_metrics_path.exists():
+if grouped_path.exists():
     report_grouped = PDFReport(
-        results_file=str(grouped_metrics_path),
+        results_file=str(grouped_path),
         figures_dir=figures_dir / "agrupado",
         base_dir=base_dir
     )
     report_grouped.generate()
 
-print("\n🎉 Análisis completo terminado.")
+print("🎉 ANÁLISIS COMPLETO FINALIZADO.\n")

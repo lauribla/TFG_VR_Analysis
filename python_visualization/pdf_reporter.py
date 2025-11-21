@@ -110,7 +110,7 @@ class PDFReport:
             elements.append(Spacer(1, 10))
 
             # 🔹 Resumen de Scores Ponderados (global promedio)
-            if any(c in df.columns for c in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score"]):
+            if all(c in df.columns for c in ["efectividad", "eficiencia", "satisfaccion", "presencia", "global_score"]):
                 elements.append(Paragraph("<b>Resumen de puntuaciones ponderadas</b>", styles["Heading2"]))
 
                 mean_scores = {}
@@ -141,22 +141,34 @@ class PDFReport:
                 elements.append(Paragraph(f"<b>Usuario:</b> {uid} — <b>Grupo:</b> {gid} — <b>Sesión:</b> {sid}", styles["Heading3"]))
                 elements.append(Spacer(1, 8))
 
-                # 🔹 Mostrar los scores del usuario
-                user_scores = []
-                for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "total_score"]:
-                    if col in row:
-                        user_scores.append([col.replace("_score", "").capitalize(), f"{round(row[col], 2)}%"])
-                if user_scores:
-                    elements.append(Paragraph("Puntuaciones ponderadas", styles["Heading4"]))
-                    table = Table([["Categoría", "Valor (%)"]] + user_scores, hAlign="LEFT")
-                    table.setStyle([
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-                        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("ALIGN", (1, 1), (-1, -1), "CENTER")
-                    ])
-                    elements.append(table)
-                    elements.append(Spacer(1, 10))
+                # 🔹 Mostrar los scores del usuario (ponderados desde MetricsCalculator)
+                elements.append(Paragraph("Puntuaciones Ponderadas", styles["Heading4"]))
+
+                score_keys = [
+                    ("Efectividad", "efectividad"),
+                    ("Eficiencia", "eficiencia"),
+                    ("Satisfacción", "satisfaccion"),
+                    ("Presencia", "presencia"),
+                    ("Total Global", "global_score")
+                ]
+
+                data = [["Categoría", "Score (%)"]]
+
+                for label, key in score_keys:
+                    if key in row and not pd.isna(row[key]):
+                        val = round(float(row[key]) * 100, 2) if key != "global_score" else round(float(row[key]) * 100,
+                                                                                                  2)
+                        data.append([label, f"{val}%"])
+
+                score_table = Table(data, hAlign="LEFT")
+                score_table.setStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("ALIGN", (1, 1), (-1, -1), "CENTER")
+                ])
+                elements.append(score_table)
+                elements.append(Spacer(1, 10))
 
                 # 🔹 Para cada categoría principal
                 for cat, keys in category_blocks.items():
