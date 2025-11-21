@@ -1,6 +1,7 @@
 using System.IO;
 using UnityEngine;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
 
 namespace VRLogger
 {
@@ -8,12 +9,9 @@ namespace VRLogger
     {
         public static ExperimentConfig Instance;
 
-        public ExperimentConfigData config;
+        public dynamic config;
 
-        // Ruta relativa dentro de Assets
-        public string configPath = "vr_logger/experiment_config.json";
-
-        private void Awake()
+        void Awake()
         {
             if (Instance == null)
                 Instance = this;
@@ -26,32 +24,35 @@ namespace VRLogger
             LoadConfig();
         }
 
-        public void LoadConfig()
+        // ------------------------------------------------------------
+        // 🚀 1) Cargar experiment_config REAL desde Resources
+        // ------------------------------------------------------------
+        void LoadConfig()
         {
-            string fullPath = Path.Combine(Application.dataPath, configPath);
-
-            if (!File.Exists(fullPath))
+            try
             {
-                Debug.LogError($"[ExperimentConfig] ❌ No se encontró el archivo de configuración en: {fullPath}");
-                return;
+                TextAsset jsonFile = Resources.Load<TextAsset>("experiment_config");
+
+                if (jsonFile == null)
+                {
+                    Debug.LogError("[ExperimentConfig] ❌ No se encontró experiment_config.json en Resources/");
+                    return;
+                }
+
+                config = JsonConvert.DeserializeObject(jsonFile.text);
+
+                Debug.Log("[ExperimentConfig] ✅ Config cargado correctamente:");
+                Debug.Log(jsonFile.text);
             }
-
-            string json = File.ReadAllText(fullPath);
-            config = JsonConvert.DeserializeObject<ExperimentConfigData>(json);
-
-            Debug.Log("[ExperimentConfig] Config loaded:\n" + json);
+            catch (System.Exception ex)
+            {
+                Debug.LogError("[ExperimentConfig] ❌ Error al cargar config: " + ex.Message);
+            }
         }
 
-        public void SaveConfig(string outputName = "experiment_config_runtime.json")
-        {
-            string fullPath = Path.Combine(Application.dataPath, "vr_logger", outputName);
-            string json = JsonConvert.SerializeObject(config, Formatting.Indented);
-
-            File.WriteAllText(fullPath, json);
-
-            Debug.Log("[ExperimentConfig] Config saved:\n" + json);
-        }
-
+        // ------------------------------------------------------------
+        // 🚀 2) Enviar config REAL a Mongo
+        // ------------------------------------------------------------
         public async void SendConfigAsLog()
         {
             if (config == null)
@@ -68,7 +69,8 @@ namespace VRLogger
                 null,
                 config
             );
-        }
 
+            Debug.Log("[ExperimentConfig] ✅ CONFIG enviado correctamente");
+        }
     }
 }
