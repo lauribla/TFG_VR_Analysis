@@ -36,6 +36,9 @@ namespace VRLogger
             // Read experiment config
             var cfg = ExperimentConfig.Instance.config;
 
+            // 1️⃣ ENVIAR CONFIG A MONGODB ANTES DE EMPEZAR
+            ExperimentConfig.Instance.SendConfigAsLog();
+
             participantOrder = cfg.participants.order;
             groupId = cfg.session.group_name;
 
