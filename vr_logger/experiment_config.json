@@ -6,7 +6,8 @@
 
   "session": {
     "session_name": "Dia_1",
-    "group_name": "Grupo_A"
+    "group_name": "Grupo_A",
+    "turn_duration_seconds": 60
   },
 
   "participants": {

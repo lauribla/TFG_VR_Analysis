@@ -34,6 +34,7 @@ namespace VRLogger
         {
             public string session_name;
             public string group_name;
+            public float turn_duration_seconds;   // 👈 AÑADIR ESTO
         }
 
         [System.Serializable]
@@ -90,6 +91,8 @@ namespace VRLogger
             public float target_speed;
             public int session_time_limit;
             public string difficulty;
+            public float turn_duration_seconds;
+
         }
 
         [System.Serializable]
@@ -98,5 +101,8 @@ namespace VRLogger
             public int gaze_sampling_ms;
             public int movement_sampling_ms;
         }
+
+        
+
     }
 }
