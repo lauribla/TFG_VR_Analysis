@@ -1,63 +1,49 @@
 ﻿using UnityEngine;
+using Newtonsoft.Json.Linq;
 
 namespace VRLogger
 {
     public class VRTrackingManager : MonoBehaviour
     {
-        private bool useGazeTracker;
-        private bool useMovementTracker;
-        private bool useFootTracker;
-        private bool useHandTracker;
-        private bool useRaycastLogger;
-        private bool useCollisionLogger;
+        public static VRTrackingManager Instance;
 
-        [Header("References")]
         public Camera vrCamera;
         public Transform playerTransform;
         public Transform leftFoot;
         public Transform rightFoot;
         public Transform leftHand;
         public Transform rightHand;
-        public static VRTrackingManager Instance;
-
 
         private string userId;
         private string sessionId;
 
         void Awake()
         {
-            if (Instance == null)
-                Instance = this;
-            else
-            {
-                Destroy(gameObject);
-                return;
-            }
+            if (Instance == null) Instance = this;
+            else { Destroy(gameObject); return; }
         }
 
         public void BeginTrackingForUser()
-{
-    if (UserSessionManager.Instance == null)
+        {
+            JObject cfg = ExperimentConfig.Instance.GetConfig();
+            if (cfg == null)
             {
-                Debug.LogError("[VRTrackingManager] No se encontró UserSessionManager.");
+                Debug.LogError("[VRTracking] ❌ Config no cargado");
                 return;
             }
 
-            // 1. Leer configuración desde JSON
-            var cfg = ExperimentConfig.Instance.config.modules;
+            JObject modules = (JObject)cfg["modules"];
 
-            useGazeTracker = cfg.useGazeTracker;
-            useMovementTracker = cfg.useMovementTracker;
-            useFootTracker = cfg.useFootTracker;
-            useHandTracker = cfg.useHandTracker;
-            useRaycastLogger = cfg.useRaycastLogger;
-            useCollisionLogger = cfg.useCollisionLogger;
+            bool useGazeTracker = (bool)modules["useGazeTracker"];
+            bool useMovementTracker = (bool)modules["useMovementTracker"];
+            bool useFootTracker = (bool)modules["useFootTracker"];
+            bool useHandTracker = (bool)modules["useHandTracker"];
+            bool useRaycastLogger = (bool)modules["useRaycastLogger"];
+            bool useCollisionLogger = (bool)modules["useCollisionLogger"];
 
-            // 2. Obtener datos del usuario
             userId = UserSessionManager.Instance.GetUserId();
             sessionId = UserSessionManager.Instance.GetSessionId();
 
-            // 3. Inicializar Mongo
             LoggerService.Init(
                 UserSessionManager.Instance.connectionString,
                 UserSessionManager.Instance.dbName,
@@ -65,30 +51,24 @@ namespace VRLogger
                 userId
             );
 
-            // 4. Registrar inicio de tracking
             _ = LogAPI.LogSessionStart(sessionId);
 
-            // 5. Activar módulos
             if (useGazeTracker && vrCamera != null)
-                vrCamera.gameObject.AddComponent<GazeTracker>().vrCamera = vrCamera;
+                vrCamera.gameObject.AddComponent<GazeTracker>();
 
             if (useMovementTracker && playerTransform != null)
-                playerTransform.gameObject.AddComponent<MovementTracker>().player = playerTransform;
+                playerTransform.gameObject.AddComponent<MovementTracker>();
 
             if (useFootTracker)
             {
-                if (leftFoot != null)
-                    leftFoot.gameObject.AddComponent<FootTracker>().footName = "left";
-                if (rightFoot != null)
-                    rightFoot.gameObject.AddComponent<FootTracker>().footName = "right";
+                if (leftFoot) leftFoot.gameObject.AddComponent<FootTracker>().footName = "left";
+                if (rightFoot) rightFoot.gameObject.AddComponent<FootTracker>().footName = "right";
             }
 
             if (useHandTracker)
             {
-                if (leftHand != null)
-                    leftHand.gameObject.AddComponent<HandTracker>().handName = "left";
-                if (rightHand != null)
-                    rightHand.gameObject.AddComponent<HandTracker>().handName = "right";
+                if (leftHand) leftHand.gameObject.AddComponent<HandTracker>().handName = "left";
+                if (rightHand) rightHand.gameObject.AddComponent<HandTracker>().handName = "right";
             }
 
             if (useRaycastLogger)
@@ -97,23 +77,12 @@ namespace VRLogger
             if (useCollisionLogger)
                 gameObject.AddComponent<CollisionLogger>();
 
-            Debug.Log($"[VRTrackingManager] Config aplicado. User {userId} Session {sessionId}");
-}
-
-public void EndTracking()
-{
-    _ = LogAPI.LogSessionEnd(UserSessionManager.Instance.GetSessionId());
-}
-
-
-        void Start()
-        {
-            
+            Debug.Log($"[VRTracking] Tracking ON → {userId} / {sessionId}");
         }
 
-        void OnApplicationQuit()
+        public void EndTracking()
         {
-            _ = LogAPI.LogSessionEnd(sessionId);
+            _ = LogAPI.LogSessionEnd(UserSessionManager.Instance.GetSessionId());
         }
     }
 }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using Newtonsoft.Json.Linq;
 
 namespace VRLogger
 {
@@ -6,136 +7,84 @@ namespace VRLogger
     {
         public static ParticipantFlowController Instance;
 
-        // Index of current participant in the order list
-        private int currentIndex = 0;
-
-        // Order of participant ids (from config)
-        private string[] participantOrder;
+        private JArray participantOrder;
         private string groupId;
+        private float turnDurationSeconds = 30f;
+        private int currentIndex = 0;
+        private bool experimentRunning = false;
 
-        // Duration of each turn in seconds (from config)
-        private float turnDurationSeconds = 60f; // default fallback
-
-        // Time control
-        private float turnStartTime = 0f;
-        private bool turnActive = false;
+        private float timer = 0f;
 
         void Awake()
         {
-            if (Instance == null)
-                Instance = this;
-            else
-            {
-                Destroy(gameObject);
-                return;
-            }
+            if (Instance == null) Instance = this;
+            else { Destroy(gameObject); return; }
         }
 
         void Start()
         {
-            // Read experiment config
-            var cfg = ExperimentConfig.Instance.config;
+            JObject cfg = ExperimentConfig.Instance.GetConfig();
 
-            // 1️⃣ ENVIAR CONFIG A MONGODB ANTES DE EMPEZAR
-            ExperimentConfig.Instance.SendConfigAsLog();
-
-            participantOrder = cfg.participants.order;
-            groupId = cfg.session.group_name;
-
-            // IMPORTANT:
-            // Make sure your config class has:
-            // public float turn_duration_seconds;
-            // inside cfg.session, and set it in the JSON.
-            if (cfg.session.turn_duration_seconds > 0f)
+            if (cfg == null)
             {
-                turnDurationSeconds = cfg.session.turn_duration_seconds;
+                Debug.LogError("[ParticipantFlow] ❌ Config no cargado");
+                return;
             }
 
-            Debug.Log($"[ParticipantFlow] Loaded {participantOrder.Length} participants.");
-            Debug.Log($"[ParticipantFlow] Turn duration: {turnDurationSeconds} seconds.");
+            // PARTICIPANTES
+            participantOrder = (JArray)cfg["participants"]["order"];
 
-            ExperimentConfig.Instance.SendConfigAsLog();
-            BeginParticipant();
+            // GRUPO
+            groupId = (string)cfg["session"]["group_name"];
+
+            // DURACIÓN DEL TURNO
+            turnDurationSeconds = (float)cfg["session"]["turn_duration_seconds"];
+
+            StartNextParticipant();
+        }
+
+        void StartNextParticipant()
+        {
+            if (participantOrder == null || currentIndex >= participantOrder.Count)
+            {
+                Debug.Log("[ParticipantFlow] Experimento terminado. No más participantes.");
+                experimentRunning = false;
+                return;
+            }
+
+            string userId = (string)participantOrder[currentIndex];
+
+            UserSessionManager.Instance.StartSessionForUser(userId, groupId);
+            VRTrackingManager.Instance.BeginTrackingForUser();
+
+            Debug.Log($"[ParticipantFlow] ▶ Comienza participante: {userId}");
+
+            timer = turnDurationSeconds;
+            experimentRunning = true;
         }
 
         void Update()
         {
-            // Automatic turn change based on time
-            if (turnActive)
+            if (!experimentRunning)
+                return;
+
+            timer -= Time.deltaTime;
+
+            if (timer <= 0f)
             {
-                if (Time.time >= turnStartTime + turnDurationSeconds)
-                {
-                    Debug.Log("[ParticipantFlow] Turn time finished, moving to next participant.");
-                    NextParticipant();
-                }
+                EndCurrentParticipant();
             }
         }
 
-        // -------------------------------------------------------------
-        // Start current participant
-        // -------------------------------------------------------------
-        private void BeginParticipant()
+        void EndCurrentParticipant()
         {
-            if (currentIndex >= participantOrder.Length)
-            {
-                Debug.Log("[ParticipantFlow] Experiment finished. No more participants.");
-                turnActive = false;
-                return;
-            }
-
-            string userId = participantOrder[currentIndex];
-
-            Debug.Log($"[ParticipantFlow] Starting participant {currentIndex + 1}/{participantOrder.Length}: {userId}");
-
-            // Start session and tracking
-            UserSessionManager.Instance.StartSessionForUser(userId, groupId);
-            VRTrackingManager.Instance.BeginTrackingForUser();
-
-            // Start turn timer
-            turnStartTime = Time.time;
-            turnActive = true;
-        }
-
-        // -------------------------------------------------------------
-        // End current participant and go to next
-        // -------------------------------------------------------------
-        private void NextParticipant()
-        {
-            if (!turnActive)
-            {
-                // Already finished or not started
-                return;
-            }
-
-            Debug.Log("[ParticipantFlow] Ending current participant.");
-
-            // End tracking and session
             VRTrackingManager.Instance.EndTracking();
             UserSessionManager.Instance.EndSession();
 
-            turnActive = false;
+            Debug.Log("[ParticipantFlow] ⏹ Turno finalizado.");
 
-            // Move index and start next participant (if any)
             currentIndex++;
-
-            if (currentIndex < participantOrder.Length)
-            {
-                BeginParticipant();
-            }
-            else
-            {
-                Debug.Log("[ParticipantFlow] All participants completed. Experiment fully finished.");
-            }
-        }
-
-        // -------------------------------------------------------------
-        // Optional: public method to force skip to next participant
-        // (for teacher override, debugging, etc.)
-        // -------------------------------------------------------------
-        public void ForceNextParticipant()
-        {
-            Debug.Log("[ParticipantFlow] ForceNextParticipant called.");
-            NextParticipant();
+            StartNextParticipant();
         }
     }
 }

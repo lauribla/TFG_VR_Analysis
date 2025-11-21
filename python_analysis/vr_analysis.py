@@ -6,7 +6,7 @@ los analiza y genera automáticamente:
     - Métricas de usuario y grupo (eficiencia, efectividad, satisfacción)
     - Archivos CSV/JSON exportados
     - Gráficas comparativas
-    - Informe PDF final con resultados
+    - Informe PDF final con resultados.
 """
 
 import pandas as pd
@@ -23,6 +23,7 @@ from pathlib import Path
 # ============================================================
 # 1️⃣ Conectar con tu base de datos real
 # ============================================================
+
 DB_NAME = "test"
 COLLECTION_NAME = "tfg"
 MONGO_URI = "mongodb://localhost:27017"
@@ -30,7 +31,13 @@ MONGO_URI = "mongodb://localhost:27017"
 print(f"🔗 Conectando a MongoDB → {MONGO_URI}/{DB_NAME}.{COLLECTION_NAME}")
 parser = LogParser(db_name=DB_NAME, collection_name=COLLECTION_NAME)
 logs = parser.fetch_logs()
+
+# A) df_raw: SIN expandir para poder recuperar config original
+df_raw = parser.parse_logs(logs, expand_context=False)
+
+# B) df: expandido para análisis de métricas
 df = parser.parse_logs(logs, expand_context=True)
+
 parser.close()
 
 if df.empty:
@@ -39,36 +46,24 @@ if df.empty:
 
 print(f"✅ {len(df)} documentos cargados correctamente desde MongoDB.\n")
 
+
 # ============================================================
-# EXTRAER CONFIG INICIAL DEL LOG (primer log enviado por Unity)
+# EXTRAER CONFIG INICIAL DEL LOG — MÉTODO ROBUSTO
 # ============================================================
 
 print("\n⚙️  Buscando configuración del experimento en MongoDB...")
 
-config_df = df[df["event_type"] == "config"]
+experiment_config = None
 
-if not config_df.empty:
-    row = config_df.sort_values("timestamp").iloc[0]
+for entry in logs:  # <-- leer directamente los documentos Mongo sin Pandas
+    if entry.get("event_type") == "config":
+        experiment_config = entry.get("event_context")
+        break
 
-    # Extraer todas las columnas que empiezan por "event_context."
-    context_cols = {col: row[col] for col in df.columns if col.startswith("event_context.")}
-
-    # Reconstruir jerarquía
-    experiment_config = {}
-
-    for key, value in context_cols.items():
-        parts = key.split(".")[1:]      # quitar "event_context"
-        cursor = experiment_config
-        for p in parts[:-1]:
-            cursor = cursor.setdefault(p, {})
-        cursor[parts[-1]] = value
-
-    print("✅ Config reconstruida desde columnas expandidas.\n")
-
+if experiment_config is not None:
+    print("✅ Config encontrada y cargada directamente desde los logs.\n")
 else:
-    experiment_config = None
     print("⚠️  No existe configuración registrada (event_type='config').\n")
-
 
 # ============================================================
 # 3️⃣ Resumen inicial de sesiones y usuarios
@@ -87,6 +82,7 @@ print(f"  • Sesiones registradas: {sesiones}\n")
 print("📄 Detalle de sesiones:")
 print(df[["user_id", "group_id", "session_id"]].drop_duplicates().to_string(index=False))
 
+
 # ============================================================
 # 4️⃣ Calcular métricas
 # ============================================================
@@ -97,6 +93,7 @@ results = metrics.compute_all()
 
 print("\n=== Resultados globales ===")
 print(json.dumps(results, indent=4))
+
 
 # ============================================================
 # 5️⃣ Crear carpetas de exportación
@@ -115,6 +112,7 @@ print(f"\n📁 Directorios creados:")
 print(f"  - Exportaciones: {export_dir}")
 print(f"  - Figuras:       {figures_dir}")
 
+
 # ============================================================
 # 6️⃣ Guardar CONFIG extraído
 # ============================================================
@@ -126,6 +124,7 @@ if experiment_config is not None:
     print(f"📄 Config del experimento exportado a {config_path}")
 else:
     print("⚠️  No se pudo exportar config (no existe).")
+
 
 # ============================================================
 # 7️⃣ Exportar resultados a JSON y CSV
@@ -150,6 +149,7 @@ MetricsExporter.export_multiple(
 )
 
 print(f"✅ Resultados exportados correctamente.\n")
+
 
 # ============================================================
 # 8️⃣ Generar figuras
@@ -178,6 +178,7 @@ if GENERAR_AGRUPADO and grouped_metrics_path.exists():
     generated_figures += len(list(grouped_dir.glob("*.png")))
 
 print(f"📊 Figuras generadas: {generated_figures}")
+
 
 # ============================================================
 # 9️⃣ Generar informes PDF
