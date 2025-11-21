@@ -40,7 +40,7 @@ if df.empty:
 print(f"✅ {len(df)} documentos cargados correctamente desde MongoDB.\n")
 
 # ============================================================
-# 2️⃣ Extraer CONFIG inicial (primer log enviado por Unity)
+# EXTRAER CONFIG INICIAL DEL LOG (primer log enviado por Unity)
 # ============================================================
 
 print("\n⚙️  Buscando configuración del experimento en MongoDB...")
@@ -48,11 +48,27 @@ print("\n⚙️  Buscando configuración del experimento en MongoDB...")
 config_df = df[df["event_type"] == "config"]
 
 if not config_df.empty:
-    experiment_config = config_df.sort_values("timestamp").iloc[0]["event_context"]
-    print("✅ Config extraído correctamente desde MongoDB.\n")
+    row = config_df.sort_values("timestamp").iloc[0]
+
+    # Extraer todas las columnas que empiezan por "event_context."
+    context_cols = {col: row[col] for col in df.columns if col.startswith("event_context.")}
+
+    # Reconstruir jerarquía
+    experiment_config = {}
+
+    for key, value in context_cols.items():
+        parts = key.split(".")[1:]      # quitar "event_context"
+        cursor = experiment_config
+        for p in parts[:-1]:
+            cursor = cursor.setdefault(p, {})
+        cursor[parts[-1]] = value
+
+    print("✅ Config reconstruida desde columnas expandidas.\n")
+
 else:
     experiment_config = None
     print("⚠️  No existe configuración registrada (event_type='config').\n")
+
 
 # ============================================================
 # 3️⃣ Resumen inicial de sesiones y usuarios
@@ -76,7 +92,7 @@ print(df[["user_id", "group_id", "session_id"]].drop_duplicates().to_string(inde
 # ============================================================
 
 print("\n📊 Calculando métricas (eficiencia, efectividad, satisfacción)...")
-metrics = MetricsCalculator(df)
+metrics = MetricsCalculator(df, experiment_config=experiment_config)
 results = metrics.compute_all()
 
 print("\n=== Resultados globales ===")
