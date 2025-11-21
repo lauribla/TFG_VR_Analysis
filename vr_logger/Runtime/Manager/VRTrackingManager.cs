@@ -18,13 +18,26 @@ namespace VRLogger
         public Transform rightFoot;
         public Transform leftHand;
         public Transform rightHand;
+        public static VRTrackingManager Instance;
+
 
         private string userId;
         private string sessionId;
 
-        void Start()
+        void Awake()
         {
-            if (UserSessionManager.Instance == null)
+            if (Instance == null)
+                Instance = this;
+            else
+            {
+                Destroy(gameObject);
+                return;
+            }
+        }
+
+        public void BeginTrackingForUser()
+{
+    if (UserSessionManager.Instance == null)
             {
                 Debug.LogError("[VRTrackingManager] No se encontró UserSessionManager.");
                 return;
@@ -85,6 +98,17 @@ namespace VRLogger
                 gameObject.AddComponent<CollisionLogger>();
 
             Debug.Log($"[VRTrackingManager] Config aplicado. User {userId} Session {sessionId}");
+}
+
+public void EndTracking()
+{
+    _ = LogAPI.LogSessionEnd(UserSessionManager.Instance.GetSessionId());
+}
+
+
+        void Start()
+        {
+            
         }
 
         void OnApplicationQuit()

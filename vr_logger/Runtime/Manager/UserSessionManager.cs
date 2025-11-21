@@ -13,19 +13,11 @@ namespace VRLogger
         public string dbName = "test";
         public string collectionName = "tfg";
 
-        [Header("User Config")]
-        public string userId = "U001";
-        public string groupId = "default"; 
-
-        [Header("User Profile")]
-        public string userName;
-        public int age;
-        public string gender;
-        public string handedness;
-        public string experienceLevel;
-        public string cognitiveProfile;
-
+        private string userId = "NO_USER";
+        private string groupId = "NO_GROUP";
         private string sessionId;
+
+        private bool started = false;
 
         void Awake()
         {
@@ -36,63 +28,46 @@ namespace VRLogger
                 Destroy(gameObject);
                 return;
             }
+        }
 
-            // --- LEER CONFIG DESDE EXPERIMENT CONFIG ---
-            var cfg = ExperimentConfig.Instance.config;
+        // -------------------------------------------------------------------
+        // NUEVO: Iniciar sesión para un usuario dinámico
+        // -------------------------------------------------------------------
+        public void StartSessionForUser(string newUserId, string newGroupId)
+        {
+            if (started)
+            {
+                Debug.LogWarning("[UserSessionManager] Ya había una sesión activa.");
+                return;
+            }
 
-            // Session y grupo vienen del JSON
-            groupId = cfg.session.group_name;
-
-            // sessionId único para este sujeto
+            userId = newUserId;
+            groupId = newGroupId;
             sessionId = Guid.NewGuid().ToString();
 
-            // Inicializa Mongo
             LoggerService.Init(connectionString, dbName, collectionName, userId);
 
-            // Registrar inicio de sesión
             _ = LogAPI.LogSessionStart(sessionId);
 
-            // Log de metadatos del usuario
-            _ = LoggerService.LogEvent(
-                "session",
-                "session_metadata",
-                null,
-                new
-                {
-                    session_id = sessionId,
-                    user_id = userId,
-                    group_id = groupId,
-                    profile = new
-                    {
-                        name = userName,
-                        age = age,
-                        gender = gender,
-                        handedness = handedness,
-                        experience = experienceLevel,
-                        cognitive_profile = cognitiveProfile
-                    }
-                }
-            );
-
-            Debug.Log($"[UserSessionManager] Session started: {sessionId} (User {userId}, Group {groupId})");
+            Debug.Log($"[UserSessionManager] 🟢 Sesión iniciada → User: {userId}, Group: {groupId}, Session: {sessionId}");
+            started = true;
         }
 
-        void OnApplicationQuit()
+        // -------------------------------------------------------------------
+        // Fin de sesión
+        // -------------------------------------------------------------------
+        public void EndSession()
         {
+            if (!started) return;
+
             _ = LogAPI.LogSessionEnd(sessionId);
-            Debug.Log($"[UserSessionManager] Session ended: {sessionId}");
+            Debug.Log($"[UserSessionManager] 🔴 Sesión finalizada → {sessionId}");
+            started = false;
         }
 
+        // Getters
         public string GetUserId() => userId;
-        public string GetSessionId() => sessionId;
         public string GetGroupId() => groupId;
-
-        public async Task LogEventWithSession(string t, string n, object v = null, object ctx = null)
-        {
-            await LoggerService.LogEvent(
-                t, n, v,
-                new { session_id = sessionId, group_id = groupId, context = ctx }
-            );
-        }
+        public string GetSessionId() => sessionId;
     }
 }
