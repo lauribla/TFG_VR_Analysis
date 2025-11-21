@@ -22,7 +22,7 @@ class MetricsCalculator:
         self.df["session_id"] = self.df.get("session_id", "SESSION").fillna("SESSION")
 
         # ------------------------------------------------------------------
-        # Asignación de roles desde config
+        # Asignación de roles desde config (corregido)
         # ------------------------------------------------------------------
         roles_cfg = self.config.get("event_roles", {})
 
@@ -30,6 +30,7 @@ class MetricsCalculator:
             return roles_cfg.get(ev, "custom_event")
 
         self.df["event_role"] = self.df["event_name"].apply(resolve_role)
+
         def resolve_role(ev):
             return roles_cfg.get(ev, "custom_event")
         self.df["event_role"] = self.df["event_name"].apply(resolve_role)
