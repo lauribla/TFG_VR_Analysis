@@ -1,95 +1,76 @@
+import csv
 import json
-import pandas as pd
 from pathlib import Path
 
 class MetricsExporter:
-    def __init__(self, results, output_dir="exports"):
-        """
-        results: dict generado por MetricsCalculator.compute_all()
-        output_dir: carpeta donde guardar los archivos
-        """
-        self.results = results
+    def __init__(self, metrics, output_dir):
+        self.metrics = metrics
         self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    # ============================================================
-    #  Exportaciones básicas (globales)
-    # ============================================================
-    def to_json(self, filename="results.json"):
-        """Exporta resultados a JSON"""
-        filepath = self.output_dir / filename
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(self.results, f, indent=4, ensure_ascii=False)
-        print(f"[Exporter] ✅ JSON exportado en {filepath}")
+    # -------------------------------------------------------------
+    # JSON Export
+    # -------------------------------------------------------------
+    def to_json(self, filename):
+        path = self.output_dir / filename
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.metrics, f, indent=4)
+        print(f"[Exporter] ✅ JSON exportado en {path}")
 
-    def to_csv(self, filename="results.csv"):
-        """Exporta resultados globales a CSV plano"""
-        flat_results = {}
-        for cat, metrics in self.results.items():
-            # Evitar que la lista 'agrupado_por_usuario_y_sesion' entre aquí
-            if cat == "agrupado_por_usuario_y_sesion":
-                continue
-            for key, value in metrics.items():
-                flat_results[f"{cat}_{key}"] = value
+    # -------------------------------------------------------------
+    # CSV Export (Nueva versión compatible con estructura extendida)
+    # -------------------------------------------------------------
+    def to_csv(self, filename):
+        path = self.output_dir / filename
 
-        df = pd.DataFrame([flat_results])
-        filepath = self.output_dir / filename
-        df.to_csv(filepath, index=False)
-        print(f"[Exporter] ✅ CSV exportado en {filepath}")
+        flat = self._flatten_dict(self.metrics)
 
-    # ============================================================
-    #  Exportación automática del bloque agrupado
-    # ============================================================
-    def export_grouped(self, filename="grouped_metrics.csv"):
-        """
-        Exporta la lista de métricas agrupadas (por usuario/sesión) en CSV.
-        Solo se ejecuta si existe 'agrupado_por_usuario_y_sesion' en results.
-        """
-        grouped_data = self.results.get("agrupado_por_usuario_y_sesion", [])
-        if not grouped_data:
-            print("[Exporter] ⚠️ No hay datos agrupados para exportar.")
-            return None
+        with open(path, "w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["metric", "value"])
 
-        df = pd.DataFrame(grouped_data)
-        filepath = self.output_dir / filename
-        df.to_csv(filepath, index=False)
-        print(f"[Exporter] ✅ CSV agrupado exportado en {filepath}")
-        return df
+            for key, value in flat.items():
+                writer.writerow([key, value])
 
-    # ============================================================
-    #  Exportación múltiple (varios usuarios o grupos)
-    # ============================================================
+        print(f"[Exporter] ✅ CSV exportado en {path}")
+
+    # -------------------------------------------------------------
+    # Utilidad para aplanar un dict anidado
+    # -------------------------------------------------------------
+    def _flatten_dict(self, d, parent_key=""):
+        """Convierte estructuras anidadas a:  categoria.metric : valor"""
+        items = {}
+
+        if isinstance(d, (int, float, str)):
+            # Caso simple: valor suelto
+            return {"value": d}
+
+        if isinstance(d, list):
+            # Convierte listas en strings o índices
+            for i, v in enumerate(d):
+                sub = self._flatten_dict(v, f"{parent_key}.{i}" if parent_key else str(i))
+                items.update(sub)
+            return items
+
+        if isinstance(d, dict):
+            for key, value in d.items():
+                new_key = f"{parent_key}.{key}" if parent_key else key
+                if isinstance(value, dict):
+                    items.update(self._flatten_dict(value, new_key))
+                elif isinstance(value, list):
+                    items.update(self._flatten_dict(value, new_key))
+                else:
+                    items[new_key] = value
+            return items
+
+        # fallback
+        return {parent_key: d}
+
+    # -------------------------------------------------------------
     @staticmethod
-    def export_multiple(results_list, ids, mode="csv", output_dir="exports", filename="results_all"):
-        """
-        Exporta resultados de varios usuarios/sesiones/grupos en un solo archivo.
-        - results_list: lista de dicts de resultados
-        - ids: lista de IDs asociados (ej. user_id o group_id)
-        - mode: "csv" o "json"
-        """
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
+    def export_multiple(results_list, names_list, mode, output_dir, filename="combined"):
+        output_path = Path(output_dir) / filename
 
         if mode == "json":
-            combined = {id_: res for id_, res in zip(ids, results_list)}
-            filepath = output_dir / f"{filename}.json"
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(combined, f, indent=4, ensure_ascii=False)
-            print(f"[Exporter] ✅ JSON múltiple exportado en {filepath}")
-
-        elif mode == "csv":
-            rows = []
-            for id_, res in zip(ids, results_list):
-                flat = {"id": id_}
-                for cat, metrics in res.items():
-                    # Ignorar bloque agrupado dentro de cada resultado
-                    if cat == "agrupado_por_usuario_y_sesion":
-                        continue
-                    for key, value in metrics.items():
-                        flat[f"{cat}_{key}"] = value
-                rows.append(flat)
-
-            df = pd.DataFrame(rows)
-            filepath = output_dir / f"{filename}.csv"
-            df.to_csv(filepath, index=False)
-            print(f"[Exporter] ✅ CSV múltiple exportado en {filepath}")
+            combined = {name: results for name, results in zip(names_list, results_list)}
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(combined, f, indent=4)

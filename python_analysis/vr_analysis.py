@@ -92,7 +92,7 @@ print(df[["user_id", "group_id", "session_id"]].drop_duplicates().to_string(inde
 # ============================================================
 
 print("\n📊 Calculando métricas (eficiencia, efectividad, satisfacción)...")
-metrics = MetricsCalculator(df)
+metrics = MetricsCalculator(df, experiment_config=experiment_config)
 results = metrics.compute_all()
 
 print("\n=== Resultados globales ===")

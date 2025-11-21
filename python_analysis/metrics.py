@@ -1,372 +1,303 @@
 import pandas as pd
 import numpy as np
-from python_analysis.config_system import ConfigSystem
-
-
 
 class MetricsCalculator:
-    def __init__(self, df: pd.DataFrame):
+    def __init__(self, df: pd.DataFrame, experiment_config=None, user_profile="novice"):
         """
-        Calculadora universal de métricas para evaluación de usuarios en VR.
-        Utiliza 'roles de evento' (event_role) para abstraerse del tipo de tarea.
+        Calculadora avanzada de métricas basada 100% en experiment_config.
         """
+
         self.df = df.copy()
+        self.config = experiment_config or {}
+        self.user_profile = user_profile
+
+        # ------------------------------------------------------------------
+        # Normalización de timestamp
+        # ------------------------------------------------------------------
         if "timestamp" in self.df.columns:
             self.df["timestamp"] = pd.to_datetime(self.df["timestamp"], utc=True, errors="coerce")
 
-        # Normalizar campos críticos
         self.df["user_id"] = self.df.get("user_id", "UNKNOWN").fillna("UNKNOWN")
-        self.df["group_id"] = self.df.get("group_id", "UNDEFINED").fillna("UNDEFINED")
-        self.df["session_id"] = self.df.get("session_id", "NO_SESSION").fillna("NO_SESSION")
+        self.df["group_id"] = self.df.get("group_id", "GROUP").fillna("GROUP")
+        self.df["session_id"] = self.df.get("session_id", "SESSION").fillna("SESSION")
 
-        # Cargar Config System
-        self.config = ConfigSystem(config_path="configs/config_system.json")
-        # Asignar roles semánticos
-        self.df["event_role"] = self.df["event_name"].apply(lambda e: self.config.get_event_role(e))
+        # ------------------------------------------------------------------
+        # Asignación de roles desde config
+        # ------------------------------------------------------------------
+        roles_cfg = self.config.get("event_roles", {}).get("roles", {})
+        def resolve_role(ev):
+            return roles_cfg.get(ev, "custom_event")
+        self.df["event_role"] = self.df["event_name"].apply(resolve_role)
 
+        # ------------------------------------------------------------------
+        # Registro de métricas y perfiles desde config
+        # ------------------------------------------------------------------
+        self.metrics_cfg = self.config.get("metrics", {})
+        self.profiles_cfg = self.config.get("profiles", {})
 
-        # Eventos base conocidos
-        self.official_roles = {
-            "action_success", "action_fail", "task_start", "task_end",
-            "task_restart", "navigation_error", "session_start", "session_end",
-            "help_event", "interface_error"
-        }
-
-    # ============================================================
-    # NORMALIZACIÓN
-    # ============================================================
+    # ----------------------------------------------------------------------
+    # Normalización universal
+    # ----------------------------------------------------------------------
     @staticmethod
     def normalize(value, min_val, max_val, invert=False):
         if pd.isna(value):
-            return 0
+            return 0.0
+        if min_val is None or max_val is None:
+            return value  # sin normalización declarada en config
         v = np.clip((value - min_val) / (max_val - min_val), 0, 1)
         return 1 - v if invert else v
 
-    # ============================================================
-    # --- EFECTIVIDAD ---
-    # ============================================================
+    # ----------------------------------------------------------------------
+    # MÉTRICAS BÁSICAS – las mismas que antes
+    # ----------------------------------------------------------------------
+
     def hit_ratio(self, df=None):
-        if df is None:
-            df = self.df
+        if df is None: df = self.df
         hits = len(df[df["event_role"] == "action_success"])
         fails = len(df[df["event_role"] == "action_fail"])
-        total = hits + fails
-        return hits / total if total > 0 else np.nan
+        tot = hits + fails
+        return hits / tot if tot > 0 else np.nan
 
     def precision(self, df=None):
-        if df is None:
-            df = self.df
+        if df is None: df = self.df
         actions = df[df["event_role"].isin(["action_success", "action_fail"])]
+        if len(actions)==0: return np.nan
         hits = len(actions[actions["event_role"] == "action_success"])
-        return hits / len(actions) if len(actions) > 0 else np.nan
+        return hits / len(actions)
 
     def success_rate(self, df=None):
-        if df is None:
-            df = self.df
+        if df is None: df = self.df
         tasks = df[df["event_role"] == "task_end"]
-        success = len(tasks[tasks["event_value"].astype(str).str.lower() == "success"])
-        return success / len(tasks) if len(tasks) > 0 else np.nan
+        if len(tasks)==0: return np.nan
+        success = len(tasks[tasks["event_value"].astype(str).str.lower()=="success"])
+        return success / len(tasks)
 
     def learning_curve(self, df=None, block_size=5):
-        if df is None:
-            df = self.df
-        actions = df[df["event_role"].isin(["action_success", "action_fail"])]
-        results = []
+        if df is None: df = self.df
+        actions = df[df["event_role"].isin(["action_success","action_fail"])]
+        res=[]
         for i in range(0, len(actions), block_size):
             block = actions.iloc[i:i+block_size]
-            hits = len(block[block["event_role"] == "action_success"])
-            ratio = hits / len(block) if len(block) > 0 else np.nan
-            results.append(ratio)
-        return results
+            hits = len(block[block["event_role"]=="action_success"])
+            res.append(hits/len(block) if len(block)>0 else np.nan)
+        return res
 
-    def progression(self, df=None):
-        if df is None:
-            df = self.df
-        return len(df[(df["event_role"] == "task_end") & (df["event_value"].astype(str).str.lower() == "success")])
-
-    # ============================================================
-    # --- EFICIENCIA ---
-    # ============================================================
     def avg_reaction_time(self, df=None):
-        if df is None:
-            df = self.df
-        return df["reaction_time_ms"].dropna().mean() if "reaction_time_ms" in df.columns else np.nan
+        if df is None: df = self.df
+        if "reaction_time_ms" not in df.columns:
+            return np.nan
+        return df["reaction_time_ms"].dropna().mean()
 
     def avg_task_duration(self, df=None):
-        if df is None:
-            df = self.df
-        tasks = df[df["event_role"] == "task_end"]
-        return tasks["duration_ms"].dropna().mean() if "duration_ms" in tasks.columns else np.nan
+        if df is None: df = self.df
+        tasks = df[df["event_role"]=="task_end"]
+        if "duration_ms" not in tasks.columns:
+            return np.nan
+        return tasks["duration_ms"].dropna().mean()
 
     def time_per_success(self, df=None):
-        if df is None:
-            df = self.df
-        hits = df[df["event_role"] == "action_success"]
-        tasks = df[df["event_role"] == "task_end"]
-        if not tasks.empty and not hits.empty:
-            total_time = (tasks["timestamp"].max() - tasks["timestamp"].min()).total_seconds()
-            return total_time / len(hits) if len(hits) > 0 else np.nan
-        return np.nan
+        if df is None: df = self.df
+        hits = df[df["event_role"]=="action_success"]
+        if len(hits)==0:
+            return np.nan
+        total_time = (df["timestamp"].max() - df["timestamp"].min()).total_seconds()
+        return total_time / len(hits)
 
-    def navigation_errors(self, df=None):
-        if df is None:
-            df = self.df
-        return len(df[df["event_role"] == "navigation_error"])
-
-    def aim_errors(self, df=None):
-        if df is None:
-            df = self.df
-        attempts = df[df["event_role"].isin(["action_success", "action_fail"])]
-        return len(attempts)
-
-    # ============================================================
-    # --- SATISFACCIÓN ---
-    # ============================================================
     def retries_after_end(self, df=None):
-        if df is None:
-            df = self.df
-        return len(df[df["event_role"] == "task_restart"])
+        if df is None: df = self.df
+        return len(df[df["event_role"]=="task_restart"])
 
     def voluntary_play_time(self, df=None):
-        if df is None:
-            df = self.df
-        session_end = df[df["event_role"] == "session_end"]["timestamp"].min()
-        task_end = df[df["event_role"] == "task_end"]["timestamp"].max()
-        if pd.notna(session_end) and pd.notna(task_end):
-            return (session_end - task_end).total_seconds()
+        if df is None: df = self.df
+        end = df[df["event_role"]=="session_end"]["timestamp"].min()
+        task_end = df[df["event_role"]=="task_end"]["timestamp"].max()
+        if pd.notna(end) and pd.notna(task_end):
+            return (end-task_end).total_seconds()
         return np.nan
 
     def aid_usage(self, df=None):
-        if df is None:
-            df = self.df
-        return len(df[df["event_role"] == "help_event"])
+        if df is None: df = self.df
+        return len(df[df["event_role"]=="help_event"])
 
-    def interface_errors(self, df=None):
-        if df is None:
-            df = self.df
-        return len(df[df["event_role"] == "interface_error"])
-
-    # ============================================================
-    # --- PRESENCIA ---
-    # ============================================================
     def inactivity_time(self, df=None, threshold=5):
-        if df is None:
-            df = self.df
+        if df is None: df = self.df
         ts = df["timestamp"].sort_values()
         diffs = ts.diff().dt.total_seconds()
         return diffs[diffs > threshold].sum()
 
     def first_success_time(self, df=None):
-        if df is None:
-            df = self.df
-        start = df[df["event_role"] == "session_start"]["timestamp"].min()
-        first_success = df[df["event_role"] == "action_success"]["timestamp"].min()
-        if pd.notna(start) and pd.notna(first_success):
-            return (first_success - start).total_seconds()
+        if df is None: df = self.df
+        start = df[df["event_role"]=="session_start"]["timestamp"].min()
+        succ = df[df["event_role"]=="action_success"]["timestamp"].min()
+        if pd.notna(start) and pd.notna(succ):
+            return (succ-start).total_seconds()
         return np.nan
 
     def sound_localization_time(self, df=None):
-        if df is None:
-            df = self.df
-        audio = df[df["event_name"] == "audio_triggered"]["timestamp"].min()
-        head_turn = df[df["event_name"] == "head_turn"]["timestamp"].min()
-        if pd.notna(audio) and pd.notna(head_turn):
-            return (head_turn - audio).total_seconds()
+        if df is None: df = self.df
+        audio = df[df["event_name"]=="audio_triggered"]["timestamp"].min()
+        head = df[df["event_name"]=="head_turn"]["timestamp"].min()
+        if pd.notna(audio) and pd.notna(head):
+            return (head-audio).total_seconds()
         return np.nan
 
     def activity_level(self, df=None):
+        if df is None: df = self.df
+        dur = (df["timestamp"].max() - df["timestamp"].min()).total_seconds()/60
+        if dur<=0: return np.nan
+        return len(df)/dur
+
+    # ----------------------------------------------------------------------
+    # MAPEO dinámico de nombres → funciones internas
+    # ----------------------------------------------------------------------
+    def _available_metric_functions(self):
+        return {
+            "hit_ratio": self.hit_ratio,
+            "precision": self.precision,
+            "success_rate": self.success_rate,
+            "learning_curve_mean": lambda df=None: np.nanmean(self.learning_curve(df)),
+
+            "avg_reaction_time_ms": self.avg_reaction_time,
+            "avg_task_duration_ms": self.avg_task_duration,
+            "time_per_success_s": self.time_per_success,
+
+            "retries_after_end": self.retries_after_end,
+            "voluntary_play_time_s": self.voluntary_play_time,
+            "aid_usage": self.aid_usage,
+
+            "inactivity_time_s": self.inactivity_time,
+            "first_success_time_s": self.first_success_time,
+            "sound_localization_time_s": self.sound_localization_time,
+            "activity_level_per_min": self.activity_level
+        }
+
+    # ----------------------------------------------------------------------
+    # PROCESAR MÉTRICAS POR CATEGORÍA (efectividad, eficiencia…)
+    # ----------------------------------------------------------------------
+    def compute_category(self, category_name, df=None):
         if df is None:
             df = self.df
-        if "timestamp" in df.columns:
-            total_time = (df["timestamp"].max() - df["timestamp"].min()).total_seconds() / 60
-            return len(df) / total_time if total_time > 0 else np.nan
-        return np.nan
 
-    # ============================================================
-    # --- CUSTOM EVENTS ---
-    # ============================================================
-    def custom_events_summary(self, df=None):
-        if df is None:
-            df = self.df
-        custom = df[~df["event_role"].isin(self.official_roles)]
-        if custom.empty:
-            return {}
-        return custom["event_name"].value_counts().to_dict()
+        cat_cfg = self.metrics_cfg.get(category_name, {})
+        metric_funcs = self._available_metric_functions()
 
-    # ============================================================
-    # --- INDICADORES DERIVADOS ---
-    # ============================================================
-    def _success_after_restart(self, df):
-        restarts = df[df["event_role"] == "task_restart"]["timestamp"]
-        if restarts.empty:
-            return None
-        tasks_after_restart = df[(df["event_role"] == "task_end") & (df["timestamp"] > restarts.min())]
-        if tasks_after_restart.empty:
-            return None
-        success = len(tasks_after_restart[tasks_after_restart["event_value"].astype(str).str.lower() == "success"])
-        return success / len(tasks_after_restart)
+        results = {}
+        weighted_sum = 0
+        total_weight = 0
 
-    def _task_duration_by_result(self, df, result):
-        tasks = df[(df["event_role"] == "task_end") & (df["event_value"] == result)]
-        if "duration_ms" in tasks.columns and not tasks.empty:
-            return tasks["duration_ms"].dropna().mean()
-        return None
+        for metric_name, params in cat_cfg.items():
+            func = metric_funcs.get(metric_name)
+            if func is None:
+                continue
 
-    def _learning_stability(self, df):
-        curve = self.learning_curve(df)
-        if not curve:
-            return None
-        return 1 - np.nanstd(curve)
+            raw_value = func(df)
 
-    def _error_reduction_rate(self, df):
-        errors = df[df["event_role"].isin(["action_fail", "interface_error"])]
-        if errors.empty:
-            return None
-        half = len(errors) // 2
-        first_half, second_half = errors.iloc[:half], errors.iloc[half:]
-        if len(first_half) == 0:
-            return None
-        return (len(first_half) - len(second_half)) / len(first_half)
+            weight = params.get("weight", 1.0)
+            min_val = params.get("min")
+            max_val = params.get("max")
+            invert = params.get("invert", False)
 
-    def _audio_performance_gain(self, df):
-        if "condition_audio" not in df.columns:
-            return None
-        with_audio = df[df["condition_audio"] == True]
-        without_audio = df[df["condition_audio"] == False]
-        if with_audio.empty or without_audio.empty:
-            return None
-        return self.hit_ratio(with_audio) - self.hit_ratio(without_audio)
+            normalized = self.normalize(raw_value, min_val, max_val, invert)
 
-    # ============================================================
-    # --- FÓRMULA PONDERADA ---
-    # ============================================================
-    def _weighted_scores(self, row):
-        """Calcula puntuaciones ponderadas dinámicamente según el config_system.json."""
-        n = self.normalize  # alias
-        categories = self.config.get_all_metric_configs()
-        scores = {}
+            results[metric_name] = {
+                "raw": raw_value,
+                "normalized": normalized,
+                "weight": weight
+            }
 
-        for cat_name, indicators in categories.items():
-            total = 0
-            for metric_name, meta in indicators.items():
-                val = row.get(metric_name)
-                if val is None or pd.isna(val):
-                    continue
-                weight = meta.get("weight", 0)
-                min_v = meta.get("min", 0)
-                max_v = meta.get("max", 1)
-                invert = meta.get("invert", False)
-                total += weight * n(val, min_v, max_v, invert)
-            scores[f"{cat_name}_score"] = round(total * 100, 2)
+            weighted_sum += normalized * weight
+            total_weight += weight
 
-        # Score global (promedio entre categorías disponibles)
-        if scores:
-            valid_scores = [v for k, v in scores.items() if not pd.isna(v)]
-            if valid_scores:
-                scores["total_score"] = round(np.nanmean(valid_scores), 2)
-        else:
-            scores["total_score"] = np.nan
+        # puntuación final de la categoría
+        results["score"] = weighted_sum / total_weight if total_weight > 0 else 0.0
 
-        return scores
+        return results
 
+    # ----------------------------------------------------------------------
+    # PUNTUACIÓN GLOBAL (usa perfiles)
+    # ----------------------------------------------------------------------
+    def compute_global_score(self, cat_scores):
+        profile = self.profiles_cfg.get(self.user_profile, {})
 
+        eff_w  = profile.get("efectividad_weight", 1)
+        efi_w  = profile.get("eficiencia_weight", 1)
+        sat_w  = profile.get("satisfaccion_weight", 1)
+        pre_w  = profile.get("presencia_weight", 1)
 
-    # ============================================================
-    # --- AGRUPADO POR USUARIO Y SESIÓN ---
-    # ============================================================
+        final = (
+            cat_scores["efectividad"]["score"] * eff_w +
+            cat_scores["eficiencia"]["score"] * efi_w +
+            cat_scores["satisfaccion"]["score"] * sat_w +
+            cat_scores["presencia"]["score"] * pre_w
+        )
+
+        return final / (eff_w + efi_w + sat_w + pre_w)
+
+    # ----------------------------------------------------------------------
+    # MÉTRICAS AGRUPADAS POR USUARIO Y SESIÓN
+    # ----------------------------------------------------------------------
     def compute_grouped_metrics(self):
-        if not {"user_id", "group_id", "session_id"}.issubset(self.df.columns):
-            print("[MetricsCalculator] ⚠️ Faltan columnas (user_id, group_id, session_id).")
-            return pd.DataFrame()
+        metric_funcs = self._available_metric_functions()
+        rows = []
 
         grouped = self.df.groupby(["user_id", "group_id", "session_id"])
-        results = []
 
         for (user, group, session), subdf in grouped:
-            calc = {
+            entry = {
                 "user_id": user,
                 "group_id": group,
                 "session_id": session,
-
-                # 🟢 EFECTIVIDAD
-                "hit_ratio": self.hit_ratio(subdf),
-                "precision": self.precision(subdf),
-                "success_rate": self.success_rate(subdf),
-                "learning_curve_mean": np.nanmean(self.learning_curve(subdf)) if self.learning_curve(subdf) else None,
-                "progression": self.progression(subdf),
-                "success_after_restart": self._success_after_restart(subdf),
-                "attempts_per_target": self.aim_errors(subdf),
-
-                # 🟠 EFICIENCIA
-                "avg_reaction_time_ms": self.avg_reaction_time(subdf),
-                "avg_task_duration_ms": self.avg_task_duration(subdf),
-                "time_per_success_s": self.time_per_success(subdf),
-                "navigation_errors": self.navigation_errors(subdf),
-                "aim_errors": self.aim_errors(subdf),
-                "task_duration_success": self._task_duration_by_result(subdf, "success"),
-                "task_duration_fail": self._task_duration_by_result(subdf, "fail"),
-
-                # 🟣 SATISFACCIÓN
-                "retries_after_end": self.retries_after_end(subdf),
-                "voluntary_play_time_s": self.voluntary_play_time(subdf),
-                "aid_usage": self.aid_usage(subdf),
-                "interface_errors": self.interface_errors(subdf),
-                "learning_stability": self._learning_stability(subdf),
-                "error_reduction_rate": self._error_reduction_rate(subdf),
-
-                # 🔵 PRESENCIA
-                "inactivity_time_s": self.inactivity_time(subdf),
-                "first_success_time_s": self.first_success_time(subdf),
-                "sound_localization_time_s": self.sound_localization_time(subdf),
-                "activity_level_per_min": self.activity_level(subdf),
-                "audio_performance_gain": self._audio_performance_gain(subdf),
             }
 
-            # Añadir scores ponderados
-            calc.update(self._weighted_scores(calc))
-            results.append(calc)
+            # Añadir cada métrica básica disponible
+            for metric_name, func in metric_funcs.items():
+                try:
+                    entry[metric_name] = func(subdf)
+                except:
+                    entry[metric_name] = None
 
-        return pd.DataFrame(results)
+            # Añadir categorías normalizadas
+            cat_scores = {
+                "efectividad": self.compute_category("efectividad", subdf)["score"],
+                "eficiencia": self.compute_category("eficiencia", subdf)["score"],
+                "satisfaccion": self.compute_category("satisfaccion", subdf)["score"],
+                "presencia": self.compute_category("presencia", subdf)["score"]
+            }
 
-    # ============================================================
-    # --- AGREGADO GENERAL (GLOBAL) ---
-    # ============================================================
+            entry.update(cat_scores)
+
+            # Puntuación global para este participante
+            entry["global_score"] = self.compute_global_score({
+                "efectividad": {"score": cat_scores["efectividad"]},
+                "eficiencia": {"score": cat_scores["eficiencia"]},
+                "satisfaccion": {"score": cat_scores["satisfaccion"]},
+                "presencia": {"score": cat_scores["presencia"]},
+            })
+
+            rows.append(entry)
+
+        return pd.DataFrame(rows)
+
+
+    # ----------------------------------------------------------------------
+    # MÉTRICAS GLOBALES
+    # ----------------------------------------------------------------------
     def compute_all(self):
-        base = {
-            "efectividad": {
-                "hit_ratio": self.hit_ratio(),
-                "precision": self.precision(),
-                "success_rate": self.success_rate(),
-                "learning_curve": self.learning_curve(),
-                "progression": self.progression(),
-            },
-            "eficiencia": {
-                "avg_reaction_time_ms": self.avg_reaction_time(),
-                "avg_task_duration_ms": self.avg_task_duration(),
-                "time_per_success_s": self.time_per_success(),
-                "navigation_errors": self.navigation_errors(),
-                "aim_errors": self.aim_errors(),
-            },
-            "satisfaccion": {
-                "retries_after_end": self.retries_after_end(),
-                "voluntary_play_time_s": self.voluntary_play_time(),
-                "aid_usage": self.aid_usage(),
-                "interface_errors": self.interface_errors(),
-            },
-            "presencia": {
-                "inactivity_time_s": self.inactivity_time(),
-                "first_success_time_s": self.first_success_time(),
-                "sound_localization_time_s": self.sound_localization_time(),
-                "activity_level_per_min": self.activity_level(),
-            },
-            "custom_events": self.custom_events_summary(),
-            "agrupado_por_usuario_y_sesion": self.compute_grouped_metrics().to_dict(orient="records")
+        efectividad = self.compute_category("efectividad")
+        eficiencia  = self.compute_category("eficiencia")
+        satisfaccion = self.compute_category("satisfaccion")
+        presencia   = self.compute_category("presencia")
+
+        cat_scores = {
+            "efectividad": efectividad,
+            "eficiencia": eficiencia,
+            "satisfaccion": satisfaccion,
+            "presencia": presencia
         }
 
-        # Calcular score global promedio a partir de medias de todas las filas agrupadas
-        grouped_df = pd.DataFrame(base["agrupado_por_usuario_y_sesion"])
-        if not grouped_df.empty:
-            mean_row = grouped_df.mean(numeric_only=True).to_dict()
-            base["scores"] = self._weighted_scores(mean_row)
+        global_score = self.compute_global_score(cat_scores)
 
-        return base
+        return {
+            "categorias": cat_scores,
+            "global_score": global_score
+        }
