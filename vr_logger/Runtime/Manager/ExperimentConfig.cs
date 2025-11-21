@@ -56,9 +56,11 @@ namespace VRLogger
         {
             if (config == null)
             {
-                Debug.LogError("[ExperimentConfig] ❌ No hay configuración cargada; no se puede enviar log.");
+                Debug.LogError("[ExperimentConfig] ❌ No hay config cargado.");
                 return;
             }
+
+            Debug.Log("[ExperimentConfig] 📤 Enviando CONFIG a Mongo...");
 
             await LoggerService.LogEvent(
                 "config",
@@ -66,8 +68,7 @@ namespace VRLogger
                 null,
                 config
             );
-
-            Debug.Log("[ExperimentConfig] 🟢 Config enviada como primer log.");
         }
+
     }
 }

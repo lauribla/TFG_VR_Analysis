@@ -45,13 +45,20 @@ namespace VRLogger
             groupId = newGroupId;
             sessionId = Guid.NewGuid().ToString();
 
+            // 1️⃣ Inicializar Mongo (muy importante)
             LoggerService.Init(connectionString, dbName, collectionName, userId);
 
+            // 2️⃣ AHORA SÍ podemos enviar la config (porque LoggerService ya está listo)
+            ExperimentConfig.Instance.SendConfigAsLog();
+
+            // 3️⃣ Registrar inicio de sesión en Mongo
             _ = LogAPI.LogSessionStart(sessionId);
 
             Debug.Log($"[UserSessionManager] 🟢 Sesión iniciada → User: {userId}, Group: {groupId}, Session: {sessionId}");
+
             started = true;
         }
+
 
         // -------------------------------------------------------------------
         // Fin de sesión
