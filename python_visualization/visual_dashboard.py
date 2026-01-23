@@ -31,19 +31,12 @@ def load_results(results_file):
                     if isinstance(metrics, dict):
                         for key, value in metrics.items():
                             flat[f"{cat}_{key}"] = value
-                    # Si una métrica viene como lista (p.ej. learning_curve), la ignoramos en tablas/gráficas
+                    else:
+                        # IMPORTANT: keep scalar values like global_score
+                        flat[cat] = metrics
                 rows.append(flat)
             return pd.DataFrame(rows), "global"
 
-            rows = []
-            for id_, res in results.items():
-                flat = {"id": id_}
-                for cat, metrics in res.items():
-                    if isinstance(metrics, dict):
-                        for key, value in metrics.items():
-                            flat[f"{cat}_{key}"] = value
-                rows.append(flat)
-            return pd.DataFrame(rows), "global"
 
         # --- Caso AGRUPADO (lista de diccionarios) ---
         elif isinstance(results, list):
@@ -154,8 +147,27 @@ def main():
             st.info(f"No hay métricas de {cat_name}.")
             continue
         for col in found:
-            fig = px.bar(df, x=eje_x, y=col, color=eje_x,
-                         title=col.replace("_", " ").title(), text_auto=True)
+            if detected_mode == "agrupado" and "user_id" in df.columns:
+                fig = px.bar(
+                    df,
+                    x="user_id",  # separa por usuario
+                    y=col,
+                    color="group_id",  # colorea por grupo
+                    barmode="group",
+                    title=col.replace("_", " ").title(),
+                    text_auto=True
+                )
+            else:
+                fig = px.bar(
+                    df,
+                    x=eje_x,
+                    y=col,
+                    color=eje_x,
+                    barmode="group",
+                    title=col.replace("_", " ").title(),
+                    text_auto=True
+                )
+
             st.plotly_chart(fig, use_container_width=True)
 
     # ============================================================
@@ -163,27 +175,40 @@ def main():
     # ============================================================
     st.header("🏁 Resultados ponderados por categoría")
 
-    score_cols = [
-        "efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "total_score"
-    ]
+    # Mapeo: columna posible -> nombre de categoría
+    score_candidates = {
+        "efectividad_score": "Efectividad",
+        "efectividad": "Efectividad",
+        "eficiencia_score": "Eficiencia",
+        "eficiencia": "Eficiencia",
+        "satisfaccion_score": "Satisfacción",
+        "satisfaccion": "Satisfacción",
+        "presencia_score": "Presencia",
+        "presencia": "Presencia",
+        "global_score": "Total Global",
+        "total_score": "Total Global",
+    }
 
-    found_scores = [c for c in score_cols if c in df.columns]
-    if not found_scores:
+    present = [c for c in score_candidates.keys() if c in df.columns]
+
+    if not present:
         st.info("No se encontraron puntuaciones ponderadas en los resultados.")
     else:
-        st.dataframe(df[["id"] + found_scores] if "id" in df.columns else df[found_scores])
+        # --- Tabla por fila (usuario/grupo) con nombres bonitos ---
+        pretty_df = pd.DataFrame({score_candidates[c]: pd.to_numeric(df[c], errors="coerce") for c in present})
 
-        # Mostrar gráfico de barras de resumen
-        avg_scores = df[found_scores].mean(numeric_only=True)
-        score_df = pd.DataFrame({
-            "Métrica": avg_scores.index,
-            "Valor promedio (%)": avg_scores.values
-        })
+        # Si quieres que se vea por usuario/grupo:
+        st.dataframe(pretty_df)
 
-        fig_scores = px.bar(score_df, x="Métrica", y="Valor promedio (%)",
-                            color="Métrica", text_auto=True,
-                            title="Resumen promedio de puntuaciones por categoría")
-        st.plotly_chart(fig_scores, use_container_width=True)
+        # --- Promedio por categoría (una barra por categoría) ---
+        mean_scores = pd.DataFrame({
+            "Categoría": [score_candidates[c] for c in present],
+            "Score": [pd.to_numeric(df[c], errors="coerce").mean() for c in present]
+        }).sort_values("Categoría")
+
+        fig = px.bar(mean_scores, x="Categoría", y="Score", text="Score",
+                     title="Resumen promedio de puntuaciones por categoría")
+        st.plotly_chart(fig, use_container_width=True)
 
     # ============================================================
     # 🔹 Eventos personalizados

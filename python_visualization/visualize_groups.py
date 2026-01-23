@@ -137,7 +137,12 @@ class Visualizer:
         )
 
         self._plot_metric(
-            ["activity_level", "presencia_activity_level_per_min"],
+            self._plot_metric(
+                ["activity_level_per_min", "presencia_activity_level_per_min", "activity_level"],
+                "Presencia: Activity level",
+                "Events per minute",
+                palette="Oranges_d"
+            ),
             "Presencia: Nivel de actividad en el entorno",
             "Eventos por minuto",
             palette="Oranges_d"

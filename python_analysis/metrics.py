@@ -88,18 +88,90 @@ class MetricsCalculator:
             res.append(hits/len(block) if len(block)>0 else np.nan)
         return res
 
+    def _derive_task_stats(self, df: pd.DataFrame):
+        """
+        Derive task_duration_ms and reaction_time_ms from raw event stream.
+
+        Assumptions:
+          - task_start and task_end delimit a task window (paired in order).
+          - reaction time = time from task_start to first action (success or fail) inside the window.
+        """
+        if df is None or df.empty or "timestamp" not in df.columns:
+            return pd.DataFrame(columns=["task_duration_ms", "reaction_time_ms"])
+
+        tmp = df.copy()
+        tmp["timestamp"] = pd.to_datetime(tmp["timestamp"], utc=True, errors="coerce")
+        tmp = tmp.sort_values("timestamp")
+
+        starts = tmp[tmp["event_role"] == "task_start"][["timestamp"]].reset_index(drop=True)
+        ends = tmp[tmp["event_role"] == "task_end"][["timestamp"]].reset_index(drop=True)
+
+        n = min(len(starts), len(ends))
+        if n == 0:
+            return pd.DataFrame(columns=["task_duration_ms", "reaction_time_ms"])
+
+        starts = starts.iloc[:n]
+        ends = ends.iloc[:n]
+
+        actions = tmp[tmp["event_role"].isin(["action_success", "action_fail"])][["timestamp"]]
+
+        task_durations = []
+        reaction_times = []
+
+        for i in range(n):
+            t0 = starts.loc[i, "timestamp"]
+            t1 = ends.loc[i, "timestamp"]
+
+            if pd.isna(t0) or pd.isna(t1):
+                task_durations.append(np.nan)
+                reaction_times.append(np.nan)
+                continue
+
+            dur_ms = (t1 - t0).total_seconds() * 1000.0
+            task_durations.append(dur_ms if dur_ms >= 0 else np.nan)
+
+            act = actions[(actions["timestamp"] >= t0) & (actions["timestamp"] <= t1)]
+            if act.empty:
+                reaction_times.append(np.nan)
+            else:
+                rt_ms = (act.iloc[0]["timestamp"] - t0).total_seconds() * 1000.0
+                reaction_times.append(rt_ms if rt_ms >= 0 else np.nan)
+
+        return pd.DataFrame({
+            "task_duration_ms": task_durations,
+            "reaction_time_ms": reaction_times
+        })
+
+
     def avg_reaction_time(self, df=None):
-        if df is None: df = self.df
-        if "reaction_time_ms" not in df.columns:
-            return np.nan
-        return df["reaction_time_ms"].dropna().mean()
+        if df is None:
+            df = self.df
+
+        # Preferred: explicit field (if parser extracted it)
+        if "reaction_time_ms" in df.columns:
+            vals = pd.to_numeric(df["reaction_time_ms"], errors="coerce").dropna()
+            if len(vals) > 0:
+                return float(vals.mean())
+
+        # Fallback: derive from task_start -> first action
+        stats = self._derive_task_stats(df)
+        vals = pd.to_numeric(stats["reaction_time_ms"], errors="coerce").dropna()
+        return float(vals.mean()) if len(vals) > 0 else np.nan
 
     def avg_task_duration(self, df=None):
-        if df is None: df = self.df
-        tasks = df[df["event_role"]=="task_end"]
-        if "duration_ms" not in tasks.columns:
-            return np.nan
-        return tasks["duration_ms"].dropna().mean()
+        if df is None:
+            df = self.df
+
+        # Preferred: explicit field (if parser extracted it)
+        if "duration_ms" in df.columns:
+            vals = pd.to_numeric(df["duration_ms"], errors="coerce").dropna()
+            if len(vals) > 0:
+                return float(vals.mean())
+
+        # Fallback: derive from task_start -> task_end
+        stats = self._derive_task_stats(df)
+        vals = pd.to_numeric(stats["task_duration_ms"], errors="coerce").dropna()
+        return float(vals.mean()) if len(vals) > 0 else np.nan
 
     def time_per_success(self, df=None):
         if df is None: df = self.df
@@ -290,9 +362,9 @@ class MetricsCalculator:
     # ----------------------------------------------------------------------
     def compute_all(self):
         efectividad = self.compute_category("efectividad")
-        eficiencia  = self.compute_category("eficiencia")
+        eficiencia = self.compute_category("eficiencia")
         satisfaccion = self.compute_category("satisfaccion")
-        presencia   = self.compute_category("presencia")
+        presencia = self.compute_category("presencia")
 
         cat_scores = {
             "efectividad": efectividad,
@@ -307,3 +379,5 @@ class MetricsCalculator:
             "categorias": cat_scores,
             "global_score": global_score
         }
+
+

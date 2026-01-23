@@ -38,6 +38,7 @@ df_raw = parser.parse_logs(logs, expand_context=False)
 
 # df expandido → métricas
 df = parser.parse_logs(logs, expand_context=True)
+print(df.columns)
 
 parser.close()
 
