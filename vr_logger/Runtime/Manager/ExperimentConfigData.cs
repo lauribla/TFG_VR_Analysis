@@ -1,6 +1,4 @@
-using System.IO;
 using UnityEngine;
-using Newtonsoft.Json;
 
 namespace VRLogger
 {
@@ -17,24 +15,23 @@ namespace VRLogger
         public ExperimentSelection experiment_selection;
         public Modules modules;
 
+        // NEW
+        public ParticipantFlow participant_flow;
+
+        // Keep existing fields (compat)
         public EventRoles event_roles;
         public Metrics metrics;
         public CustomEvents custom_events;
 
-        // ---- Estructuras antiguas (por compatibilidad) ----
         public ExperimentSettings experiment_settings;
         public TrackingSettings tracking_settings;
-
-        // ============================================================
-        //       SUBCLASES ORGANIZADAS
-        // ============================================================
 
         [System.Serializable]
         public class SessionInfo
         {
             public string session_name;
             public string group_name;
-            public float turn_duration_seconds;   // 👈 AÑADIR ESTO
+            public float turn_duration_seconds;
         }
 
         [System.Serializable]
@@ -63,6 +60,33 @@ namespace VRLogger
             public bool useCollisionLogger;
         }
 
+        // -------------------------
+        // NEW: participant_flow
+        // -------------------------
+        [System.Serializable]
+        public class ParticipantFlow
+        {
+            // "turns" (default) | "manual"
+            public string mode = "turns";
+
+            // "timer" (default) | "gm"
+            public string end_condition = "timer";
+
+            public GMControls gm_controls = new GMControls();
+        }
+
+        [System.Serializable]
+        public class GMControls
+        {
+            public bool enabled = false;
+            public string next_key = "N";
+            public string end_key = "E";
+            public string pause_key = "P";
+        }
+
+        // -------------------------
+        // Existing (compat) - leave as is
+        // -------------------------
         [System.Serializable]
         public class EventRoles
         {
@@ -81,9 +105,6 @@ namespace VRLogger
             public SerializableDictionary<string, SerializableDictionary<string, string>> events;
         }
 
-        // ------------------------------------------------------------
-        // Compatibilidad vieja (por si Unity la usa internamente)
-        // ------------------------------------------------------------
         [System.Serializable]
         public class ExperimentSettings
         {
@@ -92,7 +113,6 @@ namespace VRLogger
             public int session_time_limit;
             public string difficulty;
             public float turn_duration_seconds;
-
         }
 
         [System.Serializable]
@@ -101,8 +121,5 @@ namespace VRLogger
             public int gaze_sampling_ms;
             public int movement_sampling_ms;
         }
-
-        
-
     }
 }
