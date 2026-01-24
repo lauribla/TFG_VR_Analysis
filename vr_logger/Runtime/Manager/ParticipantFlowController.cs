@@ -98,6 +98,7 @@ namespace VRLogger
                 return;
             }
 
+
             string userId = (string)participantOrder[currentIndex];
 
             UserSessionManager.Instance.StartSessionForUser(userId, groupId);
