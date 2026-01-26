@@ -6,7 +6,7 @@ namespace VRLogger
 {
     public class GMConsoleInput : MonoBehaviour
     {
-        private bool enabledControls = false;
+        private bool enabledControls = true; // Default ON
 
         private KeyCode keyNext = KeyCode.N;
         private KeyCode keyEnd = KeyCode.E;

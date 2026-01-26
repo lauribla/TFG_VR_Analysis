@@ -11,12 +11,21 @@ namespace VRLogger
         [Header("Raycast Settings")]
         public float maxDistance = 50f;
         public LayerMask targetLayers;
+        public float checkInterval = 0.2f; // 5Hz default
+        private float timer = 0f;
 
         void Update()
         {
-            if (Physics.Raycast(transform.position, transform.forward, out RaycastHit hit, maxDistance, targetLayers))
+            if (ParticipantFlowController.Instance != null && ParticipantFlowController.Instance.IsPaused) return;
+
+            timer += Time.deltaTime;
+            if (timer >= checkInterval)
             {
-                _ = LogHit(hit);
+                timer = 0f;
+                if (Physics.Raycast(transform.position, transform.forward, out RaycastHit hit, maxDistance, targetLayers))
+                {
+                    _ = LogHit(hit);
+                }
             }
         }
 

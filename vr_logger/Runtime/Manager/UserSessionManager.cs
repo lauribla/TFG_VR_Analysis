@@ -22,7 +22,37 @@ namespace VRLogger
         void Awake()
         {
             if (Instance == null)
+            {
                 Instance = this;
+                
+                // -----------------------------------------------------------
+                // AUTO-INSTANTIATION (Bootstrapper)
+                // -----------------------------------------------------------
+                if (ExperimentConfig.Instance == null)
+                {
+                    Debug.Log("[UserSessionManager] 🛠️ Auto-Creating ExperimentConfig...");
+                    new GameObject("ExperimentConfig").AddComponent<ExperimentConfig>();
+                }
+
+                if (VRTrackingManager.Instance == null)
+                {
+                    Debug.Log("[UserSessionManager] 🛠️ Auto-Creating VRTrackingManager...");
+                    new GameObject("VRTrackingManager").AddComponent<VRTrackingManager>();
+                }
+                
+                if (ParticipantFlowController.Instance == null)
+                {
+                    Debug.Log("[UserSessionManager] 🛠️ Auto-Creating ParticipantFlowController...");
+                    new GameObject("ParticipantFlowController").AddComponent<ParticipantFlowController>();
+                }
+
+                if (FindObjectOfType<GMConsoleInput>() == null)
+                {
+                     Debug.Log("[UserSessionManager] 🛠️ Auto-Creating GMConsoleInput...");
+                     new GameObject("GMConsoleInput").AddComponent<GMConsoleInput>();
+                }
+                // -----------------------------------------------------------
+            }
             else
             {
                 Destroy(gameObject);

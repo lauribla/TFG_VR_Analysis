@@ -11,11 +11,13 @@ namespace VRLogger
     {
         private async void OnCollisionEnter(Collision collision)
         {
+            if (ParticipantFlowController.Instance != null && ParticipantFlowController.Instance.IsPaused) return;
             await LogCollision("collision_enter", collision);
         }
 
         private async void OnCollisionExit(Collision collision)
         {
+            if (ParticipantFlowController.Instance != null && ParticipantFlowController.Instance.IsPaused) return;
             await LogCollision("collision_exit", collision);
         }
 

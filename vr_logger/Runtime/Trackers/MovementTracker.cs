@@ -18,6 +18,7 @@ namespace VRLogger
         void Update()
         {
             if (player == null) return;
+            if (ParticipantFlowController.Instance != null && ParticipantFlowController.Instance.IsPaused) return;
 
             timer += Time.deltaTime;
             if (timer >= checkInterval)

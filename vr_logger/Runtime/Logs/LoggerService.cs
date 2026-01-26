@@ -45,17 +45,23 @@ namespace VRLogger
         // 🔸 LOG EVENT
         // ==============================================================
         public static async Task LogEvent(
-    string eventType,
-    string eventName,
-    object eventValue = null,
-    object eventContext = null,
-    bool save = true)
-{
-    if (!_initialized)
+        string eventType,
+        string eventName,
+        object eventValue = null,
+        object eventContext = null,
+        bool save = true)
     {
-        UnityEngine.Debug.LogError("[LoggerService] ⚠️ Not initialized! Llama primero a LoggerService.Init().");
-        return;
-    }
+        // GLOBAL PAUSE BLOCK: Prevent any logging if experiment is paused
+        if (ParticipantFlowController.Instance != null && ParticipantFlowController.Instance.IsPaused)
+        {
+            return;
+        }
+
+        if (!_initialized)
+        {
+            UnityEngine.Debug.LogError("[LoggerService] ⚠️ Not initialized! Llama primero a LoggerService.Init().");
+            return;
+        }
 
     if (_collection == null)
     {

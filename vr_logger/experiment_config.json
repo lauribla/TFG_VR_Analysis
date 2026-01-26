@@ -29,17 +29,6 @@
     "useRaycastLogger": true,
     "useCollisionLogger": true
   },
-  "participant_flow": {
-  "mode": "turns",
-  "end_condition": "timer",
-  "gm_controls": {
-    "enabled": true,
-    "next_key": "N",
-    "end_key": "E",
-    "pause_key": "P"
-  }
-},
-
 
   "event_roles": {
     "target_hit": "action_success",
