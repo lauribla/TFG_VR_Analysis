@@ -59,7 +59,9 @@ namespace VRLogger
 
         if (!_initialized)
         {
-            UnityEngine.Debug.LogError("[LoggerService] ⚠️ Not initialized! Llama primero a LoggerService.Init().");
+            // Silently ignore or just warning if called before Init.
+            // Most likely it's just startup noise.
+            // UnityEngine.Debug.LogWarning("[LoggerService] ⚠️ LogEvent called before Init. Ignoring.");
             return;
         }
 
