@@ -1,11 +1,22 @@
 import pandas as pd
 from pymongo import MongoClient
 import json
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde el archivo .env (si existe)
+load_dotenv()
+
 
 class LogParser:
-    def __init__(self, mongo_uri="mongodb://localhost:27017", db_name="test", collection_name="tfg"):
-        self.client = MongoClient(mongo_uri)
-        self.collection = self.client[db_name][collection_name]
+    def __init__(self, mongo_uri=None, db_name=None, collection_name=None):
+        # Prioridad: Argumento > Variable de Entorno > Default Hardcoded
+        self.mongo_uri = mongo_uri or os.getenv("MONGO_URI", "mongodb://localhost:27017")
+        self.db_name = db_name or os.getenv("DB_NAME", "test")
+        self.collection_name = collection_name or os.getenv("COLLECTION_NAME", "tfg")
+
+        self.client = MongoClient(self.mongo_uri)
+        self.collection = self.client[self.db_name][self.collection_name]
 
     def fetch_logs(self, query=None, limit=0):
         """

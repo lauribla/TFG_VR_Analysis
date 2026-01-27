@@ -25,12 +25,9 @@ from pathlib import Path
 # 1️⃣ Conectar con MongoDB y cargar logs
 # ============================================================
 
-DB_NAME = "test"
-COLLECTION_NAME = "tfg"
-MONGO_URI = "mongodb://localhost:27017"
-
-print(f"🔗 Conectando a MongoDB → {MONGO_URI}/{DB_NAME}.{COLLECTION_NAME}")
-parser = LogParser(db_name=DB_NAME, collection_name=COLLECTION_NAME)
+# Conectando con parámetros del .env (gestión automática en LogParser)
+parser = LogParser()
+print(f"🔗 Conectando a MongoDB → URI: {parser.mongo_uri} | DB: {parser.db_name} | COL: {parser.collection_name}")
 logs = parser.fetch_logs()
 
 # df sin expandir → recuperar config
