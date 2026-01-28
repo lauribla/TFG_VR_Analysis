@@ -176,7 +176,9 @@ namespace VRLogger
 
             isCooldown = false; // Reset cooldown
 
-            string userId = (string)participantOrder[currentIndex];
+            string rawId = (string)participantOrder[currentIndex];
+            // Fix: Prefix with GroupID to ensure uniqueness across sessions/groups in analysis
+            string userId = $"{groupId}_{rawId}";
 
             UserSessionManager.Instance.StartSessionForUser(userId, groupId);
             VRTrackingManager.Instance.BeginTrackingForUser();
