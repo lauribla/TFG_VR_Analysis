@@ -33,7 +33,7 @@ namespace VRLogger.UI
             ConfigAccepted = false; // Reset for new session
 
             _currentConfig = ExperimentConfig.Instance.GetConfig();
-            
+
             // Setup botón start
             if (startButton)
             {
@@ -66,11 +66,11 @@ namespace VRLogger.UI
                 {
                     cameraController.DisableControl();
                 }
-                
+
                 // Extra safeguard: force cursor state regardless of controller
                 if (Cursor.lockState != CursorLockMode.None)
                     Cursor.lockState = CursorLockMode.None;
-                
+
                 if (!Cursor.visible)
                     Cursor.visible = true;
             }

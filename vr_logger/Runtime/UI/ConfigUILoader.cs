@@ -155,10 +155,10 @@ namespace VRLogger.UI
                         AddToggleInput(contentObj, "modules." + prop.Name, currentConfig, configUI, font);
                     }
                 }
-                
+
                 // FLOW
                 CreateSectionHeader(contentObj, "FLOW", font);
-                
+
                 // Virtual Toggle Logic: Convert "end_condition" string to boolean for UI
                 string endCond = (string)currentConfig["participant_flow"]["end_condition"];
                 currentConfig["participant_flow"]["use_timer"] = (endCond == "timer");
@@ -170,7 +170,7 @@ namespace VRLogger.UI
             GameObject btnContainer = new GameObject("ButtonContainer");
             btnContainer.transform.SetParent(panelObj.transform, false);
             RectTransform btnRect = btnContainer.AddComponent<RectTransform>();
-            btnRect.anchorMin = new Vector2(0, 0); 
+            btnRect.anchorMin = new Vector2(0, 0);
             btnRect.anchorMax = new Vector2(1, 0);
             btnRect.pivot = new Vector2(0.5f, 0);
             btnRect.sizeDelta = new Vector2(0, 90);
@@ -179,7 +179,7 @@ namespace VRLogger.UI
             // Widen button to fit "GUARDAR Y COMENZAR"
             GameObject btnObj = CreateButton(btnContainer, "GUARDAR Y COMENZAR", font);
             configUI.startButton = btnObj.GetComponent<Button>();
-            
+
             // Note: Camera controller is found dynamically in ConfigUI using ICameraController interface
         }
 
@@ -197,7 +197,7 @@ namespace VRLogger.UI
             txt.font = font;
             txt.fontSize = 28;
             txt.alignment = TextAlignmentOptions.BottomLeft;
-            txt.color = new Color(0.4f, 0.8f, 1f); 
+            txt.color = new Color(0.4f, 0.8f, 1f);
             txt.fontStyle = FontStyles.Bold;
             txt.margin = new Vector4(0, 10, 0, 0);
         }
@@ -227,8 +227,8 @@ namespace VRLogger.UI
             le.minHeight = 45; le.preferredHeight = 45;
 
             HorizontalLayoutGroup hg = container.AddComponent<HorizontalLayoutGroup>();
-            hg.childControlWidth = false; 
-            hg.childForceExpandWidth = false; 
+            hg.childControlWidth = false;
+            hg.childForceExpandWidth = false;
             hg.spacing = 30;
             hg.childAlignment = TextAnchor.MiddleRight;
 
@@ -241,7 +241,7 @@ namespace VRLogger.UI
             TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
             txt.text = jsonPath;
             txt.font = font;
-            txt.fontSize = 18; 
+            txt.fontSize = 18;
             txt.alignment = TextAlignmentOptions.MidlineRight;
             txt.color = new Color(0.9f, 0.9f, 0.9f);
 
@@ -249,11 +249,11 @@ namespace VRLogger.UI
             GameObject toggleObj = new GameObject("Toggle");
             toggleObj.transform.SetParent(container.transform, false);
             LayoutElement leTog = toggleObj.AddComponent<LayoutElement>();
-            leTog.minWidth = 32; leTog.preferredWidth = 32; 
+            leTog.minWidth = 32; leTog.preferredWidth = 32;
             leTog.minHeight = 32; leTog.preferredHeight = 32;
 
             Toggle toggle = toggleObj.AddComponent<Toggle>();
-            
+
             Image bg = toggleObj.AddComponent<Image>();
             bg.color = new Color(0.3f, 0.3f, 0.3f);
 
@@ -261,10 +261,10 @@ namespace VRLogger.UI
             GameObject checkObj = new GameObject("Checkmark");
             checkObj.transform.SetParent(toggleObj.transform, false);
             RectTransform checkRect = checkObj.AddComponent<RectTransform>();
-            checkRect.anchorMin = new Vector2(0.2f, 0.2f); 
+            checkRect.anchorMin = new Vector2(0.2f, 0.2f);
             checkRect.anchorMax = new Vector2(0.8f, 0.8f);
             checkRect.offsetMin = Vector2.zero; checkRect.offsetMax = Vector2.zero;
-            
+
             Image checkImg = checkObj.AddComponent<Image>();
             checkImg.color = Color.green;
 
@@ -330,7 +330,7 @@ namespace VRLogger.UI
             bg.color = new Color(0.2f, 0.2f, 0.2f, 1f);
 
             TMP_InputField input = inputObj.AddComponent<TMP_InputField>();
-            
+
             // Show Cursor (Caret)
             input.customCaretColor = true;
             input.caretColor = Color.white;
@@ -347,7 +347,7 @@ namespace VRLogger.UI
             RectTransform textRect = textObj.AddComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero; textRect.anchorMax = Vector2.one;
             textRect.offsetMin = Vector2.zero; textRect.offsetMax = Vector2.zero;
-            
+
             TextMeshProUGUI textComp = textObj.AddComponent<TextMeshProUGUI>();
             textComp.font = font;
             textComp.fontSize = 18;
@@ -374,21 +374,21 @@ namespace VRLogger.UI
             txt.font = font;
             txt.fontSize = size;
             txt.alignment = TextAlignmentOptions.Center;
-            txt.color = new Color(1f, 1f, 0.4f); 
+            txt.color = new Color(1f, 1f, 0.4f);
         }
 
         GameObject CreateButton(GameObject parent, string label, TMP_FontAsset font)
         {
             GameObject btnObj = new GameObject("ButtonStart");
             btnObj.transform.SetParent(parent.transform, false);
-            
+
             RectTransform rect = btnObj.AddComponent<RectTransform>();
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = new Vector2(400, 60); // Wider Button
 
             Image img = btnObj.AddComponent<Image>();
-            img.color = new Color(0.2f, 0.8f, 0.2f); 
+            img.color = new Color(0.2f, 0.8f, 0.2f);
 
             Button btn = btnObj.AddComponent<Button>();
 
@@ -396,7 +396,7 @@ namespace VRLogger.UI
             txtObj.transform.SetParent(btnObj.transform, false);
             RectTransform textRect = txtObj.AddComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero; textRect.anchorMax = Vector2.one;
-            
+
             TextMeshProUGUI txt = txtObj.AddComponent<TextMeshProUGUI>();
             txt.text = label;
             txt.font = font;
