@@ -69,12 +69,18 @@ class LogParser:
 
         df = pd.DataFrame(parsed)
 
-        # Asegurar orden de columnas más útil
-        column_order = [
+        # Asegurar orden de columnas más útil (pero manteniendo las demás)
+        priority_cols = [
             "timestamp", "user_id", "group_id", "session_id",
             "event_type", "event_name", "event_value", "context"
         ]
-        df = df[[c for c in column_order if c in df.columns]]
+        # Columns that exist in df and are in priority list
+        existing_priority = [c for c in priority_cols if c in df.columns]
+        # Columns that exist in df but are NOT in priority list
+        other_cols = [c for c in df.columns if c not in priority_cols]
+
+        # Combine
+        df = df[existing_priority + other_cols]
 
         return df
 

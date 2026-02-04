@@ -375,25 +375,96 @@ class MetricsCalculator:
 
             # Añadir categorías normalizadas
             cat_scores = {
-                "efectividad": self.compute_category("efectividad", subdf)["score"],
-                "eficiencia": self.compute_category("eficiencia", subdf)["score"],
-                "satisfaccion": self.compute_category("satisfaccion", subdf)["score"],
-                "presencia": self.compute_category("presencia", subdf)["score"]
+                "efectividad_score": self.compute_category("efectividad", subdf)["score"],
+                "eficiencia_score": self.compute_category("eficiencia", subdf)["score"],
+                "satisfaccion_score": self.compute_category("satisfaccion", subdf)["score"],
+                "presencia_score": self.compute_category("presencia", subdf)["score"]
             }
 
             entry.update(cat_scores)
 
             # Puntuación global para este participante
             entry["global_score"] = self.compute_global_score({
-                "efectividad": {"score": cat_scores["efectividad"]},
-                "eficiencia": {"score": cat_scores["eficiencia"]},
-                "satisfaccion": {"score": cat_scores["satisfaccion"]},
-                "presencia": {"score": cat_scores["presencia"]},
+                "efectividad": {"score": cat_scores["efectividad_score"]},
+                "eficiencia": {"score": cat_scores["eficiencia_score"]},
+                "satisfaccion": {"score": cat_scores["satisfaccion_score"]},
+                "presencia": {"score": cat_scores["presencia_score"]},
             })
+
+            # Retrieve independent_variable from context
+            # Strategy: Logic updated to handle nested 'session' object from config logs
+            iv_val = None
+
+            # 1. Direct column (flat)
+            if "independent_variable" in subdf.columns:
+                vals = subdf["independent_variable"].dropna().unique()
+                if len(vals) > 0: iv_val = vals[0]
+
+            # 2. Nested in 'session' column (common if expand_context=True and log had session obj)
+            if not iv_val and "session" in subdf.columns:
+                for val in subdf["session"].dropna():
+                    if isinstance(val, dict) and "independent_variable" in val:
+                        iv_val = val["independent_variable"]
+                        break
+                    # Handle case where it might be a JSON string
+                    elif isinstance(val, str):
+                        try:
+                            import json
+                            d = json.loads(val)
+                            if "independent_variable" in d:
+                                iv_val = d["independent_variable"]
+                                break
+                        except:
+                            pass
+
+            # 3. Fallback: Check specific start events for 'event_context'
+            if not iv_val:
+                starts = subdf[subdf["event_name"] == "session_start"]
+                for _, r in starts.iterrows():
+                    # Check if context is available (dict or json str)
+                    ctx = r.get("context") or r.get("event_context")
+                    if ctx:
+                        if isinstance(ctx, str):
+                            try:
+                                ctx = json.loads(ctx)
+                            except:
+                                ctx = {}
+
+                        if isinstance(ctx, dict):
+                            # Check root
+                            if "independent_variable" in ctx:
+                                iv_val = ctx["independent_variable"]
+                            # Check nested session
+                            elif "session" in ctx and isinstance(ctx["session"], dict):
+                                if "independent_variable" in ctx["session"]:
+                                    iv_val = ctx["session"]["independent_variable"]
+
+                    if iv_val: break
+
+            entry["independent_variable"] = iv_val if iv_val else "N/A"
 
             rows.append(entry)
 
         return pd.DataFrame(rows)
+
+    # ----------------------------------------------------------------------
+    # MÉTRICAS AGRUPADAS POR VARIABLE INDEPENDIENTE
+    # ----------------------------------------------------------------------
+    def compute_variable_metrics(self, grouped_df: pd.DataFrame):
+        """
+        Calcula promedios de scores agrupados por independent_variable.
+        Requiere el DF generado por compute_grouped_metrics.
+        """
+        if "independent_variable" not in grouped_df.columns:
+            return None
+
+        # Agrupar por la variable y calcular media de los scores
+        # Solo columnas numéricas
+        numeric_cols = grouped_df.select_dtypes(include=[np.number]).columns
+        # Aseguramos que independent_variable NO está en numeric_cols pero sí en groupby
+
+        result = grouped_df.groupby("independent_variable")[numeric_cols].mean().reset_index()
+        return result
 
     # ----------------------------------------------------------------------
     # MÉTRICAS GLOBALES

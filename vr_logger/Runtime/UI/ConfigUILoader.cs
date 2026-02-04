@@ -130,6 +130,7 @@ namespace VRLogger.UI
                 CreateSectionHeader(contentObj, "SESSION", font);
                 AddStringInput(contentObj, "session.session_name", currentConfig, configUI, font);
                 AddStringInput(contentObj, "session.group_name", currentConfig, configUI, font);
+                AddStringInput(contentObj, "session.independent_variable", currentConfig, configUI, font);
                 AddNumberInput(contentObj, "session.turn_duration_seconds", currentConfig, configUI, font);
 
                 // PARTICIPANTS

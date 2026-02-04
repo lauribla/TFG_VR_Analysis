@@ -5,6 +5,7 @@ import plotly.express as px
 from pathlib import Path
 import glob
 
+
 # ============================================================
 # 🔹 Cargar resultados dinámicamente
 # ============================================================
@@ -51,6 +52,7 @@ def load_results(results_file):
         return df, mode
     st.error("Formato de archivo no soportado.")
     return pd.DataFrame(), "desconocido"
+
 
 # ============================================================
 # 🔹 Interfaz principal
@@ -99,7 +101,7 @@ def main():
             df["group_id"].isin(selected_groups)
             & df["user_id"].isin(selected_users)
             & df["session_id"].isin(selected_sessions)
-        ]
+            ]
         st.info(f"{len(df)} filas después de aplicar filtros.")
     # Normalizar nombres en modo GLOBAL: crear alias sin prefijo
     if detected_mode == "global":
@@ -136,6 +138,45 @@ def main():
     }
 
     eje_x = "group_id" if detected_mode == "agrupado" else "id"
+
+    # ============================================================
+    # 🔹 Filtrado por Independent Variable
+    # ============================================================
+    if detected_mode == "agrupado" and "independent_variable" in df.columns:
+        st.sidebar.markdown("---")
+        st.sidebar.header("Variable Independiente")
+        all_vars = sorted(df["independent_variable"].dropna().astype(str).unique())
+        selected_vars = st.sidebar.multiselect("Filtrar por Variable:", all_vars, default=all_vars)
+
+        if selected_vars:
+            df = df[df["independent_variable"].astype(str).isin(selected_vars)]
+            st.info(f"Mostrando {len(df)} sesiones para variables: {', '.join(selected_vars)}")
+
+        # 🔹 Comparación específica
+        st.header("⚖️ Comparación por Variable Independiente")
+
+        # Calculate means for comparison
+        numeric_cols = ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score",
+                        "global_score"]
+        available_cols = [c for c in numeric_cols if c in df.columns]
+
+        if available_cols and len(selected_vars) > 0:
+            comp_df = df.groupby("independent_variable")[available_cols].mean().reset_index()
+
+            # Melt for charting
+            comp_melt = comp_df.melt(id_vars="independent_variable", var_name="Metric", value_name="Score")
+
+            fig_comp = px.bar(
+                comp_melt,
+                x="independent_variable",
+                y="Score",
+                color="Metric",
+                barmode="group",
+                title="Promedio de Scores por Variable",
+                text_auto=".2f"
+            )
+            st.plotly_chart(fig_comp, use_container_width=True)
+            st.markdown("---")
 
     # ============================================================
     # 🔹 Mostrar gráficas por categoría

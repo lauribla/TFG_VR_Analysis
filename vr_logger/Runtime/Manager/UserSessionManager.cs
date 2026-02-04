@@ -77,8 +77,11 @@ namespace VRLogger
             // 2️⃣ Enviar CONFIG REAL (ahora sí está cargado y LoggerService está listo)
             ExperimentConfig.Instance.SendConfigAsLog();
 
+            // 2b️⃣ Obtener Independent Variable (si existe)
+            string iv = (string)ExperimentConfig.Instance.GetConfig()?["session"]?["independent_variable"];
+
             // 3️⃣ Registrar inicio de sesión
-            _ = LogAPI.LogSessionStart(sessionId);
+            _ = LogAPI.LogSessionStart(sessionId, iv);
 
             started = true;
         }

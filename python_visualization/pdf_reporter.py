@@ -114,7 +114,8 @@ class PDFReport:
                 elements.append(Paragraph("<b>Resumen de puntuaciones ponderadas</b>", styles["Heading2"]))
 
                 mean_scores = {}
-                for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "total_score"]:
+                for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score",
+                            "total_score"]:
                     if col in df.columns:
                         mean_scores[col] = round(df[col].mean(), 2)
 
@@ -131,6 +132,40 @@ class PDFReport:
                 ])
                 elements.append(table)
                 elements.append(Spacer(1, 12))
+
+                # 🔹 NUEVO: Tabla resumen con todas las puntuaciones por usuario
+                elements.append(Paragraph("<b>Detalle de Puntuaciones por Usuario</b>", styles["Heading2"]))
+
+                # Definir columnas
+                user_score_data = [["Usuario", "Global", "Efect", "Efic", "Satis", "Pres"]]
+
+                for _, row in df.iterrows():
+                    uid = row.get("user_id", "N/A")
+
+                    # Helper para formatear porcentaje
+                    def fmt(key):
+                        return f"{row[key] * 100:.1f}%" if key in row and pd.notna(row[key]) else "-"
+
+                    user_score_data.append([
+                        str(uid),
+                        fmt("global_score"),
+                        fmt("efectividad_score"),
+                        fmt("eficiencia_score"),
+                        fmt("satisfaccion_score"),
+                        fmt("presencia_score")
+                    ])
+
+                user_table = Table(user_score_data, hAlign="LEFT")
+                user_table.setStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.navy),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("ALIGN", (1, 1), (-1, -1), "CENTER")
+                ])
+                elements.append(user_table)
+                elements.append(Spacer(1, 12))
+
                 elements.append(PageBreak())
 
             for _, row in df.iterrows():
@@ -138,17 +173,18 @@ class PDFReport:
                 gid = row.get("group_id", "N/A")
                 sid = row.get("session_id", "N/A")
 
-                elements.append(Paragraph(f"<b>Usuario:</b> {uid} — <b>Grupo:</b> {gid} — <b>Sesión:</b> {sid}", styles["Heading3"]))
+                elements.append(Paragraph(f"<b>Usuario:</b> {uid} — <b>Grupo:</b> {gid} — <b>Sesión:</b> {sid}",
+                                          styles["Heading3"]))
                 elements.append(Spacer(1, 8))
 
                 # 🔹 Mostrar los scores del usuario (ponderados desde MetricsCalculator)
                 elements.append(Paragraph("Puntuaciones Ponderadas", styles["Heading4"]))
 
                 score_keys = [
-                    ("Efectividad", "efectividad"),
-                    ("Eficiencia", "eficiencia"),
-                    ("Satisfacción", "satisfaccion"),
-                    ("Presencia", "presencia"),
+                    ("Efectividad", "efectividad_score"),
+                    ("Eficiencia", "eficiencia_score"),
+                    ("Satisfacción", "satisfaccion_score"),
+                    ("Presencia", "presencia_score"),
                     ("Total Global", "global_score")
                 ]
 
@@ -156,8 +192,7 @@ class PDFReport:
 
                 for label, key in score_keys:
                     if key in row and not pd.isna(row[key]):
-                        val = round(float(row[key]) * 100, 2) if key != "global_score" else round(float(row[key]) * 100,
-                                                                                                  2)
+                        val = round(float(row[key]) * 100, 2)
                         data.append([label, f"{val}%"])
 
                 score_table = Table(data, hAlign="LEFT")
@@ -198,6 +233,53 @@ class PDFReport:
                             elements.append(Image(str(img), width=400, height=250))
                             elements.append(Spacer(1, 10))
                 elements.append(PageBreak())
+
+            # ============================================================
+            # ⚖️ Comparación por Variable Independiente
+            # ============================================================
+            if "independent_variable" in df.columns:
+                unique_vars = df["independent_variable"].dropna().unique()
+                if len(unique_vars) > 1:  # Only compare if we have different values
+                    elements.append(Paragraph("Comparación por Variable Independiente", styles["Heading1"]))
+                    elements.append(Spacer(1, 10))
+
+                    # Calculate means
+                    numeric_cols = ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score",
+                                    "global_score"]
+                    available_cols = [c for c in numeric_cols if c in df.columns]
+
+                    if available_cols:
+                        comparison = df.groupby("independent_variable")[available_cols].mean().reset_index()
+
+                        data = [["Variable", "Glob", "Efect", "Efic", "Satis", "Pres"]]
+                        for _, row in comparison.iterrows():
+                            # Safe getters
+                            def get_val(col): return f"{row[col] * 100:.1f}%" if col in row else "-"
+
+                            data.append([
+                                str(row["independent_variable"]),
+                                get_val("global_score"),
+                                get_val("efectividad_score"),
+                                get_val("eficiencia_score"),
+                                get_val("satisfaccion_score"),
+                                get_val("presencia_score")
+                            ])
+
+                        table = Table(data, hAlign="LEFT")
+                        table.setStyle([
+                            ("BACKGROUND", (0, 0), (-1, 0), colors.navy),
+                            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                            ("ALIGN", (1, 1), (-1, -1), "CENTER")
+                        ])
+                        elements.append(table)
+                        elements.append(Spacer(1, 20))
+
+                        elements.append(Paragraph(
+                            "Esta tabla compara el rendimiento promedio de los participantes agrupados por la variable independiente configurada.",
+                            styles["Normal"]))
+                        elements.append(PageBreak())
 
         # ============================================================
         # 📈 Resultados globales (modo global JSON)

@@ -8,8 +8,8 @@ namespace VRLogger
         // -----------------------
         // Sesiones
         // -----------------------
-        public static Task LogSessionStart(string sessionId) =>
-            LoggerService.LogEvent("system", "session_start", null, new { session_id = sessionId });
+        public static Task LogSessionStart(string sessionId, string independentVariable = null) =>
+            LoggerService.LogEvent("system", "session_start", null, new { session_id = sessionId, independent_variable = independentVariable });
 
         public static Task LogSessionEnd(string sessionId) =>
             LoggerService.LogEvent("system", "session_end", null, new { session_id = sessionId });
