@@ -1,6 +1,7 @@
 import json
 import pandas as pd
 import matplotlib
+
 matplotlib.use('Agg')  # backend no interactivo para evitar errores en servidores/headless
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -8,7 +9,34 @@ from pathlib import Path
 
 
 class Visualizer:
-    X_LABEL = "Grupo / Usuario"
+    X_LABEL = "Grupo"
+
+    # Definición de categorías y métricas (sincronizado con dashboard y reporte)
+    METRIC_CATEGORIES = {
+        "Efectividad": [
+            "hit_ratio", "precision", "success_rate", "learning_curve_mean",
+            "progression", "success_after_restart", "attempts_per_target",
+            "efectividad_score"
+        ],
+        "Eficiencia": [
+            "avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s",
+            "navigation_errors", "aim_errors", "task_duration_success", "task_duration_fail",
+            "eficiencia_score"
+        ],
+        "Satisfacción": [
+            "retries_after_end", "voluntary_play_time_s", "aid_usage",
+            "interface_errors", "learning_stability", "error_reduction_rate",
+            "satisfaccion_score"
+        ],
+        "Presencia": [
+            "inactivity_time_s", "first_success_time_s", "sound_localization_time_s",
+            "activity_level_per_min", "audio_performance_gain",
+            "presencia_score"
+        ],
+        "Global": [
+            "global_score", "total_score"
+        ]
+    }
 
     def __init__(self, input_file, output_dir="figures"):
         """
@@ -78,8 +106,8 @@ class Visualizer:
     def _plot_metric(self, y_candidates, title, ylabel, palette="Blues_d", ylim=None):
         y_col = self._find_col(*y_candidates)
         if y_col is None:
-            print(f"[Visualizer] ⚠️ Métrica no encontrada: {y_candidates}")
-            return
+            # Silencioso para no saturar logs si no existe la métrica
+            return False
 
         x_col = self._get_x_col()
         if x_col not in self.df.columns:
@@ -99,54 +127,44 @@ class Visualizer:
         filepath = self.output_dir / f"{safe_name}.png"
         plt.savefig(filepath)
         plt.close()
-        print(f"[Visualizer] ✅ Figura generada: {filepath.name}")
+        # print(f"[Visualizer] ✅ Figura generada: {filepath.name}")
+        return True
 
     # ============================================================
-    # GRÁFICAS ESTÁNDAR
+    # GRÁFICAS ESTÁNDAR (GENERACIÓN MASIVA)
     # ============================================================
     def generate_standard_figures(self):
-        """Genera los gráficos de los indicadores más comunes, si existen"""
-        self._plot_metric(
-            ["hit_ratio", "efectividad_hit_ratio"],
-            "Efectividad: Ratio de aciertos",
-            "Hit Ratio",
-            palette="Blues_d",
-            ylim=(0, 1)
-        )
+        """Genera gráficos para TODAS las métricas definidas en METRIC_CATEGORIES que existan en el DF."""
+        print(f"[Visualizer] 📊 Generando gráficas estándar para {self.mode}...")
 
-        self._plot_metric(
-            ["success_rate", "efectividad_success_rate"],
-            "Efectividad: Porcentaje de tareas completadas",
-            "Success Rate",
-            palette="Purples_d",
-            ylim=(0, 1)
-        )
+        count = 0
+        for category, metrics in self.METRIC_CATEGORIES.items():
+            for metric in metrics:
+                # Buscar columnas candidatas (con o sin prefijo de categoría si fuera necesario,
+                # aunque aquí asumimos nombres planos o 'categoria_metrica')
+                candidates = [metric, f"{category.lower()}_{metric}"]
 
-        self._plot_metric(
-            ["avg_reaction_time_ms", "eficiencia_avg_reaction_time_ms"],
-            "Eficiencia: Tiempo medio de reacción",
-            "Tiempo medio (ms)",
-            palette="Greens_d"
-        )
+                # Configurar paleta según categoría
+                palette = "Blues_d"
+                if category == "Eficiencia":
+                    palette = "Greens_d"
+                elif category == "Satisfacción":
+                    palette = "Purples_d"
+                elif category == "Presencia":
+                    palette = "Oranges_d"
+                elif category == "Global":
+                    palette = "Reds_d"
 
-        self._plot_metric(
-            ["avg_task_duration_ms", "eficiencia_avg_task_duration_ms"],
-            "Eficiencia: Duración media de tarea",
-            "Duración (ms)",
-            palette="Greens_d"
-        )
+                # Intentar graficar
+                if self._plot_metric(
+                        candidates,
+                        title=f"{category}: {metric.replace('_', ' ').title()}",
+                        ylabel=metric.replace('_', ' ').title(),
+                        palette=palette
+                ):
+                    count += 1
 
-        self._plot_metric(
-            self._plot_metric(
-                ["activity_level_per_min", "presencia_activity_level_per_min", "activity_level"],
-                "Presencia: Activity level",
-                "Events per minute",
-                palette="Oranges_d"
-            ),
-            "Presencia: Nivel de actividad en el entorno",
-            "Eventos por minuto",
-            palette="Oranges_d"
-        )
+        print(f"[Visualizer] ✅ {count} gráficas estándar generadas.")
 
     # ============================================================
     # CUSTOM EVENTS DINÁMICOS
@@ -173,7 +191,43 @@ class Visualizer:
         filepath = self.output_dir / "custom_events.png"
         plt.savefig(filepath, bbox_inches="tight")
         plt.close()
+        plt.close()
         print(f"[Visualizer] ✅ Figura generada: {filepath.name}")
+
+    # ============================================================
+    # COMPARACIÓN POR VARIABLE INDEPENDIENTE
+    # ============================================================
+    def generate_independent_variable_comparison(self):
+        """Genera gráficos comparativos agrupados por 'independent_variable'."""
+        if "independent_variable" not in self.df.columns:
+            return
+
+        print("[Visualizer] ⚖️ Generando comparación por Variable Independiente...")
+
+        iv_col = "independent_variable"
+        # Asegurar tipos numéricos para agrupar
+        numeric_cols = self.df.select_dtypes(include=['float64', 'int64']).columns
+
+        # Agrupar por IV y calcular media
+        grouped = self.df.groupby(iv_col)[numeric_cols].mean().reset_index()
+
+        # Para cada score principal, generar un gráfico comparativo
+        main_scores = ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "global_score"]
+
+        for score in main_scores:
+            if score in grouped.columns:
+                plt.figure(figsize=(8, 6))
+                sns.barplot(data=grouped, x=iv_col, y=score, hue=iv_col, palette="viridis", legend=False)
+                plt.title(f"Promedio de {score} por {iv_col}")
+                plt.xlabel(iv_col)
+                plt.ylabel("Score Promedio")
+                plt.tight_layout()
+
+                filename = f"Iv_Comparison_{score}.png"
+                plt.savefig(self.output_dir / filename)
+                plt.close()
+
+        print(f"[Visualizer] ✅ Gráficos de comparación por IV generados.")
 
     # ============================================================
     # EJECUCIÓN COMPLETA
@@ -183,6 +237,7 @@ class Visualizer:
         try:
             self.generate_standard_figures()
             self.generate_custom_events()
+            self.generate_independent_variable_comparison()
             print(f"[Visualizer] ✅ Todas las figuras generadas en {self.output_dir}")
         except Exception as e:
             print(f"[Visualizer] ⚠️ Error al generar figuras: {e}")

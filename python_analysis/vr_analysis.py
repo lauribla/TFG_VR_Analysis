@@ -11,6 +11,7 @@ los analiza y genera automáticamente:
 """
 
 import pandas as pd
+import shutil
 from python_analysis.log_parser import LogParser
 from python_analysis.metrics import MetricsCalculator
 from python_analysis.exporter import MetricsExporter
@@ -115,17 +116,21 @@ print(json.dumps(results_for_export, indent=4))
 
 
 # ============================================================
-# 5️⃣ Crear carpetas de exportación
+# 5️⃣ Crear carpetas de exportación UNIFICADAS
 # ============================================================
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-base_dir = Path(__file__).parent
-export_dir = base_dir / f"pruebas/exports_{timestamp}"
-figures_dir = base_dir / f"pruebas/figures_{timestamp}"
+base_dir = Path(__file__).parent / "pruebas"
+output_dir = base_dir / f"analysis_{timestamp}"
+results_dir = output_dir / "results"
+figures_dir = output_dir / "figures"
 
-os.makedirs(export_dir, exist_ok=True)
+# Crear estructura
+os.makedirs(results_dir, exist_ok=True)
 os.makedirs(figures_dir, exist_ok=True)
+
+print(f"📂 Carpeta de salida creada: {output_dir}")
 
 
 # ============================================================
@@ -133,10 +138,10 @@ os.makedirs(figures_dir, exist_ok=True)
 # ============================================================
 
 if experiment_config is not None:
-    config_path = export_dir / "experiment_config_from_mongo.json"
+    config_path = results_dir / "experiment_config_from_mongo.json"
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(experiment_config, f, indent=4)
-    print(f"📄 Config exportada: {config_path}\n")
+    print(f"📄 Config exportada: {config_path.name}\n")
 
 
 # ============================================================
@@ -145,12 +150,12 @@ if experiment_config is not None:
 
 print("💾 Exportando métricas...")
 
-exporter = MetricsExporter(results_for_export, output_dir=export_dir)
+exporter = MetricsExporter(results_for_export, output_dir=results_dir)
 exporter.to_json("results.json")
 exporter.to_csv("results.csv")
 
 grouped_df = metrics.compute_grouped_metrics()
-grouped_path = export_dir / "grouped_metrics.csv"
+grouped_path = results_dir / "grouped_metrics.csv"
 grouped_df.to_csv(grouped_path, index=False)
 
 # También exportar versión agrupada como JSON
@@ -158,7 +163,7 @@ MetricsExporter.export_multiple(
     [results_for_export],
     ["Global"],
     mode="json",
-    output_dir=export_dir,
+    output_dir=results_dir,
     filename="group_results"
 )
 
@@ -171,7 +176,7 @@ print("✅ Exportación completada.\n")
 
 print("📈 Generando gráficas...")
 
-global_json = export_dir / "group_results.json"
+global_json = results_dir / "group_results.json"
 generated_figures = 0
 
 if global_json.exists():
@@ -195,20 +200,18 @@ print(f"📊 Figuras generadas: {generated_figures}\n")
 
 print("📄 Generando informe PDF...\n")
 
-if global_json.exists():
-    report_global = PDFReport(
-        results_file=str(global_json),
-        figures_dir=figures_dir / "global",
-        base_dir=base_dir
-    )
-    report_global.generate()
+# Usar el path consolidado 'output_dir'
+pdf_output_path = output_dir / "final_report.pdf"
 
-if grouped_path.exists():
-    report_grouped = PDFReport(
-        results_file=str(grouped_path),
-        figures_dir=figures_dir / "agrupado",
-        base_dir=base_dir
+# Priorizamos 'agrupado' para el reporte si existe, ya que es más completo para gráficas
+report_file = grouped_path if grouped_path.exists() else global_json
+
+if report_file.exists():
+    report = PDFReport(
+        results_file=str(report_file),
+        figures_dir=figures_dir,  # Pasamos la raíz de figuras
+        output_dir=output_dir     # Pasamos la raíz de output
     )
-    report_grouped.generate()
+    report.generate()
 
 print("🎉 ANÁLISIS COMPLETO FINALIZADO.\n")

@@ -10,14 +10,11 @@ import os
 
 
 class PDFReport:
-    def __init__(self, results_file, figures_dir="figures", base_dir="pruebas"):
+    def __init__(self, results_file, figures_dir, output_dir):
         self.results_file = Path(results_file)
         self.figures_dir = Path(figures_dir)
-        self.base_dir = Path(base_dir)
-
-        # Crear carpeta con timestamp para guardar el PDF
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.export_dir = self.base_dir / f"exports_{timestamp}"
+        # Usamos directamente el directorio de salida proporcionado
+        self.export_dir = Path(output_dir)
         self.export_dir.mkdir(parents=True, exist_ok=True)
 
         self.output_file = self.export_dir / "final_report.pdf"
@@ -132,40 +129,6 @@ class PDFReport:
                 ])
                 elements.append(table)
                 elements.append(Spacer(1, 12))
-
-                # 🔹 NUEVO: Tabla resumen con todas las puntuaciones por usuario
-                elements.append(Paragraph("<b>Detalle de Puntuaciones por Usuario</b>", styles["Heading2"]))
-
-                # Definir columnas
-                user_score_data = [["Usuario", "Global", "Efect", "Efic", "Satis", "Pres"]]
-
-                for _, row in df.iterrows():
-                    uid = row.get("user_id", "N/A")
-
-                    # Helper para formatear porcentaje
-                    def fmt(key):
-                        return f"{row[key] * 100:.1f}%" if key in row and pd.notna(row[key]) else "-"
-
-                    user_score_data.append([
-                        str(uid),
-                        fmt("global_score"),
-                        fmt("efectividad_score"),
-                        fmt("eficiencia_score"),
-                        fmt("satisfaccion_score"),
-                        fmt("presencia_score")
-                    ])
-
-                user_table = Table(user_score_data, hAlign="LEFT")
-                user_table.setStyle([
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.navy),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("ALIGN", (1, 1), (-1, -1), "CENTER")
-                ])
-                elements.append(user_table)
-                elements.append(Spacer(1, 12))
-
                 elements.append(PageBreak())
 
             for _, row in df.iterrows():
@@ -188,11 +151,21 @@ class PDFReport:
                     ("Total Global", "global_score")
                 ]
 
+                # Respaldo: intentar sin _score si no existe (retrocompatibilidad)
+                final_keys = []
+                for label, k in score_keys:
+                    if k in df.columns:
+                        final_keys.append((label, k))
+                    elif k.replace("_score", "") in df.columns:
+                        final_keys.append((label, k.replace("_score", "")))
+
+                score_keys = final_keys
                 data = [["Categoría", "Score (%)"]]
 
                 for label, key in score_keys:
                     if key in row and not pd.isna(row[key]):
-                        val = round(float(row[key]) * 100, 2)
+                        val = round(float(row[key]) * 100, 2) if key != "global_score" else round(float(row[key]) * 100,
+                                                                                                  2)
                         data.append([label, f"{val}%"])
 
                 score_table = Table(data, hAlign="LEFT")
@@ -223,63 +196,7 @@ class PDFReport:
                     elements.append(table)
                     elements.append(Spacer(1, 8))
 
-                    # 🖼️ Añadir imágenes de la categoría
-                    category_key = cat.split(" ")[1].lower()
-                    cat_dir = self.figures_dir / "agrupado"
-                    if not cat_dir.exists():
-                        cat_dir = self.figures_dir
-                    for img in cat_dir.glob("*.png"):
-                        if category_key in img.name.lower():
-                            elements.append(Image(str(img), width=400, height=250))
-                            elements.append(Spacer(1, 10))
                 elements.append(PageBreak())
-
-            # ============================================================
-            # ⚖️ Comparación por Variable Independiente
-            # ============================================================
-            if "independent_variable" in df.columns:
-                unique_vars = df["independent_variable"].dropna().unique()
-                if len(unique_vars) > 1:  # Only compare if we have different values
-                    elements.append(Paragraph("Comparación por Variable Independiente", styles["Heading1"]))
-                    elements.append(Spacer(1, 10))
-
-                    # Calculate means
-                    numeric_cols = ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score",
-                                    "global_score"]
-                    available_cols = [c for c in numeric_cols if c in df.columns]
-
-                    if available_cols:
-                        comparison = df.groupby("independent_variable")[available_cols].mean().reset_index()
-
-                        data = [["Variable", "Glob", "Efect", "Efic", "Satis", "Pres"]]
-                        for _, row in comparison.iterrows():
-                            # Safe getters
-                            def get_val(col): return f"{row[col] * 100:.1f}%" if col in row else "-"
-
-                            data.append([
-                                str(row["independent_variable"]),
-                                get_val("global_score"),
-                                get_val("efectividad_score"),
-                                get_val("eficiencia_score"),
-                                get_val("satisfaccion_score"),
-                                get_val("presencia_score")
-                            ])
-
-                        table = Table(data, hAlign="LEFT")
-                        table.setStyle([
-                            ("BACKGROUND", (0, 0), (-1, 0), colors.navy),
-                            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                            ("ALIGN", (1, 1), (-1, -1), "CENTER")
-                        ])
-                        elements.append(table)
-                        elements.append(Spacer(1, 20))
-
-                        elements.append(Paragraph(
-                            "Esta tabla compara el rendimiento promedio de los participantes agrupados por la variable independiente configurada.",
-                            styles["Normal"]))
-                        elements.append(PageBreak())
 
         # ============================================================
         # 📈 Resultados globales (modo global JSON)
@@ -342,6 +259,76 @@ class PDFReport:
                         if cat.lower() in img.name.lower():
                             elements.append(Image(str(img), width=400, height=250))
                             elements.append(Spacer(1, 10))
+                elements.append(PageBreak())
+
+        if (self.figures_dir / "agrupado").exists():
+            self.figures_dir = self.figures_dir / "agrupado"
+        elif (self.figures_dir / "global").exists():
+            self.figures_dir = self.figures_dir / "global"
+
+        iv_charts = list(self.figures_dir.glob("Iv_Comparison_*.png"))
+        if iv_charts:
+            elements.append(Paragraph("Análisis de Variables Independientes", styles["Heading1"]))
+            elements.append(Spacer(1, 10))
+            elements.append(
+                Paragraph("Comparación de puntuaciones promedio según la Variable Independiente.", styles["Normal"]))
+            elements.append(Spacer(1, 10))
+
+            for chart in iv_charts:
+                # Extraer nombre limpio del gráfico
+                chart_name = chart.stem.replace("Iv_Comparison_", "").replace("_", " ").title()
+                elements.append(Paragraph(chart_name, styles["Heading3"]))
+                elements.append(Image(str(chart), width=400, height=250))
+                elements.append(Spacer(1, 10))
+
+            elements.append(PageBreak())
+
+        # ============================================================
+        # 📊 Gráficos Comparativos (Todo al final)
+        # ============================================================
+        elements.append(Paragraph("Gráficos Comparativos por Métrica", styles["Heading1"]))
+        elements.append(Spacer(1, 10))
+
+        # Recorremos las categorías oficiales para mantener orden
+        for cat, keys in category_blocks.items():
+            elements.append(Paragraph(f"Gráficos de {cat}", styles["Heading2"]))
+            elements.append(Spacer(1, 10))
+
+            category_key = cat.split(" ")[1].lower()
+
+            # Determinar carpeta correcta (agrupado o global)
+            search_dir = self.figures_dir
+            if (self.figures_dir / "agrupado").exists():
+                search_dir = self.figures_dir / "agrupado"
+            elif (self.figures_dir / "global").exists():
+                search_dir = self.figures_dir / "global"
+
+            # Buscar imágenes que contengan el nombre de la categoría (ej: 'efectividad')
+            # Ojo: visualize_groups genera 'Efectividad_hit_ratio.png'
+
+            found_images = []
+            if search_dir.exists():
+                for img in sorted(search_dir.glob("*.png")):
+                    # Filtramos: debe ser de esta categoría Y NO ser un Iv_Comparison ni Custom
+                    name_lower = img.name.lower()
+                    # Normalización simple de acentos para matching (satisfacción -> satisfaccion)
+                    cat_key_norm = category_key.replace("ó", "o").replace("á", "a").replace("é", "e").replace("í",
+                                                                                                              "i").replace(
+                        "ú", "u")
+                    name_norm = name_lower.replace("ó", "o").replace("á", "a").replace("é", "e").replace("í",
+                                                                                                         "i").replace(
+                        "ú", "u")
+
+                    if cat_key_norm in name_norm and "iv_comparison" not in name_lower and "custom" not in name_lower:
+                        found_images.append(img)
+
+            if found_images:
+                for img in found_images:
+                    # Título de la imagen basado en el nombre del archivo
+                    clean_name = img.stem.replace(category_key, "").replace("_", " ").strip().title()
+                    elements.append(Paragraph(clean_name, styles["Heading3"]))
+                    elements.append(Image(str(img), width=450, height=300))
+                    elements.append(Spacer(1, 15))
                 elements.append(PageBreak())
 
         # ============================================================
