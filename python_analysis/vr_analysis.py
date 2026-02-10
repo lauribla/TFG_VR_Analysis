@@ -48,22 +48,34 @@ print(f"✅ {len(df)} documentos cargados desde Mongo.\n")
 
 
 # ============================================================
-# 2️⃣ Extraer config ORIGINAL desde logs sin expandir
+# 2️⃣ Extraer config (Log vs Local override)
 # ============================================================
 
 print("⚙️  Leyendo configuración del experimento...\n")
 
 experiment_config = None
 
-for entry in logs:
-    if entry.get("event_type") == "config":
-        experiment_config = entry.get("event_context")
-        break
+# Check override
+if os.environ.get("FORCE_LOCAL_CONFIG", "false").lower() == "true":
+    config_path = Path("vr_logger/experiment_config.json")
+    if config_path.exists():
+        print(f"⚠️  FORZANDO CONFIGURACIÓN LOCAL: {config_path}")
+        with open(config_path, "r", encoding="utf-8") as f:
+            experiment_config = json.load(f)
+    else:
+        print(f"❌  No se encontró la configuración local en {config_path}")
+
+# Fallback/Default: Extract from logs
+if experiment_config is None:
+    for entry in logs:
+        if entry.get("event_type") == "config":
+            experiment_config = entry.get("event_context")
+            break
 
 if experiment_config is not None:
     print("✅ Config cargada correctamente.\n")
 else:
-    print("⚠️  No existe configuración en los logs.\n")
+    print("⚠️  No existe configuración en los logs y no se forzó local.\n")
 
 
 # ============================================================

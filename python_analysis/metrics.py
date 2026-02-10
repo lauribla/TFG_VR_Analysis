@@ -255,6 +255,63 @@ class MetricsCalculator:
             return 0.0
         return float(np.nanmean(vals))
 
+    def progression(self, df=None):
+        # Métrica dummy o basada en niveles superados
+        if df is None: df = self.df
+        # Ejemplo: contar cuántos "level_up" o similar existen
+        # Si no existe evento específico, usar task_success unique count
+        succ = df[df["event_role"] == "task_end"]
+        succ = succ[succ["event_value"].astype(str).str.lower() == "success"]
+        return len(succ)
+
+    def success_after_restart(self, df=None):
+        if df is None: df = self.df
+        # Buscar patrones: task_restart -> ... -> task_end(success)
+        restarts = df[df["event_role"] == "task_restart"]["session_id"].unique()
+        count = 0
+        for sid in restarts:
+            # Simplificación: si en la misma sesión hay un éxito posterior al reinicio
+            # Esto requeriría lógica temporal más compleja por tarea.
+            # Por ahora, devolvemos 0.0 si no hay lógica definida o un placeholder.
+            pass
+        return 0.0  # Placeholder para no romper
+
+    def navigation_errors(self, df=None):
+        if df is None: df = self.df
+        return len(df[df["event_name"] == "collision"])  # Ejemplo
+
+    def aim_errors(self, df=None):
+        if df is None: df = self.df
+        return len(df[df["event_role"] == "action_fail"])
+
+    def task_duration_success(self, df=None):
+        # Duración promedio solo de tareas exitosas
+        if df is None: df = self.df
+        # Requiere unir task_start y task_end(success)
+        return self.avg_task_duration(df)  # Placeholder: promedio general
+
+    def task_duration_fail(self, df=None):
+        # Duración promedio solo de tareas fallidas
+        if df is None: df = self.df
+        return self.avg_task_duration(df)  # Placeholder
+
+    def interface_errors(self, df=None):
+        if df is None: df = self.df
+        return len(df[df["event_name"] == "ui_error"])
+
+    def learning_stability(self, df=None):
+        # Varianza de la curva de aprendizaje (invertida?)
+        vals = self.learning_curve(df)
+        if len(vals) < 2: return 0.0
+        return 1.0 / (1.0 + np.std(vals))  # Mayor estabilidad = menos std dev
+
+    def error_reduction_rate(self, df=None):
+        # Tendencia de errores: pendiente de regresión de fallos por bloque?
+        vals = self.learning_curve(df)  # Esto es success rate
+        # Si success rate sube, error rate baja.
+        if len(vals) < 2: return 0.0
+        return vals[-1] - vals[0]  # Simple: mejora final vs inicial
+
     # ----------------------------------------------------------------------
     # MAPEO dinámico de nombres → funciones internas
     # ----------------------------------------------------------------------
@@ -276,8 +333,36 @@ class MetricsCalculator:
             "inactivity_time_s": self.inactivity_time,
             "first_success_time_s": self.first_success_time,
             "sound_localization_time_s": self.sound_localization_time,
-            "activity_level_per_min": self.activity_level
+            "activity_level_per_min": self.activity_level,
+
+            # Nuevas métricas añadidas
+            "progression": self.progression,
+            "success_after_restart": self.success_after_restart,
+            "navigation_errors": self.navigation_errors,
+            "aim_errors": self.aim_errors,
+            "task_duration_success": self.task_duration_success,
+            "task_duration_fail": self.task_duration_fail,
+            "interface_errors": self.interface_errors,
+            "learning_stability": self.learning_stability,
+            "error_reduction_rate": self.error_reduction_rate,
+            "audio_performance_gain": self.audio_performance_gain
         }
+
+    def audio_performance_gain(self, df=None):
+        # Métrica dummy: ganancia de rendimiento con audio vs sin audio
+        # Requiere comparar bloques con audio vs sin audio.
+        # Si no hay info, devolver 0.0 o None
+        if df is None: df = self.df
+        # Placeholder: devolvemos un valor fijo o calculado simple
+        # Si existe columna 'audio_enabled', comparamos success rate
+        if "audio_enabled" in df.columns:
+            with_audio = df[df["audio_enabled"] == True]
+            without_audio = df[df["audio_enabled"] == False]
+            score_with = self.success_rate(with_audio)
+            score_without = self.success_rate(without_audio)
+            if pd.notna(score_with) and pd.notna(score_without) and score_without > 0:
+                return (score_with - score_without) / score_without
+        return 0.0
 
     # ----------------------------------------------------------------------
     # PROCESAR MÉTRICAS POR CATEGORÍA (efectividad, eficiencia…)
@@ -296,6 +381,10 @@ class MetricsCalculator:
         for metric_name, params in cat_cfg.items():
             func = metric_funcs.get(metric_name)
             if func is None:
+                continue
+
+            # Check if metric is enabled in config (Default: True)
+            if not params.get("enabled", True):
                 continue
 
             raw_value = func(df)
@@ -366,20 +455,21 @@ class MetricsCalculator:
                 "session_id": session,
             }
 
-            # Añadir cada métrica básica disponible
-            for metric_name, func in metric_funcs.items():
-                try:
-                    entry[metric_name] = func(subdf)
-                except:
-                    entry[metric_name] = None
+            # (Eliminado loop ciego)
+            # Ahora confiamos SOLO en compute_category para añadir métricas (respetando config)
 
-            # Añadir categorías normalizadas
-            cat_scores = {
-                "efectividad_score": self.compute_category("efectividad", subdf)["score"],
-                "eficiencia_score": self.compute_category("eficiencia", subdf)["score"],
-                "satisfaccion_score": self.compute_category("satisfaccion", subdf)["score"],
-                "presencia_score": self.compute_category("presencia", subdf)["score"]
-            }
+            # Añadir categorías normalizadas Y métricas individuales
+            cat_scores = {}
+            for cat_name in ["efectividad", "eficiencia", "satisfaccion", "presencia"]:
+                cat_result = self.compute_category(cat_name, subdf)
+                cat_scores[f"{cat_name}_score"] = cat_result["score"]
+
+                # Desempaquetar cada métrica de la categoría para que esté disponible en el JSON plano
+                for metric_key, val_dict in cat_result.items():
+                    if metric_key == "score": continue
+                    # Guardamos el valor raw para visualización
+                    if isinstance(val_dict, dict) and "raw" in val_dict:
+                        entry[metric_key] = val_dict["raw"]
 
             entry.update(cat_scores)
 

@@ -62,14 +62,24 @@ def main():
     st.title("📊 VR User Evaluation - Dashboard Interactivo")
 
     # Buscar exportaciones recientes
-    export_dirs = sorted(glob.glob("python_analysis/pruebas/exports_*"), reverse=True)
+    # Robust path resolution: Find project root relative to this script
+    script_dir = Path(__file__).resolve().parent
+    project_root = script_dir.parent
+    pruebas_dir = project_root / "python_analysis" / "pruebas"
+
+    # Search for 'analysis_*' folders (matching vr_analysis output)
+    search_pattern = pruebas_dir / "analysis_*"
+    export_dirs = sorted(glob.glob(str(search_pattern)), reverse=True)
     if not export_dirs:
         st.warning("No se encontraron resultados exportados. Ejecuta primero vr_analysis.py.")
         return
 
     latest_dir = Path(export_dirs[0])
-    group_results = latest_dir / "group_results.json"
-    grouped_metrics = latest_dir / "grouped_metrics.csv"
+    # Correction: files are inside the 'results' subdirectory
+    results_dir = latest_dir / "results"
+
+    group_results = results_dir / "results.json"  # Global results usually results.json
+    grouped_metrics = results_dir / "grouped_metrics.csv"
 
     # Selector de modo
     available_modes = []
@@ -77,6 +87,11 @@ def main():
         available_modes.append("Global")
     if grouped_metrics.exists():
         available_modes.append("Agrupado")
+
+    if not available_modes:
+        st.error(f"No se encontraron archivos de resultados en {results_dir}")
+        return
+
     mode_choice = st.radio("🎚️ Modo de análisis", available_modes, horizontal=True)
     results_file = group_results if mode_choice == "Global" else grouped_metrics
 
@@ -118,24 +133,39 @@ def main():
     # ============================================================
     # 🔹 Definir categorías de métricas
     # ============================================================
+    # ============================================================
+    # 🔹 Definir categorías de métricas (Dinámico)
+    # ============================================================
+    known_categories = ["efectividad", "eficiencia", "satisfaccion", "presencia"]
     cat_cols = {
-        "🟢 Efectividad": [
-            "hit_ratio", "precision", "success_rate", "learning_curve_mean",
-            "progression", "success_after_restart", "attempts_per_target"
-        ],
-        "🟠 Eficiencia": [
-            "avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s",
-            "navigation_errors", "aim_errors", "task_duration_success", "task_duration_fail"
-        ],
-        "🟣 Satisfacción": [
-            "retries_after_end", "voluntary_play_time_s", "aid_usage",
-            "interface_errors", "learning_stability", "error_reduction_rate"
-        ],
-        "🔵 Presencia": [
-            "inactivity_time_s", "first_success_time_s", "sound_localization_time_s",
-            "activity_level_per_min", "audio_performance_gain"
-        ]
+        f"{'🟢' if c == 'efectividad' else '🟠' if c == 'eficiencia' else '🟣' if c == 'satisfaccion' else '🔵'} {c.capitalize()}": []
+        for c in known_categories}
+
+    metric_to_cat = {
+        "hit_ratio": "efectividad", "precision": "efectividad", "success_rate": "efectividad",
+        "learning_curve_mean": "efectividad", "progression": "efectividad", "success_after_restart": "efectividad",
+
+        "avg_reaction_time_ms": "eficiencia", "avg_task_duration_ms": "eficiencia", "time_per_success_s": "eficiencia",
+        "navigation_errors": "eficiencia", "aim_errors": "eficiencia",
+
+        "learning_stability": "satisfaccion", "error_reduction_rate": "satisfaccion",
+        "voluntary_play_time_s": "satisfaccion", "aid_usage": "satisfaccion", "interface_errors": "satisfaccion",
+
+        "activity_level_per_min": "presencia", "first_success_time_s": "presencia", "inactivity_time_s": "presencia",
+        "sound_localization_time_s": "presencia", "audio_performance_gain": "presencia"
     }
+
+    # Rellenar con columnas presentes en DF
+    for col in df.columns:
+        if col in metric_to_cat:
+            cat_key = metric_to_cat[col]
+            # Match con emoji key
+            for k in cat_cols:
+                if cat_key.capitalize() in k:
+                    cat_cols[k].append(col)
+
+    # Limpiar categorías vacías
+    cat_cols = {k: v for k, v in cat_cols.items() if v}
 
     eje_x = "group_id" if detected_mode == "agrupado" else "id"
 

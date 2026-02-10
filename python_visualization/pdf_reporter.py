@@ -80,24 +80,56 @@ class PDFReport:
         # ============================================================
         # 🔸 CATEGORÍAS OFICIALES
         # ============================================================
+        # ============================================================
+        # 🔸 CATEGORÍAS (Dinámicas según datos)
+        # ============================================================
+        # Definimos las categorías base, pero las métricas se rellenarán según lo encontrado
+        known_categories = ["efectividad", "eficiencia", "satisfaccion", "presencia"]
         category_blocks = {
-            "🟢 Efectividad": [
-                "hit_ratio", "precision", "success_rate", "learning_curve_mean",
-                "progression", "success_after_restart", "attempts_per_target"
-            ],
-            "🟠 Eficiencia": [
-                "avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s",
-                "navigation_errors", "aim_errors", "task_duration_success", "task_duration_fail"
-            ],
-            "🟣 Satisfacción": [
-                "retries_after_end", "voluntary_play_time_s", "aid_usage",
-                "interface_errors", "learning_stability", "error_reduction_rate"
-            ],
-            "🔵 Presencia": [
-                "inactivity_time_s", "first_success_time_s", "sound_localization_time_s",
-                "activity_level_per_min", "audio_performance_gain"
-            ],
+            f"{'🟢' if c == 'efectividad' else '🟠' if c == 'eficiencia' else '🟣' if c == 'satisfaccion' else '🔵'} {c.capitalize()}": []
+            for c in known_categories}
+
+        # Lógica para detectar métricas disponibles en DF o Resultados
+        available_metrics = set()
+        if df is not None:
+            available_metrics = set(df.columns)
+        elif results is not None:
+            # En modo global, buscamos en el primer resultado disponible
+            first_res = next(iter(results.values()))
+            for cat in known_categories:
+                if cat in first_res and isinstance(first_res[cat], dict):
+                    available_metrics.update(first_res[cat].keys())
+
+        # Mapeo manual de métricas conocidas a sus categorías para mantener orden lógico
+        # Si aparecen nuevas métricas en el futuro, se añadirán si coinciden con los datos,
+        # pero este mapa ayuda a ordenarlas y asignarlas a la categoría correcta.
+        metric_to_cat = {
+            "hit_ratio": "efectividad", "precision": "efectividad", "success_rate": "efectividad",
+            "learning_curve_mean": "efectividad", "progression": "efectividad", "success_after_restart": "efectividad",
+
+            "avg_reaction_time_ms": "eficiencia", "avg_task_duration_ms": "eficiencia",
+            "time_per_success_s": "eficiencia",
+            "navigation_errors": "eficiencia", "aim_errors": "eficiencia",
+
+            "learning_stability": "satisfaccion", "error_reduction_rate": "satisfaccion",
+            "voluntary_play_time_s": "satisfaccion", "aid_usage": "satisfaccion", "interface_errors": "satisfaccion",
+
+            "activity_level_per_min": "presencia", "first_success_time_s": "presencia",
+            "inactivity_time_s": "presencia",
+            "sound_localization_time_s": "presencia", "audio_performance_gain": "presencia"
         }
+
+        # Rellenar category_blocks solo con métricas presentes
+        for m in available_metrics:
+            if m in metric_to_cat:
+                cat_key = metric_to_cat[m]
+                # Buscar la clave con emoji correspondiente
+                for k in category_blocks:
+                    if cat_key.capitalize() in k:
+                        category_blocks[k].append(m)
+
+        # Limpiar categorías vacías
+        category_blocks = {k: v for k, v in category_blocks.items() if v}
 
         # ============================================================
         # 📊 Resultados detallados (modo agrupado)

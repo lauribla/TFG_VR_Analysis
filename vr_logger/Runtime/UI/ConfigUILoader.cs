@@ -136,7 +136,7 @@ namespace VRLogger.UI
                 // PARTICIPANTS
                 CreateSectionHeader(contentObj, "PARTICIPANTS", font);
                 AddNumberInput(contentObj, "participants.count", currentConfig, configUI, font);
-                
+
                 if(currentConfig["participants"] is JObject p && p["order"] is JArray arr && arr.Count > 0)
                 {
                     AddStringInput(contentObj, "participants.order[0]", currentConfig, configUI, font);
@@ -164,7 +164,35 @@ namespace VRLogger.UI
                 string endCond = (string)currentConfig["participant_flow"]["end_condition"];
                 currentConfig["participant_flow"]["use_timer"] = (endCond == "timer");
 
-                AddToggleInput(contentObj, "participant_flow.use_timer", currentConfig, configUI, font);
+            AddToggleInput(contentObj, "participant_flow.use_timer", currentConfig, configUI, font);
+
+                // METRICS
+                CreateSectionHeader(contentObj, "METRICS CONFIG", font);
+                if (currentConfig["metrics"] is JObject metrics)
+                {
+                    foreach (var catProp in metrics.Properties())
+                    {
+                        // Add sub-header for category (e.g. "EFECTIVIDAD")
+                        CreateSectionHeader(contentObj, "  " + catProp.Name.ToUpper(), font);
+
+                        if (catProp.Value is JObject category)
+                        {
+                            foreach (var metricProp in category.Properties())
+                            {
+                                // Path to the 'enabled' boolean
+                                string fullPath = $"metrics.{catProp.Name}.{metricProp.Name}.enabled";
+
+                                // Check if 'enabled' exists, if not, skip (or maybe it defaults to true?)
+                                // GetBoolByPath defaults to false if missing, so we should ensure it exists or is added.
+                                // Since we added it to config, it should be there.
+
+                                // Use a prettier label for the toggle?
+                                // AddToggleInput uses the path as label. passing the path is fine for now.
+                                AddToggleInput(contentObj, fullPath, currentConfig, configUI, font);
+                            }
+                        }
+                    }
+                }
             }
 
             // 7. Start Button
