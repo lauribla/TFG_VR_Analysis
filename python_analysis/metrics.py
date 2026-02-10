@@ -200,13 +200,26 @@ class MetricsCalculator:
 
     def voluntary_play_time(self, df=None):
         if df is None: df = self.df
-        end = df[df["event_role"] == "session_end"]["timestamp"].max()
-        task_end = df[df["event_role"] == "task_end"]["timestamp"].max()
 
-        if pd.notna(end) and pd.notna(task_end):
-            diff = (end - task_end).total_seconds()
-            return max(0.0, diff)  # Clamp to 0.0 if negative (log artifact)
-        return np.nan
+        # 1. Buscar cuándo terminó la tarea (éxito)
+        task_end_events = df[(df["event_role"] == "task_end") & (df["event_value"] == "success")]
+        if task_end_events.empty:
+            return 0.0
+
+        task_end_time = task_end_events["timestamp"].max()
+
+        # 2. Buscar el último evento registrado en la sesión
+        # (puede ser session_end o simplemente el último log antes de cerrar)
+        last_event_time = df["timestamp"].max()
+
+        # 3. Calcular diferencia
+        if pd.notna(last_event_time) and pd.notna(task_end_time):
+            diff = (last_event_time - task_end_time).total_seconds()
+            # Filtrar "ruido": si es menos de 2s, probablemente es el tiempo de cierre de la app
+            if diff > 2.0:
+                return diff
+
+        return 0.0
 
     def aid_usage(self, df=None):
         if df is None: df = self.df
