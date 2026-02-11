@@ -34,7 +34,8 @@ namespace VRLogger
         void Start()
         {
             RefreshSettings();
-            // StartNextParticipant(); // REMOVED: Waits for ConfigUI to call RestartExperiment()
+            RefreshSettings();
+            // StartNextParticipant() called by UserSessionManager via RestartExperiment()
         }
 
         // ------------------------------------------------------------------

@@ -37,7 +37,7 @@ namespace VRLogger.UI
         void Update()
         {
             if (ParticipantFlowController.Instance == null) return;
-            
+
             // Lazy Init: If PC Camera isn't ready, try setup periodically
             if (pcUiCamera == null)
             {
@@ -48,17 +48,17 @@ namespace VRLogger.UI
                     SetupAsymmetricView();
                 }
             }
-            // Also retry finding Config Canvas if missed
-            else if (configCanvasRef == null)
-            {
-                 HijackConfigCanvas();
-            }
+            // Also retry finding Config Canvas if missed - REMOVED (Config UI is gone)
+            // else if (configCanvasRef == null)
+            // {
+            //      HijackConfigCanvas();
+            // }
 
             // DEBUG: Toggle Views with 'M' (Mode)
             if (Input.GetKeyDown(KeyCode.M))
             {
                 Debug.Log("[GMHUD] Toggle Input Detected (M)");
-                
+
                 if (pcUiCamera == null)
                 {
                     Debug.LogWarning("[GMHUD] 'M' pressed but System NOT Ready. Waiting for VR Camera...");
@@ -67,8 +67,8 @@ namespace VRLogger.UI
 
                 bool isActive = !pcUiCamera.gameObject.activeSelf;
                 pcUiCamera.gameObject.SetActive(isActive);
-                
-                if (canvasObj != null) 
+
+                if (canvasObj != null)
                     canvasObj.SetActive(isActive);
 
                 Debug.Log(isActive ? "[GMHUD] Showing GM View (Observer)" : "[GMHUD] Showing Player View (VR)");
@@ -130,7 +130,7 @@ namespace VRLogger.UI
                  Debug.LogWarning($"[GMHUD] Waiting for Source Camera... (Main={Camera.main})");
                 return;
             }
-            
+
             Debug.Log($"[GMHUD] SetupAsymmetricView using Source Camera: '{mainCam.name}'");
 
             // 1. CULL UI from VR Camera (So headset doesn't see buttons)
@@ -146,7 +146,7 @@ namespace VRLogger.UI
             camObj.transform.SetParent(mainCam.transform);
             camObj.transform.localPosition = Vector3.zero;
             camObj.transform.localRotation = Quaternion.identity;
-            
+
             gmCamera = camObj.AddComponent<Camera>();
             gmCamera.CopyFrom(mainCam); // Copy settings (FOV, etc)
             gmCamera.targetTexture = rt;
@@ -187,44 +187,14 @@ namespace VRLogger.UI
             RawImage rawImg = bgObj.AddComponent<RawImage>();
             rawImg.texture = rt;
             rawImg.color = Color.white;
-            
-            // 7. HIJACK Config Canvas - Retry Logic needed as it might spawn late
-            HijackConfigCanvas();
+
+            // 7. HIJACK Config Canvas - REMOVED
+            // HijackConfigCanvas();
         }
 
-        private Canvas configCanvasRef;
-        private void HijackConfigCanvas()
-        {
-            if (configCanvasRef != null) return; // Already done
-
-            GameObject configObj = GameObject.Find("VRConfigCanvas");
-            if (configObj == null)
-            {
-                // Try finding by type
-                var loader = FindObjectOfType<ConfigUILoader>();
-                if (loader != null)
-                {
-                    // It might be a child or created by it. Loader creates "VRConfigCanvas" at root.
-                    // If loader exists but obj not found, maybe next frame.
-                }
-                return; 
-            }
-
-            // Ensure the Config Canvas and its children are on the UI layer
-            int uiLayer = LayerMask.NameToLayer("UI");
-            SetLayerRecursively(configObj, uiLayer);
-
-            Canvas cc = configObj.GetComponent<Canvas>();
-            if (cc != null && pcUiCamera != null)
-            {
-                cc.renderMode = RenderMode.ScreenSpaceCamera;
-                cc.worldCamera = pcUiCamera;
-                cc.sortingOrder = 999;
-                cc.planeDistance = 0.5f; // In front of GM HUD
-                configCanvasRef = cc;
-                Debug.Log("[GMHUD] Successfully Hijacked Config Canvas for PC View.");
-            }
-        }
+        // HijackConfigCanvas REMOVED
+        private Canvas configCanvasRef; // Kept to avoid compilation error if referenced elsewhere, but unused. Actually, let's remove it if possible or just ignore. 
+        // Logic removed.
 
         // Helper to set layer on a GameObject and all its children
         private void SetLayerRecursively(GameObject obj, int layer)

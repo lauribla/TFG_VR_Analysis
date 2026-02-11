@@ -24,7 +24,7 @@ namespace VRLogger
             if (Instance == null)
             {
                 Instance = this;
-                
+
                 // -----------------------------------------------------------
                 // AUTO-INSTANTIATION (Bootstrapper)
                 // -----------------------------------------------------------
@@ -39,7 +39,7 @@ namespace VRLogger
                     Debug.Log("[UserSessionManager] 🛠️ Auto-Creating VRTrackingManager...");
                     new GameObject("VRTrackingManager").AddComponent<VRTrackingManager>();
                 }
-                
+
                 if (ParticipantFlowController.Instance == null)
                 {
                     Debug.Log("[UserSessionManager] 🛠️ Auto-Creating ParticipantFlowController...");
@@ -57,6 +57,16 @@ namespace VRLogger
             {
                 Destroy(gameObject);
                 return;
+            }
+        }
+
+        void Start()
+        {
+            // Auto-start the experiment flow using Inspector config
+            Debug.Log("[UserSessionManager] 🚀 Auto-Starting Experiment...");
+            if (ParticipantFlowController.Instance != null)
+            {
+                ParticipantFlowController.Instance.RestartExperiment();
             }
         }
 

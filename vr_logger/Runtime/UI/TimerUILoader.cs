@@ -29,14 +29,7 @@ namespace VRLogger.UI
             if (ParticipantFlowController.Instance == null) return;
             if (canvasGroup == null) return;
 
-            // Don't show timer until config has been accepted
-            if (!ConfigUI.ConfigAccepted)
-            {
-                canvasGroup.alpha = 0;
-                return;
-            }
-
-            // Only show if "timer" mode
+            // Timer acts based on flow controller state only
             if (ParticipantFlowController.Instance.GetEndCondition() != "timer")
             {
                 canvasGroup.alpha = 0;
