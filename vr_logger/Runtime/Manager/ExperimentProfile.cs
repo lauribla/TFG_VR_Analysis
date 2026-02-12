@@ -15,6 +15,7 @@ namespace VRLogger
         [Header("Participants")]
         public int ParticipantCount = 4;
         public List<string> ParticipantOrder = new List<string> { "U001", "U002", "U003", "U004" };
+        public string ManualParticipantName = "";
 
         [Header("Experiment Info")]
         public string ExperimentId = "shooting_basic";

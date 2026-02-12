@@ -20,6 +20,9 @@ namespace VRLogger
         [Header("Participants")]
         public int ParticipantCount = 4;
         public List<string> ParticipantOrder = new List<string> { "U001", "U002", "U003", "U004" };
+        
+        [Tooltip("If set, overrides the Participant list for a single-user run.")]
+        public string ManualParticipantName = "";
 
         [Header("Experiment Info")]
         public string ExperimentId = "shooting_basic";
@@ -140,8 +143,18 @@ namespace VRLogger
             string iv = p ? p.IndependentVariable : IndependentVariable;
             float tDuration = p ? p.TurnDurationSeconds : TurnDurationSeconds;
             
+            // MANUAL USER ID LOGIC
+            string manualUser = p ? p.ManualParticipantName : ManualParticipantName;
+            
             int pCount = p ? p.ParticipantCount : ParticipantCount;
             List<string> pOrder = p ? p.ParticipantOrder : ParticipantOrder;
+            
+            if (!string.IsNullOrEmpty(manualUser))
+            {
+                pCount = 1;
+                pOrder = new List<string> { manualUser };
+                Debug.Log($"[ExperimentConfig] ⚠️ Using Manual Participant Override: {manualUser}");
+            }
             
             string exId = p ? p.ExperimentId : ExperimentId;
             string fProf = p ? p.FormulaProfile : FormulaProfile;
@@ -394,6 +407,7 @@ namespace VRLogger
             
             ParticipantCount = activeProfile.ParticipantCount;
             ParticipantOrder = new List<string>(activeProfile.ParticipantOrder);
+            ManualParticipantName = activeProfile.ManualParticipantName;
             
             ExperimentId = activeProfile.ExperimentId;
             FormulaProfile = activeProfile.FormulaProfile;
@@ -432,6 +446,7 @@ namespace VRLogger
             
             activeProfile.ParticipantCount = ParticipantCount;
             activeProfile.ParticipantOrder = new List<string>(ParticipantOrder);
+            activeProfile.ManualParticipantName = ManualParticipantName;
             
             activeProfile.ExperimentId = ExperimentId;
             activeProfile.FormulaProfile = FormulaProfile;
