@@ -160,6 +160,10 @@ namespace VRLogger
 
             MetricsCategory met = p ? p.Metrics : Metrics;
 
+            Debug.Log($"[ExperimentConfig] Building JSON. ActiveProfile: {(p ? p.name : "None")}");
+            Debug.Log($"[ExperimentConfig] Sample Metric (HitRatio): Enabled={met.HitRatio.Enabled}, Weight={met.HitRatio.Weight}");
+
+
             // Reconstruct the JSON structure expected by the rest of the system
             jsonConfig = new JObject();
 
@@ -249,6 +253,20 @@ namespace VRLogger
                         { "audio_performance_gain", MetricToJson(met.AudioPerformanceGain) }
                     } 
                 }
+            };
+
+            // Event Roles (Hardcoded logic mapping for Python Parser)
+            // This is CRITICAL for the metrics calculator to know what "target_hit" means
+            jsonConfig["event_roles"] = new JObject
+            {
+                { "target_hit", "action_success" },
+                { "target_miss", "action_fail" },
+                { "task_end", "task_end" },
+                { "task_start", "task_start" },
+                { "task_restart", "task_restart" },
+                { "help_requested", "help_event" },
+                { "guide_used", "help_event" },
+                { "hint_used", "help_event" }
             };
 
             if (p != null)
