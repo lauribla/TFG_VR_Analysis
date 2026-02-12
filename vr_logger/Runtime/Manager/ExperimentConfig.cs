@@ -8,6 +8,9 @@ namespace VRLogger
     {
         public static ExperimentConfig Instance;
 
+        [Header("Profile System")]
+        public ExperimentProfile activeProfile;
+
         [Header("Session Configuration")]
         public string SessionName = "Dia_1";
         public string GroupName = "Grupo_A";
@@ -30,6 +33,9 @@ namespace VRLogger
         public bool UseFootTracker = false;
         public bool UseRaycastLogger = true;
         public bool UseCollisionLogger = true;
+
+        [Header("GM Controls")]
+        public bool EnableGMControls = true;
 
         [System.Serializable]
         public enum FlowModeType { Turns, Manual }
@@ -125,49 +131,84 @@ namespace VRLogger
 
         void BuildJsonFromInspector()
         {
+            // Determine source: Profile OR Local Inspector
+            ExperimentProfile p = activeProfile;
+
+            // Helper to get value
+            string sName = p ? p.SessionName : SessionName;
+            string gName = p ? p.GroupName : GroupName;
+            string iv = p ? p.IndependentVariable : IndependentVariable;
+            float tDuration = p ? p.TurnDurationSeconds : TurnDurationSeconds;
+            
+            int pCount = p ? p.ParticipantCount : ParticipantCount;
+            List<string> pOrder = p ? p.ParticipantOrder : ParticipantOrder;
+            
+            string exId = p ? p.ExperimentId : ExperimentId;
+            string fProf = p ? p.FormulaProfile : FormulaProfile;
+            string desc = p ? p.Description : Description;
+            
+            bool useGaze = p ? p.UseGazeTracker : UseGazeTracker;
+            bool useMove = p ? p.UseMovementTracker : UseMovementTracker;
+            bool useHand = p ? p.UseHandTracker : UseHandTracker;
+            bool useFoot = p ? p.UseFootTracker : UseFootTracker;
+            bool useRay = p ? p.UseRaycastLogger : UseRaycastLogger;
+            bool useCol = p ? p.UseCollisionLogger : UseCollisionLogger;
+            
+            FlowModeType fMode = p ? p.FlowMode : FlowMode;
+            EndConditionType eCond = p ? p.EndCondition : EndCondition;
+            bool gmEnable = p ? p.EnableGMControls : EnableGMControls;
+
+            MetricsCategory met = p ? p.Metrics : Metrics;
+
             // Reconstruct the JSON structure expected by the rest of the system
             jsonConfig = new JObject();
 
             // Session
             jsonConfig["session"] = new JObject
             {
-                { "session_name", SessionName },
-                { "group_name", GroupName },
-                { "independent_variable", IndependentVariable },
-                { "turn_duration_seconds", TurnDurationSeconds }
+                { "session_name", sName },
+                { "group_name", gName },
+                { "independent_variable", iv },
+                { "turn_duration_seconds", tDuration }
             };
 
             // Participants
             jsonConfig["participants"] = new JObject
             {
-                { "count", ParticipantCount },
-                { "order", new JArray(ParticipantOrder) }
+                { "count", pCount },
+                { "order", new JArray(pOrder) }
             };
 
             // Experiment Selection
             jsonConfig["experiment_selection"] = new JObject
             {
-                { "experiment_id", ExperimentId },
-                { "formula_profile", FormulaProfile },
-                { "description", Description }
+                { "experiment_id", exId },
+                { "formula_profile", fProf },
+                { "description", desc }
             };
 
             // Modules
             jsonConfig["modules"] = new JObject
             {
-                { "useGazeTracker", UseGazeTracker },
-                { "useMovementTracker", UseMovementTracker },
-                { "useHandTracker", UseHandTracker },
-                { "useFootTracker", UseFootTracker },
-                { "useRaycastLogger", UseRaycastLogger },
-                { "useCollisionLogger", UseCollisionLogger }
+                { "useGazeTracker", useGaze },
+                { "useMovementTracker", useMove },
+                { "useHandTracker", useHand },
+                { "useFootTracker", useFoot },
+                { "useRaycastLogger", useRay },
+                { "useCollisionLogger", useCol }
             };
 
             // Flow
+            JObject gmControls = new JObject
+            {
+                { "enabled", gmEnable }
+            };
+
             jsonConfig["participant_flow"] = new JObject
             {
-                { "mode", FlowMode.ToString().ToLower() },
-                { "end_condition", EndCondition.ToString().ToLower() }
+                { "mode", fMode.ToString().ToLower() },
+                { "end_condition", eCond.ToString().ToLower() },
+                { "gm_controls", gmControls }
             };
 
             // Metrics
@@ -175,114 +216,45 @@ namespace VRLogger
             {
                 { "efectividad", new JObject 
                     {
-                        { "hit_ratio", MetricToJson(Metrics.HitRatio) },
-                        { "success_rate", MetricToJson(Metrics.SuccessRate) },
-                        { "learning_curve_mean", MetricToJson(Metrics.LearningCurveMean) },
-                        { "progression", MetricToJson(Metrics.Progression) },
-                        { "success_after_restart", MetricToJson(Metrics.SuccessAfterRestart) }
+                        { "hit_ratio", MetricToJson(met.HitRatio) },
+                        { "success_rate", MetricToJson(met.SuccessRate) },
+                        { "learning_curve_mean", MetricToJson(met.LearningCurveMean) },
+                        { "progression", MetricToJson(met.Progression) },
+                        { "success_after_restart", MetricToJson(met.SuccessAfterRestart) }
                     } 
                 },
                 { "eficiencia", new JObject 
                     {
-                        { "avg_reaction_time_ms", MetricToJson(Metrics.AvgReactionTimeMs) },
-                        { "avg_task_duration_ms", MetricToJson(Metrics.AvgTaskDurationMs) },
-                        { "time_per_success_s", MetricToJson(Metrics.TimePerSuccessS) },
-                        { "navigation_errors", MetricToJson(Metrics.NavigationErrors) }
+                        { "avg_reaction_time_ms", MetricToJson(met.AvgReactionTimeMs) },
+                        { "avg_task_duration_ms", MetricToJson(met.AvgTaskDurationMs) },
+                        { "time_per_success_s", MetricToJson(met.TimePerSuccessS) },
+                        { "navigation_errors", MetricToJson(met.NavigationErrors) }
                     } 
                 },
                 { "satisfaccion", new JObject 
                     {
-                        { "learning_stability", MetricToJson(Metrics.LearningStability) },
-                        { "error_reduction_rate", MetricToJson(Metrics.ErrorReductionRate) },
-                        { "voluntary_play_time_s", MetricToJson(Metrics.VoluntaryPlayTimeS) },
-                        { "aid_usage", MetricToJson(Metrics.AidUsage) },
-                        { "interface_errors", MetricToJson(Metrics.InterfaceErrors) }
+                        { "learning_stability", MetricToJson(met.LearningStability) },
+                        { "error_reduction_rate", MetricToJson(met.ErrorReductionRate) },
+                        { "voluntary_play_time_s", MetricToJson(met.VoluntaryPlayTimeS) },
+                        { "aid_usage", MetricToJson(met.AidUsage) },
+                        { "interface_errors", MetricToJson(met.InterfaceErrors) }
                     } 
                 },
                 { "presencia", new JObject 
                     {
-                        { "activity_level_per_min", MetricToJson(Metrics.ActivityLevelPerMin) },
-                        { "first_success_time_s", MetricToJson(Metrics.FirstSuccessTimeS) },
-                        { "inactivity_time_s", MetricToJson(Metrics.InactivityTimeS) },
-                        { "sound_localization_time_s", MetricToJson(Metrics.SoundLocalizationTimeS) },
-                        { "audio_performance_gain", MetricToJson(Metrics.AudioPerformanceGain) }
+                        { "activity_level_per_min", MetricToJson(met.ActivityLevelPerMin) },
+                        { "first_success_time_s", MetricToJson(met.FirstSuccessTimeS) },
+                        { "inactivity_time_s", MetricToJson(met.InactivityTimeS) },
+                        { "sound_localization_time_s", MetricToJson(met.SoundLocalizationTimeS) },
+                        { "audio_performance_gain", MetricToJson(met.AudioPerformanceGain) }
                     } 
                 }
             };
-            
-            // Event Roles (Critical for Python Analysis)
-            jsonConfig["event_roles"] = new JObject
-            {
-                { "target_hit", "action_success" },
-                { "target_miss", "action_fail" },
-                { "goal_reached", "action_success" },
-                { "object_placed_correctly", "action_success" },
-                { "object_dropped", "action_fail" },
-                { "fall_detected", "action_fail" },
-                { "task_start", "task_start" },
-                { "task_end", "task_end" },
-                { "task_restart", "task_restart" },
-                { "task_timeout", "task_abandoned" },
-                { "task_abandoned", "task_abandoned" },
-                { "session_start", "session_start" },
-                { "session_end", "session_end" },
-                { "early_leave", "session_end" },
-                { "collision", "navigation_error" },
-                { "navigation_error", "navigation_error" },
-                { "controller_error", "interface_error" },
-                { "wrong_button", "interface_error" },
-                { "ui_interaction", "interface_action" },
-                { "menu_opened", "interface_action" },
-                { "menu_closed", "interface_action" },
-                { "help_requested", "help_event" },
-                { "guide_used", "help_event" },
-                { "hint_used", "help_event" },
-                { "tutorial_step", "help_event" },
-                { "movement_frame", "movement_update" },
-                { "teleport_used", "movement_action" },
-                { "walk_step", "movement_action" },
-                { "sharp_turn", "movement_action" },
-                { "turn_event", "movement_action" },
-                { "inspect_object", "exploration_event" },
-                { "gaze_sustained", "gaze_event" },
-                { "gaze_frequency_change", "gaze_event" },
-                { "gaze_exit", "gaze_event" },
-                { "action_with_gaze_check", "gaze_action" },
-                { "eye_tracking_sample", "gaze_sample" },
-                { "controller_action", "interaction_event" },
-                { "object_grabbed", "interaction_event" },
-                { "object_released", "interaction_event" },
-                { "trigger_pull", "interaction_event" },
-                { "audio_triggered", "audio_event" },
-                { "sound_source_active", "audio_event" },
-                { "head_turn", "audio_reaction" },
-                { "inactivity_frame", "inactivity_event" },
-                { "timeout_detected", "inactivity_event" },
-                { "system_warning", "system_event" },
-                { "performance_drop", "system_event" },
-                { "latency_spike", "system_event" },
-                { "spawn_object", "task_start" },
-                { "bullet_hit", "action_success" },
-                { "reaction_time", "performance_measure" },
-                { "manual_despawn", "action_fail" },
-                { "custom_event", "custom_event" }
-            };
 
-            // Custom Events
-            jsonConfig["custom_events"] = new JObject {
-                { "hand_movement", "motion_capture" },
-                { "body_rotation", "motion_capture" },
-                { "controller_vibration", "feedback_event" },
-                { "npc_interaction", "social_event" },
-                { "menu_navigation", "interface_action" },
-                { "object_throw", "interaction_event" },
-                { "object_collision", "physics_event" },
-                { "gaze_on_npc", "attention_event" },
-                { "camera_shake", "system_event" },
-                { "microphone_input", "voice_event" }
-            };
-
-            Debug.Log("[ExperimentConfig] ✅ Config built from Inspector values.");
+            if (p != null)
+                Debug.Log($"[ExperimentConfig] ✅ Config built from PROFILE '{p.name}'.");
+            else
+                Debug.Log("[ExperimentConfig] ✅ Config built from Inspector values.");
         }
 
         JObject MetricToJson(MetricConfig m)
@@ -324,5 +296,85 @@ namespace VRLogger
         {
             return jsonConfig;
         }
+
+#if UNITY_EDITOR
+        [ContextMenu("Load From Profile (Overwrite Inspector)")]
+        public void LoadFromProfile()
+        {
+            if (activeProfile == null)
+            {
+                Debug.LogError("No profile assigned!");
+                return;
+            }
+
+            // Copy Simple Fields
+            SessionName = activeProfile.SessionName;
+            GroupName = activeProfile.GroupName;
+            IndependentVariable = activeProfile.IndependentVariable;
+            TurnDurationSeconds = activeProfile.TurnDurationSeconds;
+            
+            ParticipantCount = activeProfile.ParticipantCount;
+            ParticipantOrder = new List<string>(activeProfile.ParticipantOrder);
+            
+            ExperimentId = activeProfile.ExperimentId;
+            FormulaProfile = activeProfile.FormulaProfile;
+            Description = activeProfile.Description;
+            
+            UseGazeTracker = activeProfile.UseGazeTracker;
+            UseMovementTracker = activeProfile.UseMovementTracker;
+            UseHandTracker = activeProfile.UseHandTracker;
+            UseFootTracker = activeProfile.UseFootTracker;
+            UseRaycastLogger = activeProfile.UseRaycastLogger;
+            UseCollisionLogger = activeProfile.UseCollisionLogger;
+            
+            FlowMode = activeProfile.FlowMode;
+            EndCondition = activeProfile.EndCondition;
+            EnableGMControls = activeProfile.EnableGMControls;
+            
+            Metrics = activeProfile.Metrics;
+
+            Debug.Log($"Loaded values from profile: {activeProfile.name}");
+        }
+
+        [ContextMenu("Save To Profile (Overwrite Asset)")]
+        public void SaveToProfile()
+        {
+            if (activeProfile == null)
+            {
+                Debug.LogError("No profile assigned to save to!");
+                return;
+            }
+
+            // Copy Fields Back
+            activeProfile.SessionName = SessionName;
+            activeProfile.GroupName = GroupName;
+            activeProfile.IndependentVariable = IndependentVariable;
+            activeProfile.TurnDurationSeconds = TurnDurationSeconds;
+            
+            activeProfile.ParticipantCount = ParticipantCount;
+            activeProfile.ParticipantOrder = new List<string>(ParticipantOrder);
+            
+            activeProfile.ExperimentId = ExperimentId;
+            activeProfile.FormulaProfile = FormulaProfile;
+            activeProfile.Description = Description;
+            
+            activeProfile.UseGazeTracker = UseGazeTracker;
+            activeProfile.UseMovementTracker = UseMovementTracker;
+            activeProfile.UseHandTracker = UseHandTracker;
+            activeProfile.UseFootTracker = UseFootTracker;
+            activeProfile.UseRaycastLogger = UseRaycastLogger;
+            activeProfile.UseCollisionLogger = UseCollisionLogger;
+            
+            activeProfile.FlowMode = FlowMode;
+            activeProfile.EndCondition = EndCondition;
+            activeProfile.EnableGMControls = EnableGMControls;
+            
+            activeProfile.Metrics = Metrics;
+
+            UnityEditor.EditorUtility.SetDirty(activeProfile);
+            UnityEditor.AssetDatabase.SaveAssets();
+            Debug.Log($"Saved values to profile: {activeProfile.name}");
+        }
+#endif
     }
 }
