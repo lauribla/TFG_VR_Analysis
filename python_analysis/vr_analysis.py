@@ -67,10 +67,18 @@ if os.environ.get("FORCE_LOCAL_CONFIG", "false").lower() == "true":
 
 # Fallback/Default: Extract from logs
 if experiment_config is None:
-    for entry in logs:
-        if entry.get("event_type") == "config":
-            experiment_config = entry.get("event_context")
-            break
+    configs = [entry for entry in logs if entry.get("event_type") == "config"]
+    if configs:
+        # Ordenar por timestamp para asegurar que usamos la ÚLTIMA (más reciente)
+        # Asumimos que timestamp es comparable (datetime o string ISO)
+        try:
+            configs.sort(key=lambda x: x.get("timestamp", ""))
+            latest_config_log = configs[-1]
+            experiment_config = latest_config_log.get("event_context")
+            print(f"✅ Configuración cargada desde logs (La más reciente: {latest_config_log.get('timestamp')})")
+        except Exception as e:
+            print(f"⚠️ Error ordenando configs, usando la última encontrada: {e}")
+            experiment_config = configs[-1].get("event_context")
 
 if experiment_config is not None:
     print("✅ Config cargada correctamente.\n")
