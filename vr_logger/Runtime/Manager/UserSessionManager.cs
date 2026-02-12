@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 
 namespace VRLogger
 {
@@ -24,6 +25,7 @@ namespace VRLogger
             if (Instance == null)
             {
                 Instance = this;
+                DontDestroyOnLoad(gameObject); // Ensure persistence across scenes
 
                 // -----------------------------------------------------------
                 // AUTO-INSTANTIATION (Bootstrapper)
@@ -64,6 +66,33 @@ namespace VRLogger
         {
             // Auto-start the experiment flow using Inspector config
             Debug.Log("[UserSessionManager] 🚀 Auto-Starting Experiment...");
+
+            // ---------------------------------------------------------------
+            // MANUAL UI INSTANTIATION (Per Scene)
+            // ---------------------------------------------------------------
+            JObject cfg = ExperimentConfig.Instance.GetConfig();
+            if (cfg != null)
+            {
+                // GM HUD (Visual UI Removed by request, only Input remains via GMConsoleInput)
+                bool gmEnabled = (bool?)cfg["participant_flow"]?["gm_controls"]?["enabled"] ?? false;
+                if (gmEnabled)
+                {
+                    // WE DO NOT SPAWN THE UI ANYMORE
+                    // if (FindObjectOfType<VRLogger.UI.GMHUDLoader>() == null) ...
+                    Debug.Log("[UserSessionManager] GM Controls Enabled (Input Only)");
+                }
+
+                // TIMER UI (Visual Removed by request, logic in ParticipantFlowController)
+                string endCond = (string)cfg["participant_flow"]?["end_condition"];
+                if (endCond == "timer")
+                {
+                    // WE DO NOT SPAWN THE UI ANYMORE
+                    // if (FindObjectOfType<VRLogger.UI.TimerUILoader>() == null) ...
+                    Debug.Log("[UserSessionManager] Timer Condition Active (Logic Only)");
+                }
+            }
+            // ---------------------------------------------------------------
+
             if (ParticipantFlowController.Instance != null)
             {
                 ParticipantFlowController.Instance.RestartExperiment();

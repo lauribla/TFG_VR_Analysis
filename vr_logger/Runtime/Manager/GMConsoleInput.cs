@@ -39,17 +39,17 @@ namespace VRLogger
             if (ParticipantFlowController.Instance == null) return;
             if (!ParticipantFlowController.Instance.IsRunning()) return;
 
-            if (Input.GetKeyDown(keyPause))
+            if (InputWrapper.GetKeyDown(keyPause))
             {
                 ParticipantFlowController.Instance.TogglePause();
             }
 
-            if (Input.GetKeyDown(keyEnd))
+            if (InputWrapper.GetKeyDown(keyEnd))
             {
                 ParticipantFlowController.Instance.GM_EndTurn();
             }
 
-            if (Input.GetKeyDown(keyNext))
+            if (InputWrapper.GetKeyDown(keyNext))
             {
                 ParticipantFlowController.Instance.GM_NextParticipant();
             }
