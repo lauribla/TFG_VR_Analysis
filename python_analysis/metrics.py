@@ -280,18 +280,35 @@ class MetricsCalculator:
     def success_after_restart(self, df=None):
         if df is None: df = self.df
         # Buscar patrones: task_restart -> ... -> task_end(success)
-        restarts = df[df["event_role"] == "task_restart"]["session_id"].unique()
-        count = 0
-        for sid in restarts:
-            # Simplificación: si en la misma sesión hay un éxito posterior al reinicio
-            # Esto requeriría lógica temporal más compleja por tarea.
-            # Por ahora, devolvemos 0.0 si no hay lógica definida o un placeholder.
-            pass
-        return 0.0  # Placeholder para no romper
+        # Buscar patrones: task_restart -> ... -> task_end(success) dentro de la misma sesión
+        restarts = df[df["event_role"] == "task_restart"]
+        if restarts.empty:
+            return 0.0
+
+        success_count = 0
+        
+        # Iterar sobre cada reinicio para ver si DESPUÉS hubo un éxito
+        for idx, restart_row in restarts.iterrows():
+            restart_time = restart_row["timestamp"]
+            session_id = restart_row["session_id"]
+            
+            # Buscar éxitos posteriores en la MISMA sesión
+            future_successes = df[
+                (df["session_id"] == session_id) & 
+                (df["timestamp"] > restart_time) &
+                (df["event_role"] == "task_end") &
+                (df["event_value"].astype(str).str.lower() == "success")
+            ]
+            
+            if not future_successes.empty:
+                success_count += 1
+                
+        return success_count / len(restarts)
 
     def navigation_errors(self, df=None):
         if df is None: df = self.df
-        return len(df[df["event_name"] == "collision"])  # Ejemplo
+        # Refinado: Usar ROL en lugar de nombre fijo "collision"
+        return len(df[df["event_role"] == "navigation_error"])
 
     def aim_errors(self, df=None):
         if df is None: df = self.df
