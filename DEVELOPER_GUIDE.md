@@ -1,264 +1,241 @@
-# 👨‍💻 VR LOGGER – MANUAL DEL DESARROLLADOR (Actualizado: Mapeo Semántico + Modos Global/Agrupado)
+
+# 👨‍💻 VR LOGGER – MANUAL DEL DESARROLLADOR
+*(Actualizado: Soporte para ExperimentProfile, Custom Roles y Guía de Métricas)*
+
 
 ## 📘 Introducción
 
-Este documento sirve como **manual técnico para desarrolladores** que integren el sistema de logging VR en sus proyectos Unity.
 
-Explica **cómo importar, usar y extender los logs**, además de cómo preparar los datos para el análisis de indicadores automáticos (eficiencia, efectividad, satisfacción y presencia), incluyendo el **nuevo sistema de mapeo semántico (`event_role`)** y los **modos de análisis global y agrupado** implementados en el pipeline Python.
+Este documento es la referencia técnica para integrar **VR Logger** en proyectos Unity. Explica cómo configurar el sistema, cómo usar los nuevos **Experiment Profiles** para gestionar diferentes minijuegos, y **cómo programar los eventos** específicos para que el sistema de análisis (Python) calcule automáticamente cada métrica.
 
----
-
-## ⚙️ 1️⃣ Instalación e Importación
-
-### Paso 1. Instalar dependencias
-
-Descomprime `DLLS_MONGO_Unity.zip` (incluido en el repositorio principal) y copia los siguientes archivos dentro de:
-
-```
-Assets/Plugins/
-```
-
-**DLLs requeridas:**
-
-* MongoDB.Driver.dll
-* MongoDB.Driver.Core.dll
-* MongoDB.Bson.dll
-* DnsClient.dll
-* System.Buffers.dll
-
-Unity los detectará automáticamente como plugins de .NET 4.x.
-
-### Paso 2. Importar el paquete `vr_logger`
-
-Copia la carpeta completa `vr_logger/` (con su subcarpeta `Runtime/`) dentro de tu proyecto Unity.
-
-Verás en el explorador algo así:
-
-```
-Assets/
- ├─ Plugins/
- ├─ vr_logger/
- │   ├─ Runtime/
- │   │   ├─ Logs/
- │   │   ├─ Manager/
- │   │   └─ Trackers/
-```
 
 ---
 
-## 🧠 2️⃣ Arquitectura general
 
-El sistema se divide en tres módulos:
+## ⚙️ 1️⃣ Configuración del Sistema
 
-### 🔹 1. **LoggerService.cs**
 
-Núcleo de comunicación con MongoDB. Permite enviar eventos mediante `LogEvent()` y gestiona la conexión, serialización y almacenamiento BSON.
+### A. Dependencias
+Asegúrate de tener las DLLs de MongoDB en `Assets/Plugins/`:
+* `MongoDB.Driver.dll`, `MongoDB.Bson.dll`, etc. Además, asegúrate de que todo requirement.txt está instalado. Finalmente, debes tener un archivo Experiment_config.json en Assets/Resources (hay un ejemplo en la carpeta vr-logger).
 
-### 🔹 2. **UserSessionManager.cs**
 
-Controla el `user_id`, `group_id` y `session_id` activo. Proporciona métodos helper para enviar eventos automáticamente asociados a la sesión actual (`LogEventWithSession`).
+### B. Inicialización
+Agrega el componente `UserSessionManager` a un objeto persistente de la escena que tiene los comportamientos a medir (ej. `VRManager`).
+El sistema necesita un **ExperimentConfig** para funcionar correctamente (puedes añadirlo al objeto que tiene UserSessionManager).
 
-### 🔹 3. **Loggers especializados**
 
-* `CollisionLogger.cs` – registra colisiones físicas.
-* `RaycastLogger.cs` – registra impactos de raycasts (mirada o puntero).
-* `UserSessionLogger.cs` – marca inicio y fin de sesión.
-* `HandTracker`, `GazeTracker`, `FootTracker`, `MovementTracker` – capturan movimiento físico (presencia e interacción).
+1. Crea un objeto vacío llamado `ExperimentManager`.
+2. Añádele el script `ExperimentConfig` y `UserSessionManager`.
+3. Arrastra a su ranura "Active Profile" un perfil de experimento (ver sección 2).
+
 
 ---
 
-## 🚀 3️⃣ Inicialización del sistema
 
-### A. Inicialización automática (recomendada)
+## 📝 2️⃣ Experiment Profiles y Mapeo de Roles
 
-Agrega el componente `UserSessionManager` a un objeto de la escena (por ejemplo `VRManager`).
+
+El sistema permite guardar configuraciones distintas para cada minijuego (Shooter, Puzzles, etc.) usando **ScriptableObjects**.
+
+
+### Creación de un Perfil
+1. Crea una carpeta Project en Assets: **Click Derecho -> Create -> VRLogger -> Experiment Profile**.
+2. Ponle nombre (ej: `Profile_Shooter`).
+3. Configura los IDs (`ExperimentId`, `SessionName`).
+4. Decide cuántas personas serán en el experimento y el grupo al que pertenecen (Puede ser 1 y puedes añadir su ID (recomendable o se le asiganrá por defecto u001)), recomendable añadir la variable independiente que se mide (para luego poder usarla para comporar en el análisis posterior).
+5. Decide qué metricas quieres medir según el juego que tengas para el experimento. Puedes medir todas y decidir qué peso tendrán en su categoría correspondiente (Efectividad, eficiencia, presencia o satisfacción)
+
+
+### ⭐ Mapeo de Eventos (Custom Event Roles)
+Esta es la parte más potente. Puedes definir qué eventos de **TU** juego cuentan como "éxito", "fallo", etc., sin tocar código.
+
+
+En el Perfil, busca la lista **"Custom Event Roles"**:
+* **Event Name**: El nombre del evento que envías desde código (ej: `"globo_explotado"`).
+* **Role**: El rol semántico que el análisis debe interpretar (ej: `action_success`).
+
+
+**Ejemplo:**
+* `"globo_explotado"` -> `action_success` (Cuenta para HitRatio)
+* `"globo_escapado"` -> `action_fail` (Cuenta para HitRatio)
+* `"tocar_pincho"` -> `navigation_error` (Cuenta para NavigationErrors)
+
+
+---
+
+
+## 💻 3️⃣ Guía de Implementación de Métricas
+
+
+Aquí se detalla **qué código C# debes escribir** para alimentar cada métrica individualmente.
+
+
+### 📌 Métrica: Hit Ratio y Accuracy
+* **Fórmula**: `Aciertos / (Aciertos + Fallos)`
+* **Requiere**: Eventos con rol `action_success` y `action_fail`.
+
 
 ```csharp
-using UnityEngine;
-using VRLogger;
+// Cuando el jugador acierta (ej. rompe un jarrón)
+LoggerService.LogEvent("gameplay", "jarron_roto", 1, new {
+   event_role = "action_success", // O mapeado en perfil
+   weapon = "piedra"
+});
 
-public class VRManager : MonoBehaviour
-{
-    void Awake()
-    {
-        LoggerService.Init(
-            connectionString: "mongodb://localhost:27017",
-            dbName: "test",
-            collectionName: "tfg",
-            userId: "U001"
-        );
-        Debug.Log("[VRLogger] Conectado a MongoDB.");
-    }
+
+// Cuando el jugador falla (ej. tira piedra fuera)
+LoggerService.LogEvent("gameplay", "tiro_fallido", 0, new {
+   event_role = "action_fail"
+});
+```
+
+
+### 📌 Métrica: Success Rate (Tasa de Éxito de Tareas)
+* **Fórmula**: `% de Tareas completadas con éxito`.
+* **Requiere**: Eventos `task_end` con valor explícito "success" o "fail".
+
+
+```csharp
+// Al completar un nivel o puzzle
+LoggerService.LogEvent("flow", "task_end", "success", new {
+   event_role = "task_end",
+   puzzle_id = "puzzle_01"
+});
+
+
+// Al perder o abandonar
+LoggerService.LogEvent("flow", "task_end", "fail", new {
+   event_role = "task_end"
+});
+```
+
+
+### 📌 Métrica: Average Reaction Time (Tiempo de Reacción)
+* **Fórmula**: Tiempo desde `task_start` hasta el PRIMER `action_success` o `action_fail`.
+* **Uso**: Ideal para medir reflejos (ej. aparece un estímulo y el usuario dispara).
+
+
+```csharp
+// 1. Inicia el cronómetro (aparece el objetivo)
+LoggerService.LogEvent("flow", "stimulus_appeared", 1, new {
+   event_role = "task_start"
+});
+
+
+// ... pasa el tiempo ...
+
+
+// 2. El usuario reacciona (acierta o falla)
+// El sistema calculará automáticamente la diferencia de tiempo.
+LoggerService.LogEvent("input", "disparo", 1, new {
+   event_role = "action_success"
+});
+```
+
+
+### 📌 Métrica: Navigation Errors (Errores de Navegación)
+* **Requiere**: Eventos con rol `navigation_error` o `collision`.
+
+
+```csharp
+// Al chocar con una pared o entrar en zona prohibida
+void OnCollisionEnter(Collision collision) {
+   if (collision.gameObject.CompareTag("Wall")) {
+       LoggerService.LogEvent("physics", "wall_collision", 1, new {
+           event_role = "navigation_error"
+       });
+   }
 }
 ```
 
-### B. Inicialización manual
 
-Si necesitas enviar logs sin `UserSessionManager`:
+### 📌 Métrica: Voluntary Play Time (Tiempo de Juego Voluntario)
+* **Fórmula**: Tiempo que el usuario sigue jugando DESPUÉS de completar la tarea principal (`task_end` -> `success`).
+* **Requiere**: Seguir enviando eventos después de la victoria.
+
 
 ```csharp
-if (!LoggerService.IsInitialized)
-{
-    LoggerService.Init("mongodb://localhost:27017", "test", "tfg", "U001");
+// El usuario gana
+LoggerService.LogEvent("flow", "task_end", "success", ...);
+
+
+// DEJA QUE SIGA JUGANDO.
+// Cualquier evento posterior (movimiento, interacción) contará como tiempo voluntario
+// hasta que cierres la sesión.
+```
+
+
+### 📌 Métrica: Aid Usage (Uso de Ayudas)
+* **Requiere**: Eventos con rol `help_event`.
+
+
+```csharp
+// Usuario pulsa botón de pistas
+public void OnHintButtonPressed() {
+   LoggerService.LogEvent("ui", "hint_requested", 1, new {
+       event_role = "help_event"
+   });
 }
 ```
 
-Esto garantiza que el sistema esté operativo antes de registrar eventos.
 
----
+### 📌 Métrica: Interface Errors (Errores de UI)
+* **Requiere**: Eventos con rol `interface_error`.
 
-## ✍️ 4️⃣ Creación y envío de logs
 
-### A. Estructura del log
+```csharp
+// Usuario intenta pulsar botón bloqueado o se equivoca
+LoggerService.LogEvent("ui", "invalid_click", 1, new {
+   event_role = "interface_error",
+   button = "start_game_disabled"
+});
+```
 
-```json
-{
-  "timestamp": "2025-10-06T10:25:00Z",
-  "user_id": "U001",
-  "event_type": "collision",
-  "event_name": "bullet_hit",
-  "event_value": 1,
-  "event_role": "action_success",
-  "event_context": { "object_name": "Target_01", "speed": 3.2 },
-  "session_id": "GUID",
-  "group_id": "control"
+
+### 📌 Métrica: Sound Localization Time (Localización de Sonido)
+* **Fórmula**: Tiempo entre `audio_triggered` y `head_turn`.
+* **Requiere**:
+
+
+```csharp
+// 1. Suena un audio 3D
+LoggerService.LogEvent("audio", "enemy_footstep", 1, new {
+   event_role = "audio_triggered",
+   position = transform.position
+});
+
+
+// 2. El sistema detecta que el usuario gira la cabeza hacia la fuente
+// (Esto suele requerir lógica en Update() para comprobar el ángulo)
+if (IsLookingAtSource()) {
+   LoggerService.LogEvent("movement", "head_turn_to_source", 1, new {
+       event_role = "head_turn"
+   });
 }
 ```
 
-### B. Ejemplo simple
-
-```csharp
-await LoggerService.LogEvent(
-    eventType: "interaction",
-    eventName: "button_press",
-    eventValue: 1,
-    eventContext: new { object_name = "PlayButton", pressed = true }
-);
-```
-
-### C. Ejemplo con sesión y mapeo semántico
-
-```csharp
-await UserSessionManager.Instance.LogEventWithSession(
-    eventType: "task",
-    eventName: "target_hit",
-    eventValue: 1,
-    eventContext: new { event_role = "action_success", target = "Balloon_01" }
-);
-```
-
-El campo `event_role` permite que el pipeline Python clasifique el evento automáticamente para calcular métricas.
 
 ---
 
-## 🧩 5️⃣ Sistema de mapeo semántico (`event_role`)
 
-### ¿Qué es?
+## 📊 4️⃣ Verificar Resultados
 
-Un mecanismo que permite describir la **intención del evento** sin depender del nombre (`event_name`).
 
-Ejemplos de roles comunes:
+1. Ejecuta tu escena en Unity.
+2. Genera los eventos.
+3. Cierra la app (para enviar `session_end` automáticamente si usas `UserSessionManager`).
+4. Ejecuta el script de análisis: `python run_analysis.py`.
+5. Abre el PDF generado en `python_analysis/pruebas/analysis_XXX/final_report.pdf`.
 
-| Rol (`event_role`) | Ejemplo de eventos                            |
-| ------------------ | --------------------------------------------- |
-| `action_success`   | `target_hit`, `goal_reached`, `object_placed` |
-| `action_fail`      | `target_miss`, `fall_detected`                |
-| `task_start`       | `task_start`, `mission_begin`                 |
-| `task_end`         | `task_end`, `mission_complete`                |
-| `interaction_help` | `help_requested`, `guide_used`, `hint_used`   |
 
-Estos roles son interpretados por `metrics.py` para calcular indicadores como efectividad, eficiencia o presencia.
+Si los datos salen a 0, verifica:
+1. ¿Has asignado los **Roles** correctos en el Perfil o en el código (`event_role`)?
+2. ¿Has enviado el par de eventos necesarios (ej: `task_start` Y `action_success` para tiempos)?
 
-🔸 Si no se define `event_role`, el sistema intentará inferirlo automáticamente según el `event_name`.
 
 ---
 
-## 📈 6️⃣ Compatibilidad con los modos Global y Agrupado
 
-El sistema de logging Unity produce datos compatibles con los dos modos de análisis del pipeline Python:
-
-| Modo         | Descripción                                                                  | Archivo generado      |
-| ------------ | ---------------------------------------------------------------------------- | --------------------- |
-| **Global**   | Analiza todos los eventos juntos (comparación de grupos).                    | `group_results.json`  |
-| **Agrupado** | Calcula métricas por usuario y sesión (`user_id`, `group_id`, `session_id`). | `grouped_metrics.csv` |
-
-Ambos modos se activan desde `python_analysis/vr_analysis.py`:
-
-```python
-GENERAR_GLOBAL = True
-GENERAR_AGRUPADO = True
-```
-
-Los logs enviados desde Unity no requieren cambios adicionales; Python reconocerá automáticamente los campos `user_id`, `group_id` y `session_id`.
-
----
-
-## 🧮 7️⃣ Indicadores analizados automáticamente
-
-El módulo `metrics.py` analiza tus logs y genera indicadores de:
-
-| Categoría        | Ejemplo de métrica                  | Derivado de                              |
-| ---------------- | ----------------------------------- | ---------------------------------------- |
-| **Efectividad**  | `hit_ratio`, `success_rate`         | Eventos `action_success` / `action_fail` |
-| **Eficiencia**   | `avg_reaction_time_ms`              | Diferencia temporal entre eventos        |
-| **Satisfacción** | `aid_usage`, `error_reduction_rate` | Eventos de ayuda o error                 |
-| **Presencia**    | `activity_level_per_min`            | Eventos de movimiento y mirada           |
-
----
-
-## 🧪 8️⃣ Prueba y validación
-
-* Verifica en consola: `[LoggerService] ✅ Conectado a MongoDB`
-* Comprueba en MongoDB Compass que se insertan eventos con `session_id` y `group_id`.
-* Ejecuta en Python:
-
-  ```bash
-  python python_analysis/vr_analysis.py
-  ```
-
-  para generar métricas y PDF.
-
----
-
-## 🛡️ 9️⃣ Buenas prácticas
-
-* Inicializa el `LoggerService` en `Awake()`.
-* Usa `UserSessionManager` para coherencia entre sesiones.
-* Incluye `event_role` siempre que sea posible.
-* Evita enviar eventos en cada frame; usa triggers.
-* Si la conexión falla, reintenta `LoggerService.Init()`.
-* Mantén consistencia en nombres de `event_name` y `event_role`.
-
----
-
-## 🧩 🔟 Extensión del sistema
-
-Puedes crear loggers personalizados que hereden de los existentes o creen nuevos tipos de eventos:
-
-```csharp
-using UnityEngine;
-using VRLogger;
-
-public class CustomLogger : MonoBehaviour
-{
-    void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            var ctx = new { key = "Space", event_role = "interaction_generic" };
-            LoggerService.LogEvent("input", "key_press", 1, ctx);
-        }
-    }
-}
-```
-
-El nuevo evento será detectado automáticamente en MongoDB y analizado por Python si se añade su `event_role` correspondiente en el mapeo.
-
----
-
-## 📚 Créditos
-
-**VR LOGGER – Módulo Unity para MongoDB Logging**
-Parte del ecosistema **VR User Evaluation**.
-Incluye soporte para **mapeo semántico (`event_role`)** y **modos de análisis global/agrupado**.
-Licencia académica – Uso educativo e investigativo.
+**Soporte**
+Para dudas sobre el pipeline de Python, revisa `metrics.py` para ver la lógica exacta de cálculo.
