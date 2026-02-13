@@ -36,7 +36,7 @@ El sistema necesita un **ExperimentConfig** para funcionar correctamente (puedes
 ## 📝 2️⃣ Experiment Profiles y Mapeo de Roles
 
 
-El sistema permite guardar configuraciones distintas para cada minijuego (Shooter, Puzzles, etc.) usando **ScriptableObjects**.
+El sistema permite guardar configuraciones distintas para diferentes experimentos (Shooter, Puzzles, etc). 
 
 
 ### Creación de un Perfil
@@ -68,7 +68,7 @@ En el Perfil, busca la lista **"Custom Event Roles"**:
 ## 💻 3️⃣ Guía de Implementación de Métricas
 
 
-Aquí se detalla **qué código C# debes escribir** para alimentar cada métrica individualmente.
+Aquí se ofrece un ejemplo de **qué código C# puedes escribir** para alimentar cada métrica individualmente en tus experimentos.
 
 
 ### 📌 Métrica: Hit Ratio y Accuracy
@@ -79,8 +79,7 @@ Aquí se detalla **qué código C# debes escribir** para alimentar cada métrica
 ```csharp
 // Cuando el jugador acierta (ej. rompe un jarrón)
 LoggerService.LogEvent("gameplay", "jarron_roto", 1, new {
-   event_role = "action_success", // O mapeado en perfil
-   weapon = "piedra"
+   event_role = "action_success", 
 });
 
 
@@ -88,6 +87,38 @@ LoggerService.LogEvent("gameplay", "jarron_roto", 1, new {
 LoggerService.LogEvent("gameplay", "tiro_fallido", 0, new {
    event_role = "action_fail"
 });
+```
+
+**🔫 Ejemplo Shooter:**
+```csharp
+// Script en la bala (Bullet.cs)
+void OnCollisionEnter(Collision collision) 
+{
+    // CASO 1: ACIERTO
+    if (collision.gameObject.CompareTag("Enemy")) 
+    {
+        // Calcular distancia (opcional)
+        float dist = Vector3.Distance(transform.position, player.position);
+
+        LoggerService.LogEvent("combat", "bullet_hit", 1, new {
+            event_role = "action_success",
+            target = collision.gameObject.name,
+            distance = dist
+        });
+
+        Destroy(gameObject); // Destruir bala
+    }
+    // CASO 2: FALLO (Chocar con suelo/pared)
+    else 
+    {
+        LoggerService.LogEvent("combat", "bullet_miss", 1, new {
+            event_role = "action_fail",
+            hit_object = collision.gameObject.name
+        });
+        
+        Destroy(gameObject);
+    }
+}
 ```
 
 
@@ -108,6 +139,37 @@ LoggerService.LogEvent("flow", "task_end", "success", new {
 LoggerService.LogEvent("flow", "task_end", "fail", new {
    event_role = "task_end"
 });
+```
+
+**🔫 Ejemplo Shooter:**
+```csharp
+// En tu script de gestión de juego (GameManager.cs)
+public void CheckWinCondition() 
+{
+    // CASO 1: VICTORIA (Matar al Boss)
+    if (bossHealth <= 0) 
+    {
+        LoggerService.LogEvent("flow", "mission_complete", "success", new {
+            event_role = "task_end",
+            enemies_killed = killedCount,
+            final_health = playerHealth
+        });
+
+        ShowVictoryScreen();
+    }
+}
+
+// CASO 2: DERROTA (Jugador muere)
+public void OnPlayerDeath() 
+{
+    LoggerService.LogEvent("flow", "mission_failed", "fail", new {
+        event_role = "task_end",
+        reason = "health_depleted",
+        last_damage_source = lastAttacker
+    });
+
+    ShowGameOverScreen();
+}
 ```
 
 
@@ -133,6 +195,39 @@ LoggerService.LogEvent("input", "disparo", 1, new {
 });
 ```
 
+**🔫 Ejemplo Shooter:**
+```csharp
+// En tu script Spawner.cs
+public void SpawnEnemy() 
+{
+    // 1. APARECE EL ENEMIGO (Inicio del Cronómetro)
+    GameObject enemy = Instantiate(enemyPrefab, spawnPoint.position, resultRotation);
+    
+    LoggerService.LogEvent("combat", "enemy_spawn", 1, new {
+        event_role = "task_start", // <--- INICIO TAREA REACCIÓN
+        enemy_type = "sniper",
+        spawn_id = enemy.GetInstanceID()
+    });
+}
+
+// En el script del Enemigo (EnemyHealth.cs)
+public void TakeDamage(int damage) 
+{
+    currentHealth -= damage;
+
+    // 2. EL JUGADOR REACCIONA Y ACIERTA (Fin del Cronómetro)
+    if (currentHealth <= 0) 
+    {
+        LoggerService.LogEvent("combat", "sniper_down", 1, new {
+            event_role = "action_success", // <--- FIN TAREA (Cálculo automático: t_success - t_start)
+            weapon = "rifle" 
+        });
+        
+        Die();
+    }
+}
+```
+
 
 ### 📌 Métrica: Navigation Errors (Errores de Navegación)
 * **Requiere**: Eventos con rol `navigation_error` o `collision`.
@@ -146,6 +241,18 @@ void OnCollisionEnter(Collision collision) {
            event_role = "navigation_error"
        });
    }
+}
+```
+
+**🔫 Ejemplo Shooter:**
+```csharp
+// Jugador choca contra una pared invisible del nivel
+void OnControllerColliderHit(ControllerColliderHit hit) {
+    if (hit.gameObject.CompareTag("Boundary")) {
+        LoggerService.LogEvent("movement", "border_collision", 1, new {
+           event_role = "navigation_error"
+        });
+    }
 }
 ```
 
@@ -165,6 +272,32 @@ LoggerService.LogEvent("flow", "task_end", "success", ...);
 // hasta que cierres la sesión.
 ```
 
+**🔫 Ejemplo Shooter:**
+```csharp
+// En el GameManager, tras acabar la partida
+public void OnGameWon() 
+{
+    // 1. EVENTO FINAL DE TAREA
+    LoggerService.LogEvent("flow", "task_end", "success", ...);
+    
+    // NO CERRAR LA SESIÓN AÚN.
+    // Dejar al jugador en el nivel (Free Roam)
+    enableFreeRoam = true;
+}
+
+// En script de Diana (Target.cs)
+void Updated() 
+{
+    if (enableFreeRoam && wasHit) 
+    {
+        // CUALQUIER ACTIVIDAD AQUÍ SUMA AL "VOLUNTARY PLAY TIME"
+        LoggerService.LogEvent("interaction", "target_practice", 1, new {
+            event_role = "interaction_event" // Mantiene el reloj de "Juego Voluntario" contando
+        });
+    }
+}
+```
+
 
 ### 📌 Métrica: Aid Usage (Uso de Ayudas)
 * **Requiere**: Eventos con rol `help_event`.
@@ -179,6 +312,25 @@ public void OnHintButtonPressed() {
 }
 ```
 
+**🔫 Ejemplo Shooter:**
+```csharp
+// Script en botón UI (HintButton.cs)
+public void OnPointerClick() 
+{
+    // Solo si el juego está activo
+    if (GameManager.IsPlaying) 
+    {
+        ShowPathToObjective();
+
+        // REGISTRAR AYUDA
+        LoggerService.LogEvent("ui", "waypoint_requested", 1, new {
+            event_role = "help_event", // Cuenta para la métrica AidUsage
+            current_objective = GameManager.CurrentObjective
+        });
+    }
+}
+```
+
 
 ### 📌 Métrica: Interface Errors (Errores de UI)
 * **Requiere**: Eventos con rol `interface_error`.
@@ -190,6 +342,29 @@ LoggerService.LogEvent("ui", "invalid_click", 1, new {
    event_role = "interface_error",
    button = "start_game_disabled"
 });
+```
+
+**🔫 Ejemplo Shooter:**
+```csharp
+// Script del Arma (Weapon.cs)
+public void TryShoot() 
+{
+    if (currentAmmo > 0) 
+    {
+        FireBullet();
+    }
+    else 
+    {
+        // JUGADOR INTENTA DISPARAR SIN BALAS -> ERROR DE INTERFAZ/USO
+        PlayClickSound();
+
+        LoggerService.LogEvent("combat", "dry_fire", 1, new {
+            event_role = "interface_error",
+            context = "empty_magazine",
+            attempts = consecutiveDryFires++
+        });
+    }
+}
 ```
 
 
@@ -215,6 +390,38 @@ if (IsLookingAtSource()) {
 }
 ```
 
+**🔫 Ejemplo Shooter:**
+```csharp
+// Script de Enemigo (EnemyAudio.cs)
+public void PlayReloadSound() 
+{
+    audioSource.PlayOneShot(reloadClip);
+
+    // 1. REGISTRAR EL ESTÍMULO SONORO
+    LoggerService.LogEvent("audio", "enemy_reload_cue", 1, new {
+        event_role = "audio_triggered",
+        pos = transform.position
+    });
+}
+
+// Script en el Jugador (PlayerListener.cs)
+void Update() 
+{
+    // 2. DETECTAR SI MIRA HACIA EL SONIDO
+    Vector3 toSound = (enemyPos - transform.position).normalized;
+    float dot = Vector3.Dot(transform.forward, toSound);
+
+    // Si mira directamente (aprox 30 grados)
+    if (dot > 0.85f && !hasReacted) 
+    {
+        hasReacted = true;
+        LoggerService.LogEvent("movement", "player_reacted_sound", 1, new {
+            event_role = "head_turn" // Cronómetro se para aquí: t_head_turn - t_audio
+        });
+    }
+}
+```
+
 
 ---
 
@@ -224,9 +431,10 @@ if (IsLookingAtSource()) {
 
 1. Ejecuta tu escena en Unity.
 2. Genera los eventos.
-3. Cierra la app (para enviar `session_end` automáticamente si usas `UserSessionManager`).
+3. Cierra la run (para enviar `session_end` automáticamente si usas `UserSessionManager`).
 4. Ejecuta el script de análisis: `python run_analysis.py`.
 5. Abre el PDF generado en `python_analysis/pruebas/analysis_XXX/final_report.pdf`.
+6. Mira los resultados en el dashboard (tiene búsqueda dinámica) con > streamlit run python_visualization/visual_dashboard.py 
 
 
 Si los datos salen a 0, verifica:
@@ -235,7 +443,3 @@ Si los datos salen a 0, verifica:
 
 
 ---
-
-
-**Soporte**
-Para dudas sobre el pipeline de Python, revisa `metrics.py` para ver la lógica exacta de cálculo.
