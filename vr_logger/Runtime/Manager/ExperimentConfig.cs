@@ -60,11 +60,42 @@ namespace VRLogger
             public bool Invert;
         }
 
+
+        [System.Serializable]
+        public enum EventRoleType
+        {
+            Action_Success,
+            Action_Fail,
+            Task_Start,
+            Task_End,
+            Task_Restart,
+            Task_Abandoned,
+            Session_Start,
+            Session_End,
+            Navigation_Error,
+            Interface_Error,
+            Interface_Action,
+            Help_Event,
+            Movement_Update,
+            Movement_Action,
+            Exploration_Event,
+            Gaze_Event,
+            Gaze_Action,
+            Gaze_Sample,
+            Interaction_Event,
+            Audio_Event,
+            Audio_Reaction,
+            Inactivity_Event,
+            System_Event,
+            Performance_Measure,
+            Custom_Event
+        }
+
         [System.Serializable]
         public struct EventRoleMapping
         {
             public string EventName;
-            public string Role;
+            public EventRoleType Role;
         }
 
         [Header("Event Mapping")]
@@ -345,12 +376,13 @@ namespace VRLogger
             {
                 foreach (var mapping in customRoles)
                 {
-                    if (!string.IsNullOrEmpty(mapping.EventName) && !string.IsNullOrEmpty(mapping.Role))
+                    if (!string.IsNullOrEmpty(mapping.EventName))
                     {
+                        string defaultRole = mapping.Role.ToString().ToLower();
                         if (roleMap.ContainsKey(mapping.EventName))
-                            roleMap[mapping.EventName] = mapping.Role; // Overwrite
+                            roleMap[mapping.EventName] = defaultRole; // Overwrite
                         else
-                            roleMap.Add(mapping.EventName, mapping.Role); // Add new
+                            roleMap.Add(mapping.EventName, defaultRole); // Add new
                     }
                 }
             }
