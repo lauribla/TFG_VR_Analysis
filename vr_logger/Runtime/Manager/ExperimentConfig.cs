@@ -60,6 +60,16 @@ namespace VRLogger
             public bool Invert;
         }
 
+        [System.Serializable]
+        public struct EventRoleMapping
+        {
+            public string EventName;
+            public string Role;
+        }
+
+        [Header("Event Mapping")]
+        public List<EventRoleMapping> CustomEventRoles = new List<EventRoleMapping>();
+
 
 
         [System.Serializable]
@@ -172,6 +182,9 @@ namespace VRLogger
             bool gmEnable = p ? p.EnableGMControls : EnableGMControls;
 
             MetricsCategory met = p ? p.Metrics : Metrics;
+            
+            // Custom Roles Source
+            List<EventRoleMapping> customRoles = p ? p.CustomEventRoles : CustomEventRoles;
 
             Debug.Log($"[ExperimentConfig] Building JSON. ActiveProfile: {(p ? p.name : "None")}");
             Debug.Log($"[ExperimentConfig] Sample Metric (HitRatio): Enabled={met.HitRatio.Enabled}, Weight={met.HitRatio.Weight}");
@@ -268,9 +281,9 @@ namespace VRLogger
                 }
             };
 
-            // Event Roles (Hardcoded logic mapping for Python Parser)
-            // This is CRITICAL for the metrics calculator to know what "target_hit" means
-            jsonConfig["event_roles"] = new JObject
+            // Event Roles (Base Hardcoded + Custom Overrides)
+            // Strategy: Create a Dictionary for fast lookup/override, then serialize
+            Dictionary<string, string> roleMap = new Dictionary<string, string>
             {
                 { "target_hit", "action_success" },
                 { "target_miss", "action_fail" },
@@ -326,6 +339,30 @@ namespace VRLogger
                 { "manual_despawn", "action_fail" },
                 { "custom_event", "custom_event" }
             };
+
+            // Apply Custom Overrides
+            if (customRoles != null)
+            {
+                foreach (var mapping in customRoles)
+                {
+                    if (!string.IsNullOrEmpty(mapping.EventName) && !string.IsNullOrEmpty(mapping.Role))
+                    {
+                        if (roleMap.ContainsKey(mapping.EventName))
+                            roleMap[mapping.EventName] = mapping.Role; // Overwrite
+                        else
+                            roleMap.Add(mapping.EventName, mapping.Role); // Add new
+                    }
+                }
+            }
+
+            // Convert Dictionary to JObject
+            JObject rolesJson = new JObject();
+            foreach (var kvp in roleMap)
+            {
+                rolesJson.Add(kvp.Key, kvp.Value);
+            }
+
+            jsonConfig["event_roles"] = rolesJson;
 
             // Custom Events (Hardcoded logic mapping for Python Parser)
             // Matched from experiment_config.json
@@ -425,6 +462,7 @@ namespace VRLogger
             EnableGMControls = activeProfile.EnableGMControls;
             
             Metrics = activeProfile.Metrics;
+            CustomEventRoles = new List<EventRoleMapping>(activeProfile.CustomEventRoles);
 
             Debug.Log($"Loaded values from profile: {activeProfile.name}");
         }
@@ -463,7 +501,9 @@ namespace VRLogger
             activeProfile.EndCondition = EndCondition;
             activeProfile.EnableGMControls = EnableGMControls;
             
+            
             activeProfile.Metrics = Metrics;
+            activeProfile.CustomEventRoles = new List<EventRoleMapping>(CustomEventRoles);
 
             UnityEditor.EditorUtility.SetDirty(activeProfile);
             UnityEditor.AssetDatabase.SaveAssets();

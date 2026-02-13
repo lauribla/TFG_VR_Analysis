@@ -64,5 +64,8 @@ namespace VRLogger
             SoundLocalizationTimeS = new ExperimentConfig.MetricConfig { Enabled = true, Weight = 0.15f, Min = 0, Max = 10, Invert = true },
             AudioPerformanceGain = new ExperimentConfig.MetricConfig { Enabled = true, Weight = 0.15f, Min = -1, Max = 1, Invert = false },
         };
+
+        [Header("Event Roles")]
+        public List<ExperimentConfig.EventRoleMapping> CustomEventRoles = new List<ExperimentConfig.EventRoleMapping>();
     }
 }
