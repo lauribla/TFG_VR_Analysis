@@ -1,197 +1,98 @@
-# 🎮 VR Logger – README ACTUALIZADO (Mapeo Semántico + Modos Global/Agrupado)
+# 🎮 VR Logger – Unity Package (v2.1)
 
 ## 📘 Descripción general
 
-El **VR Logger** es un paquete modular para Unity que registra eventos de usuario en entornos VR y los envía a **MongoDB** con soporte completo para **roles semánticos de evento (`event_role`)** y compatibilidad con el sistema de análisis Python.
+El **VR Logger** es un paquete para Unity que facilita la captura y análisis de comportamiento en VR.
 
-Forma parte del ecosistema **VR User Evaluation**, pero puede usarse **de forma independiente** en cualquier aplicación Unity que requiera trazabilidad de comportamiento.
-
-Incluye:
-
-* Sistema de logging estructurado y tipado (BSON nativo).
-* Gestión automática de sesión y usuario (`UserSessionManager`).
-* Envío seguro a MongoDB con `LoggerService`.
-* Mapeo semántico universal de eventos (`event_role` → `action_success`, `action_fail`, etc.).
-* Loggers y trackers para colisiones, raycasts, movimiento y mirada.
+Novedades v2.0:
+* **ExperimentConfig**: Configuración centralizada sin código (Inspector).
+* **ExperimentProfile**: Perfiles reutilizables (ScriptableObjects).
+* **Inspector Event Mapping**: Define tus eventos (ej: `bullet_hit` -> `Action_Success`) visualmente.
+* **Plugins Modulares**: Activa/desactiva Gaze, Movement, Hand, etc.
 
 ---
 
 ## ⚙️ Requisitos
 
-* **Unity 2021.3+** (modo .NET 4.x Equivalent).
-* **MongoDB** local o remoto.
-* Copia las DLL del paquete `DLLS_MONGO_Unity.zip` a:
-
-  ```
-  Assets/Plugins/
-  ```
-
-  Incluye:
-
-  * `MongoDB.Driver.dll`
-  * `MongoDB.Driver.Core.dll`
-  * `MongoDB.Bson.dll`
-  * `DnsClient.dll`
-  * `System.Buffers.dll`
+* **Unity 2021.3+**
+* **MongoDB** (local o remoto)
+* **Plugins incluidos**: `MongoDB.Driver`, `MongoDB.Bson`, etc. (en `Assets/Plugins/`)
 
 ---
 
-## 📂 Estructura del paquete
+## 🚀 Guía de uso rápido
 
-```
-vr_logger/
-│
-├── package.json
-├── README.md (este archivo)
-└── Runtime/
-    ├── Logs/
-    │   ├── CollisionLogger.cs
-    │   ├── RaycastLogger.cs
-    │   ├── LoggerService.cs
-    │   └── UserSessionLogger.cs
-    │
-    ├── Manager/
-    │   ├── UserSessionManager.cs
-    │   └── VRTrackingManager.cs
-    │
-    └── Trackers/
-        ├── HandTracker.cs
-        ├── GazeTracker.cs
-        ├── MovementTracker.cs
-        └── FootTracker.cs
-```
+### 1️⃣ Configuración (`ExperimentConfig`)
+
+1. Crea un GameObject vacío en tu escena y llámalo `VRManager`.
+2. Añade los componentes:
+   * **`UserSessionManager`** (Gestor de conexión a MongoDB).
+   * **`ExperimentConfig`** (Gestor de configuración del experimento).
+   * **`VRTrackingManager`** (Opcional, si usas trackers de movimiento).
+
+### 2️⃣ Conexión a Base de Datos (UserSessionManager)
+
+Antes de nada, define tu destino de log en el inspector de **UserSessionManager**:
+* **Connection String**: `mongodb://localhost:27017` (Defecto para local) o tu URI de Mongo Atlas.
+* **Database Name**: El nombre de tu base de datos (se creará si no existe), ej: `vr_experiment_db`.
+* **Collection Name**: Nombre de la colección, ej: `logs`.
+
+### 3️⃣ Crear un Perfil (`ExperimentProfile`)
+
+En lugar de configurar todo en la escena cada vez, crea un activo de perfil:
+
+1. En la ventana **Project**, haz clic derecho > **Create** > **VRLogger** > **Experiment Profile**.
+2. Ponle nombre (ej: `Experimento_Disparos`).
+3. Selecciónalo y configura en el inspector:
+   * **Session Name**, **Group Name**, **Independent Variable**.
+   * **Participantes**: Lista de IDs o activa **Manual Participant Name** para pruebas rápidas.
+   * **Métricas**: Define pesos, minimos/máximos para cada métrica.
+   * **Event Mapping**: Mapea tus eventos a roles estándar.
+
+### 4️⃣ Asignar Perfil en Escena
+
+1. Selecciona tu objeto `VRManager`.
+2. En el componente **`ExperimentConfig`**, arrastra tu perfil al campo **Active Profile**.
+3. (Opcional) Haz clic derecho en el componente y selecciona **"Load From Profile"** para ver los valores en el inspector, o **"Save To Profile"** si haces cambios locales que quieres guardar.
+
+### 5️⃣ Configurar Event Mapping (¡Importante!)
+
+Para que Python entienda tus eventos, defínelos en el perfil:
+
+* **Event Name**: `platano_hit` (El string que envías desde el código).
+* **Role**: Selecciona del Dropdown (ej: `Action_Success`).
+
+Esto asegura que `platano_hit` cuente como un acierto en las gráficas de Eficacia.
 
 ---
 
-## 🚀 Uso básico
+## 💻 Envío de Eventos desde Código
 
-### 1️⃣ Inicialización
-
-Agrega el componente `UserSessionManager` a un objeto vacío (por ejemplo, `VRManager`).
+Usa `LoggerService` o `UserSessionManager` para enviar eventos. El sistema usará la configuración cargada al inicio.
 
 ```csharp
-using UnityEngine;
-using VRLogger;
-
-public class VRManager : MonoBehaviour
-{
-    [Header("Mongo Config")]
-    public string connectionString = "mongodb://localhost:27017";
-    public string dbName = "test";
-    public string collectionName = "tfg";
-
-    [Header("User Config")]
-    public string userId = "U001";
-    public string groupId = "control";
-
-    void Awake()
-    {
-        LoggerService.Init(connectionString, dbName, collectionName, userId);
-        Debug.Log($"[VRLogger] Conectado a {dbName}.{collectionName} como {userId}");
-    }
-}
-```
-
-🔸 Consejo: establece su orden de ejecución como prioridad alta (negativo) en *Project Settings → Script Execution Order*.
-
----
-
-### 2️⃣ Envío de logs con sesión
-
-El `UserSessionManager` añade automáticamente `session_id` y `group_id` a cada evento.
-
-```csharp
+// Envío con contexto automático de sesión
 await UserSessionManager.Instance.LogEventWithSession(
     eventType: "interaction",
-    eventName: "object_placed",
-    eventValue: true,
-    eventContext: new { object_name = "Cube_01", position = transform.position }
+    eventName: "platano_hit", // Debe coincidir con tu Event Mapping
+    eventValue: 1.0f,
+    eventContext: new { distance = 5.5f, weapon = "hand" }
 );
 ```
 
-Genera en MongoDB:
-
-```json
-{
-  "timestamp": ISODate("2025-10-06T10:00:00Z"),
-  "user_id": "U001",
-  "event_type": "interaction",
-  "event_name": "object_placed",
-  "event_value": true,
-  "session_id": "guid-1234",
-  "group_id": "control"
-}
-```
-
 ---
 
-### 3️⃣ Envío directo (sin sesión)
+## 🧩 Plugins disponibles
 
-```csharp
-await LoggerService.LogEvent(
-    eventType: "trigger",
-    eventName: "button_press",
-    eventValue: 1,
-    eventContext: new { object_name = "StartButton", hand = "right" }
-);
-```
+Actívalos desde el **ExperimentProfile** (sección *Modules*):
 
-Si el servicio no está inicializado, el sistema genera un log defensivo:
-
-```csharp
-if (!LoggerService.IsInitialized)
-    LoggerService.Init("mongodb://localhost:27017", "test", "tfg", "U001");
-```
-
----
-
-## 🧠 Mapeo semántico (`event_role`)
-
-El Logger permite definir roles genéricos que describen la intención del evento.
-
-Ejemplo:
-
-```csharp
-await UserSessionManager.Instance.LogEventWithSession(
-    eventType: "task",
-    eventName: "target_hit",
-    eventValue: 1,
-    eventContext: new { event_role = "action_success", target = "Balloon_01" }
-);
-```
-
-Este `event_role` será utilizado automáticamente por el módulo de análisis en Python (`metrics.py`) para calcular indicadores como `hit_ratio`, `success_rate`, `learning_curve`, etc.
-
-👉 Esto hace que el sistema sea **agnóstico del tipo de experimento** (disparos, parkour, manipulación de objetos, etc.).
-
----
-
-## 📊 Integración con los modos Global / Agrupado
-
-El paquete Unity genera eventos compatibles con los dos modos de análisis:
-
-| Modo         | Descripción                                                                           | Estructura de datos   |
-| ------------ | ------------------------------------------------------------------------------------- | --------------------- |
-| **Global**   | Todos los eventos se analizan de forma conjunta (sin distinguir sesión).              | `group_results.json`  |
-| **Agrupado** | Cada usuario y sesión tiene métricas separadas (`user_id`, `group_id`, `session_id`). | `grouped_metrics.csv` |
-
-Estos modos se activan desde el pipeline Python (`vr_analysis.py`):
-
-```python
-GENERAR_GLOBAL = True
-GENERAR_AGRUPADO = True
-```
-
-Ambos análisis utilizan los eventos generados por este SDK sin requerir cambios adicionales.
-
----
-
-## 🧩 Loggers incluidos
-
-* **CollisionLogger** – registra colisiones con información física.
-* **RaycastLogger** – rayos, impactos y distancias.
-* **UserSessionLogger** – inicio/fin de sesión automática.
-* **Trackers** – posición/rotación de manos, pies, cabeza y cuerpo.
+| Plugin | Descripción | Log generado |
+| :--- | :--- | :--- |
+| **GazeTracker** | Registra qué objeto mira el usuario (Raycast desde cámara). | `gaze_sustained`, `gaze_frequency_change` |
+| **MovementTracker** | Registra posición/rotación de HMD cada X segundos. | `movement_update` |
+| **HandTracker** | Registra posición de manos (Controllers). | `hand_movement` |
+| **CollisionLogger** | Detecta colisiones físicas con tags específicos. | `collision` (`Navigation_Error`) |
+| **RaycastLogger** | Lanza rayos desde controladores para ver interacciones. | `ui_interaction` |
 
 ---
 
@@ -201,47 +102,18 @@ Ambos análisis utilizan los eventos generados por este SDK sin requerir cambios
 {
   "timestamp": ISODate(),
   "user_id": "U001",
-  "event_name": "target_hit",
+  "event_name": "platano_hit",
   "event_type": "interaction",
-  "event_value": 1,
-  "event_role": "action_success",
-  "session_id": "a9f7-...",
-  "group_id": "experimental",
-  "event_context": {
-    "object_name": "TargetCube",
-    "velocity": 4.5
-  }
+  "event_role": "action_success", // Inyectado automáticamente por ExperimentConfig
+  "session_id": "guid-1234",
+  "group_id": "Grupo_A",
+  "event_context": { ... }
 }
 ```
 
 ---
 
-## 🧰 Buenas prácticas
-
-* Inicializa siempre el `LoggerService` antes de cualquier log.
-* Usa `UserSessionManager` para mantener coherencia entre sesiones.
-* Define `event_role` si el evento representa éxito, fallo o interacción.
-* Reintenta `Init()` automáticamente si la conexión a MongoDB falla.
-* Evita llamadas redundantes a `LogEvent` en `Update()` (usa triggers o callbacks).
-
----
-
-## 📈 Compatibilidad con Python
-
-Los logs generados por Unity son consumidos directamente por:
-
-* `log_parser.py` – lectura y parseo desde MongoDB.
-* `metrics.py` – cálculo de métricas (mapeo de roles incluido).
-* `vr_analysis.py` – pipeline de análisis global y agrupado.
-* `visual_dashboard.py` – visualización y filtrado.
-
-No se requieren adaptaciones adicionales.
-
----
-
 ## 📚 Créditos
 
-**VR Logger – Unity SDK**
-Componente del proyecto **VR User Evaluation**.
-Compatible con **MongoDB** y **Python Analysis Toolkit**.
-Licencia académica – Uso educativo y de investigación.
+**VR Logger – Unity SDK v2.1**
+Parte del proyecto **VR User Evaluation**.

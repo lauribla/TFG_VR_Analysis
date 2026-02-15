@@ -1,219 +1,125 @@
-# 🧠 VR USER EVALUATION – README ACTUALIZADO (Mapeo Semántico + Modos Global/Agrupado)
+# 🧠 VR USER EVALUATION – README ACTUALIZADO (v2.1)
 
 ## 📘 Descripción general
 
 Sistema modular para **monitorizar, almacenar y analizar el comportamiento de usuarios en entornos VR**, combinando **Unity + MongoDB + Python**.
 
 Incluye:
-
-* SDK de **logging universal para Unity** (eventos, sesiones, trackers, roles semánticos).
-* **Base de datos MongoDB** (local o remota) para registro estructurado.
-* **Pipeline de análisis automático** en Python (efectividad, eficiencia, satisfacción, presencia, custom events).
-* **Informes PDF** y **dashboard interactivo** (Streamlit/Plotly).
-
----
-
-## 📂 Estructura del repositorio
-
-```
-TFG_VR_Analysis/
-│
-├─ python_analysis/                     # Análisis y métricas
-│  ├─ metrics.py                        # Cálculo de indicadores + mapeo de eventos
-│  ├─ log_parser.py                     # Lectura de logs desde MongoDB
-│  ├─ exporter.py                       # Exportación JSON/CSV
-│  ├─ vr_analysis.py                    # Orquestador principal
-│  └─ __init__.py
-│
-├─ python_visualization/                # Visualización e informes
-│  ├─ visualize_groups.py               # Gráficas automáticas
-│  ├─ visual_dashboard.py               # Dashboard Streamlit
-│  ├─ pdf_reporter.py                   # Informe PDF (global + agrupado)
-│  └─ __init__.py
-│
-├─ vr_logger/                           # SDK Unity (logging runtime)
-│  ├─ Runtime/
-│  │              
-│  │  ├─ Manager/          
-│  │  ├─ Trackers/                      # Gaze, Hand, Movement, Foot trackers
-│  │  └─ Logs/                          # Loggers específicos (collision, raycast...)
-│  └─ README.md                         # Manual Unity SDK
-│
-├─ requirements.txt                     # Dependencias Python
-├─ DLLS_MONGO_Unity.zip                 # Librerías MongoDB para Unity
-└─ README.md (este archivo)
-```
-
-> 📦 Exportaciones automáticas: `python_analysis/pruebas/exports_YYYYMMDD_HHMMSS/`
->
-> Figuras y PDF: `python_analysis/pruebas/figures_YYYYMMDD_HHMMSS/`
+* SDK de **logging universal para Unity**.
+* **Base de datos MongoDB** (local o remota).
+* **Pipeline de análisis automático** en Python (Efectividad, Eficiencia, Satisfacción, Presencia).
+* **Informes PDF** y **dashboard interactivo**.
 
 ---
 
-## ⚙️ Novedades principales
+## 🛠️ Instalación y Configuración
 
-### 🔗 Sistema de Mapeo Semántico de Eventos (`event_role`)
+### 1. Requisitos Previos
+* **Unity 2021.3+**
+* **MongoDB Community Server** (o Atlas Cloud)
+* **Python 3.9+**
 
-Para garantizar compatibilidad entre distintos tipos de experimentos (disparos, parkour, manipulación de objetos, etc.), el sistema introduce **roles de evento estandarizados**.
-
-Cada evento puede etiquetarse con un rol genérico, independientemente de su nombre:
-
-| Rol semántico (`event_role`) | Ejemplos detectados automáticamente           |
-| ---------------------------- | --------------------------------------------- |
-| `action_success`             | `target_hit`, `goal_reached`, `object_placed` |
-| `action_fail`                | `target_miss`, `fall_detected`, `drop_error`  |
-| `task_start`                 | `task_start`, `mission_begin`                 |
-| `task_end`                   | `task_end`, `mission_complete`                |
-| `navigation_error`           | `collision`, `path_error`                     |
-| `interaction_help`           | `help_requested`, `hint_used`, `guide_used`   |
-
-Esto permite calcular indicadores (efectividad, eficiencia, etc.) **sin depender de nombres concretos**.
-El mapeo se gestiona automáticamente en `metrics.py`, pero también puede ampliarse manualmente según el dominio del experimento.
-
----
-
-### 🔄 Modos de Análisis: *Global* y *Agrupado*
-
-El pipeline Python ahora permite dos modos complementarios:
-
-| Modo         | Descripción                                                                                                                   | Salida                                   |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| **Global**   | Agrega todas las sesiones y usuarios. Ideal para comparar condiciones experimentales o grupos.                                | `group_results.json`, `final_report.pdf` |
-| **Agrupado** | Calcula todas las métricas por `user_id`, `group_id` y `session_id`. Permite ver el rendimiento individual y la variabilidad. | `grouped_metrics.csv`, `PDF agrupado`    |
-
-Los modos pueden activarse/desactivarse desde `vr_analysis.py`:
-
-```python
-GENERAR_GLOBAL = True
-GENERAR_AGRUPADO = True
-```
-
-Ambos se generan en carpetas separadas dentro de `python_analysis/pruebas/figures_*`.
-
-El dashboard y el PDF reconocen automáticamente el modo al cargar los datos.
-
----
-
-## 🚀 Flujo completo de uso
-
-1. **Unity (VR Logger)**
-
-   * Envía eventos a MongoDB con `LoggerService.LogEvent()`.
-   * `UserSessionManager` agrega automáticamente `user_id`, `group_id`, `session_id`.
-
-2. **MongoDB**
-
-   * Recibe y almacena eventos en JSON estructurado.
-
-3. **Python Analysis**
-
-   * `log_parser.py` convierte los eventos en un `DataFrame`.
-   * `metrics.py` calcula todas las métricas oficiales y personalizadas.
-
-4. **Resultados automáticos**
-
-   * Exportación de resultados globales y agrupados.
-   * Generación de gráficas y PDF final.
-
-5. **Dashboard interactivo**
-
-   * Permite filtrar por usuario, grupo o sesión.
-   * Visualiza indicadores agrupados o globales.
-
----
-
-## 📊 Indicadores calculados
-
-El sistema genera automáticamente indicadores de las cuatro categorías principales:
-
-| Categoría        | Ejemplos de indicadores                                                                            |
-| ---------------- | -------------------------------------------------------------------------------------------------- |
-| **Efectividad**  | `hit_ratio`, `precision`, `success_rate`, `progression`, `learning_curve_mean`                     |
-| **Eficiencia**   | `avg_reaction_time_ms`, `avg_task_duration_ms`, `time_per_success_s`, `navigation_errors`          |
-| **Satisfacción** | `aid_usage`, `interface_errors`, `retries_after_end`, `learning_stability`                         |
-| **Presencia**    | `activity_level_per_min`, `first_success_time_s`, `inactivity_time_s`, `sound_localization_time_s` |
-
-Además, se generan **eventos personalizados** detectados automáticamente (“custom_events”),
-y pueden incorporarse nuevos roles de evento en el mapeo para expandir el sistema a diferentes tareas experimentales.
-
----
-
-## 📊 Ejecución rápida
+### 2. Configuración del Entorno Python
+Para ejecutar el análisis y visualizar el dashboard, instala las dependencias:
 
 ```bash
-# 1. Recoger datos desde Unity (ya almacenados en MongoDB)
-python python_analysis/vr_analysis.py
+pip install -r requirements.txt
+```
 
-# 2. Ver resultados globales / agrupados
+Este comando instalará librerías clave como `pandas`, `pymongo`, `streamlit`, `plotly`, `reportlab`, etc.
+
+---
+
+## 🚀 Flujo de Trabajo (Unity -> Mongo -> Python)
+
+### Paso 1: Configurar en Unity
+1. Usa el componente **`UserSessionManager`** en tu escena para definir la conexión a la Base de Datos:
+   * **Connection String**: `mongodb://localhost:27017`
+   * **Database Name**: `vr_experiment_db`
+   * **Collection Name**: `logs`
+2. Configura tu experimento con **`ExperimentConfig`** y un **`ExperimentProfile`**.
+
+*(Ver detalles completos en `vr_logger/README.md`)*
+
+### Paso 2: Análisis Automático
+El script `python_analysis/vr_analysis.py` se conecta a MongoDB, descarga los nuevos logs y genera los informes.
+
+**Ejecución manual:**
+```bash
+python -m python_analysis.vr_analysis
+```
+
+**Automatización (Task Scheduler / Cron):**
+Puedes programar este script para que se ejecute cada noche y tener los informes listos por la mañana.
+
+*   **Windows (Task Scheduler):**
+    1.  Crear Tarea Básica > "Analisis Diario VR".
+    2.  Acción: Iniciar programa.
+    3.  Programa: `python.exe`.
+    4.  Argumentos: `ruta/al/proyecto/python_analysis/vr_analysis.py`.
+*   **Mac/Linux (Cron):**
+    ```bash
+    0 3 * * * /usr/bin/python3 /ruta/proyecto/python_analysis/vr_analysis.py >> /tmp/log_analisis.txt
+    ```
+
+### Paso 3: Visualización en Dashboard
+El dashboard interactivo permite filtrar y comparar datos en tiempo real.
+
+```bash
 streamlit run python_visualization/visual_dashboard.py
 ```
 
-Genera:
-
-* `results.json` / `results.csv`
-* `grouped_metrics.csv`
-* `group_results.json`
-* `figures_*/`
-* `final_report.pdf`
+**Características del Dashboard:**
+*   **Filtros Dinámicos:** Selecciona un `User ID`, `Group ID` (Control vs Experimental) o `Session ID` específico.
+*   **Comparativas:** Visualiza gráficas de barras comparando métricas entre grupos.
+*   **Deep Dive:** Haz clic en los puntos de las gráficas de dispersión para ver detalles de esa sesión.
 
 ---
 
-## 🔨 Extensibilidad
+## 📊 Glosario de Métricas
 
-### Ampliar el mapeo de roles
+Para una interpretación científica correcta, distinguimos entre variables independientes (lo que cambias) y dependientes (lo que mides).
 
-En `metrics.py`, modifica el diccionario de equivalencias para incluir nuevos tipos de tareas.
+### 🔹 Variables Independientes (Input)
+Son las condiciones que manipulas en el experimento. Se configuran en el `ExperimentProfile`:
+*   **Grupo:** (Ej: "Con Ayudas" vs "Sin Ayudas").
+*   **Variable Independiente:** Un valor específico (ej: "Velocidad=Alta", "Iluminación=Baja") que define la condición de la sesión.
 
-```python
-self.event_role_map = {
-    "object_grabbed": "action_success",
-    "object_dropped": "action_fail",
-    "door_opened": "task_end",
-}
-```
+### 🔸 Variables Dependientes (Output)
+Son las métricas calculadas automáticamente por el sistema.
 
-### Agregar nuevas métricas
+#### 1. Efectividad (¿Logran el objetivo?)
+*   **`Hit Ratio`**: Precisión pura. `(Aciertos / Disparos Totales)`. Ideal para shooters o tareas de selección.
+*   **`Success Rate`**: Tasa de éxito en tareas. `(Tareas Completadas / Tareas Intentadas)`.
+*   **`Success After Restart`**: Resiliencia. `(Reinicios seguidos de éxito / Total de reinicios)`. Indica si el usuario aprende tras fallar.
 
-Cada nueva función que opere sobre `self.df` o un `subdf` puede añadirse al diccionario de salida en `compute_grouped_metrics()`.
+#### 2. Eficiencia (¿Cuánto recursos consumen?)
+*   **`Avg Task Duration`**: Tiempo medio (ms) en completar una tarea exitosa.
+*   **`Navigation Errors`**: Cantidad de colisiones o salidas de ruta (`navigation_error` role).
+*   **`Time Per Success`**: Tiempo total de sesión dividido por número de éxitos. Métrica global de rendimiento.
 
-### Compatibilidad experimental
+#### 3. Satisfacción (Experiencia de usuario)
+*   **`Aid Usage`**: Cuántas veces el usuario solicitó ayuda o usó pistas (`help_event`).
+*   **`Interface Errors`**: Errores al interactuar con UI (botones equivocados, menús cerrados sin querer).
+*   **`Voluntary Play Time`**: Tiempo (s) que el usuario sigue jugando *después* de completar la tarea obligatoria. Indicador fuerte de "Engagement".
 
-El sistema funciona con cualquier entorno VR siempre que los eventos sigan el formato MongoDB estándar:
-
-```json
-{
-  "timestamp": ISODate(),
-  "user_id": "U001",
-  "event_name": "target_hit",
-  "event_role": "action_success",
-  "event_context": { "session_id": "...", "group_id": "control" }
-}
-```
+#### 4. Presencia (Inmersión)
+*   **`Sound Localization Time`**: Tiempo (s) desde que suena un estímulo (`audio_event`) hasta que el usuario lo mira (`head_turn`).
+*   **`Activity Level`**: Cantidad de acciones por minuto.
+*   **`Inactivity Time`**: Tiempo acumulado sin inputs ni movimiento significativo.
 
 ---
 
-## 📊 Resultados generados
-
-| Tipo         | Archivo                     | Descripción                                  |
-| ------------ | --------------------------- | -------------------------------------------- |
-| Global JSON  | `group_results.json`        | Métricas globales por categoría              |
-| Agrupado CSV | `grouped_metrics.csv`       | Una fila por usuario/sesión                  |
-| PDF Global   | `final_report.pdf`          | Informe visual global                        |
-| PDF Agrupado | `final_report_agrupado.pdf` | Informe detallado individual                 |
-| Dashboard    | `visual_dashboard.py`       | Web interactiva (filtros por usuario/sesión) |
+## 📂 Estructura de Salida
+Cada análisis genera una carpeta con fecha en `python_analysis/pruebas/`:
+*   `results.json/csv`: Datos crudos para Excel/SPSS.
+*   `grouped_metrics.csv`: Una fila por sesión (ideal para ANOVA).
+*   `final_report.pdf`: Informe ejecutivo automático con gráficas y tablas.
+*   `figures/`: Todas las gráficas en formato PNG de alta resolución.
 
 ---
 
 ## 📅 Autoría y licencia
 
-Proyecto **VR USER EVALUATION**
-Autor: *[Nombre del autor o grupo de investigación]*
+Proyecto **VR USER EVALUATION v2.1**
 Licencia: Uso académico y experimental.
-
----
-
-> Este README refleja la versión actualizada del sistema con:
->
-> * **Mapeo semántico universal de eventos (event_role)**.
-> * **Modos Global y Agrupado** para experimentos multiusuario.
-> * **Pipeline de análisis automatizado** con exportación y visualización completa.
