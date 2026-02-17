@@ -22,13 +22,20 @@ Novedades v2.0:
 
 ## 🚀 Guía de uso rápido
 
-### 1️⃣ Configuración (`ExperimentConfig`)
+### 1️⃣ Configuración de la Escena (OBLIGATORIO)
 
-1. Crea un GameObject vacío en tu escena y llámalo `VRManager`.
-2. Añade los componentes:
-   * **`UserSessionManager`** (Gestor de conexión a MongoDB).
-   * **`ExperimentConfig`** (Gestor de configuración del experimento).
-   * **`VRTrackingManager`** (Opcional, si usas trackers de movimiento).
+Para que el sistema funcione, debes tener estos 3 componentes en tu escena (pueden estar en un mismo GameObject vacío llamado `VRManager`):
+
+1.  **`UserSessionManager`**: Gestiona la conexión a la base de datos y el ciclo de vida de la sesión.
+2.  **`ExperimentConfig`**: Carga el perfil del experimento (`ExperimentProfile`) y la configuración JSON.
+3.  **`VRTrackingManager`**: Gestiona las referencias a los objetos físicos.
+    *   Debes asignarle manualmente:
+        *   `Vr Camera` -> Tu Main Camera.
+        *   `Player Transform` -> Tu XR Origin / XR Rig.
+        *   `Left/Right Hand` -> Los objetos de tus manos.
+    *   Si no lo configuras, el sistema intentará buscarlos automáticamente. Si no usas VR, no pasa nada, no dará error. 
+
+> **Nota:** Si usas múltiples escenas, asegúrate de que el `VRTrackingManager` esté presente y configurado en CADA escena, ya que las referencias (cámara, manos) cambian al cambiar de escena. `UserSessionManager` sobrevive entre escenas.
 
 ### 2️⃣ Conexión a Base de Datos (UserSessionManager)
 

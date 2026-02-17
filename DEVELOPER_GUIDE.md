@@ -20,14 +20,14 @@ Asegúrate de tener las DLLs de MongoDB en `Assets/Plugins/`:
 * `MongoDB.Driver.dll`, `MongoDB.Bson.dll`, etc. Además, asegúrate de que todo requirement.txt está instalado. Finalmente, debes tener un archivo Experiment_config.json en Assets/Resources (hay un ejemplo en la carpeta vr-logger).
 
 
-### B. Inicialización
-Agrega el componente `UserSessionManager` a un objeto persistente de la escena que tiene los comportamientos a medir (ej. `VRManager`).
-El sistema necesita un **ExperimentConfig** para funcionar correctamente (puedes añadirlo al objeto que tiene UserSessionManager).
-
-
-1. Crea un objeto vacío llamado `ExperimentManager`.
-2. Añádele el script `ExperimentConfig` y `UserSessionManager`.
-3. Arrastra a su ranura "Active Profile" un perfil de experimento (ver sección 2).
+23: ### B. Inicialización
+24: Agrega el componente `UserSessionManager` a un objeto persistente de la escena (ej. `VRManager`).
+25: El sistema necesita los siguientes componentes en el mismo objeto (o en la escena):
+26: 
+27: 1. Crea un objeto vacío llamado `VRManager`.
+28: 2. Añádele el script `ExperimentConfig` y `UserSessionManager`.
+29: 3. **¡IMPORTANTE!** Añade `VRTrackingManager` y asigna las referencias (Cámara, Manos, XR Origin).
+30: 4. Arrastra a su ranura "Active Profile" un perfil de experimento (ver sección 2).
 
 
 ---

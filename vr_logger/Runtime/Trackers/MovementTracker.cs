@@ -6,7 +6,8 @@ namespace VRLogger
     public class MovementTracker : MonoBehaviour
     {
         [Header("Config")]
-        public Transform player;        // El objeto que representa al usuario (ej. XR Rig)
+        [Header("Config")]
+        public Transform trackedObject;        // El objeto que representa al usuario (ej. XR Rig)
         public float checkInterval = 0.2f; // Cada 200 ms
         public float sharpTurnThreshold = 45f; // Ángulo mínimo para considerar "giro brusco"
 
@@ -17,7 +18,7 @@ namespace VRLogger
 
         void Update()
         {
-            if (player == null) return;
+            if (trackedObject == null) return;
             if (ParticipantFlowController.Instance != null && ParticipantFlowController.Instance.IsPaused) return;
 
             timer += Time.deltaTime;
@@ -30,11 +31,11 @@ namespace VRLogger
 
         private async void TrackMovement()
         {
-            Vector3 currentPos = player.position;
+            Vector3 currentPos = trackedObject.position;
             Vector3 displacement = currentPos - lastPosition;
             float speed = displacement.magnitude / checkInterval;
 
-            Vector3 currentForward = player.forward;
+            Vector3 currentForward = trackedObject.forward;
 
             // Evento de trayectoria periódica
             await LoggerService.LogEvent(

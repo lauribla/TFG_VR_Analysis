@@ -31,6 +31,7 @@ namespace VRLogger
 
         [Header("Modules")]
         public bool UseGazeTracker = true;
+        public bool UseEyeTracker = false; // New
         public bool UseMovementTracker = true;
         public bool UseHandTracker = false;
         public bool UseFootTracker = false;
@@ -202,6 +203,7 @@ namespace VRLogger
             string desc = p ? p.Description : Description;
             
             bool useGaze = p ? p.UseGazeTracker : UseGazeTracker;
+            bool useEye = p ? p.UseEyeTracker : UseEyeTracker;
             bool useMove = p ? p.UseMovementTracker : UseMovementTracker;
             bool useHand = p ? p.UseHandTracker : UseHandTracker;
             bool useFoot = p ? p.UseFootTracker : UseFootTracker;
@@ -252,6 +254,7 @@ namespace VRLogger
             jsonConfig["modules"] = new JObject
             {
                 { "useGazeTracker", useGaze },
+                { "useEyeTracker", useEye },
                 { "useMovementTracker", useMove },
                 { "useHandTracker", useHand },
                 { "useFootTracker", useFoot },
@@ -483,6 +486,7 @@ namespace VRLogger
             Description = activeProfile.Description;
             
             UseGazeTracker = activeProfile.UseGazeTracker;
+            UseEyeTracker = activeProfile.UseEyeTracker;
             UseMovementTracker = activeProfile.UseMovementTracker;
             UseHandTracker = activeProfile.UseHandTracker;
             UseFootTracker = activeProfile.UseFootTracker;
@@ -523,6 +527,7 @@ namespace VRLogger
             activeProfile.Description = Description;
             
             activeProfile.UseGazeTracker = UseGazeTracker;
+            activeProfile.UseEyeTracker = UseEyeTracker;
             activeProfile.UseMovementTracker = UseMovementTracker;
             activeProfile.UseHandTracker = UseHandTracker;
             activeProfile.UseFootTracker = UseFootTracker;

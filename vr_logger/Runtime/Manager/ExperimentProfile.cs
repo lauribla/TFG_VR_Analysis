@@ -24,6 +24,7 @@ namespace VRLogger
 
         [Header("Modules")]
         public bool UseGazeTracker = true;
+        public bool UseEyeTracker = false; // New
         public bool UseMovementTracker = true;
         public bool UseHandTracker = false;
         public bool UseFootTracker = false;
