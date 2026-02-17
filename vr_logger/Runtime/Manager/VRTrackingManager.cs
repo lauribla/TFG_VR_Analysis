@@ -65,35 +65,45 @@ namespace VRLogger
         {
             var gt = vrCamera.gameObject.GetComponent<GazeTracker>();
             if (gt == null) gt = vrCamera.gameObject.AddComponent<GazeTracker>();
-            gt.vrCamera = vrCamera; // Asignación explícita
-            gt.enabled = true;
+            
+            if (gt != null)
+            {
+                gt.vrCamera = vrCamera; 
+                gt.enabled = true;
+            }
+            else Debug.LogWarning("[VRTracking] ⚠️ Error al añadir GazeTracker (Script missing?)");
         }
         else Debug.LogWarning("[VRTracking] ⚠️ No se puede iniciar GazeTracker: vrCamera es null");
     }
 
-    // Eye Tracker (SRanipal - HTC Vive Pro)
-    // Nota: EyeTracker suele requerir estar en el objeto con el script SRanipal_Eye_Framework, 
-    // pero a menudo basta con estar en la escena. Lo pondremos en la cámara por consistencia.
+    // Eye Tracker
     if (useEyeTracker)
     {
         if (vrCamera != null)
         {
             var et = vrCamera.gameObject.GetComponent<EyeTracker>();
             if (et == null) et = vrCamera.gameObject.AddComponent<EyeTracker>();
-            et.enabled = true;
+            
+            if (et != null) et.enabled = true;
+            else Debug.LogWarning("[VRTracking] ⚠️ Error al añadir EyeTracker (Script missing?)");
         }
         else Debug.LogWarning("[VRTracking] ⚠️ No se puede iniciar EyeTracker: vrCamera es null");
     }
 
-    // Movement Tracker (XR Origin / Player Root)
+    // Movement Tracker
     if (useMovementTracker)
     {
         if (playerTransform != null)
         {
             var mt = playerTransform.gameObject.GetComponent<MovementTracker>();
             if (mt == null) mt = playerTransform.gameObject.AddComponent<MovementTracker>();
-            mt.trackedObject = playerTransform; // Asignación explícita
-            mt.enabled = true;
+            
+            if (mt != null)
+            {
+                mt.trackedObject = playerTransform; 
+                mt.enabled = true;
+            }
+            else Debug.LogWarning("[VRTracking] ⚠️ Error al añadir MovementTracker (Script missing?)");
         }
         else Debug.LogWarning("[VRTracking] ⚠️ No se puede iniciar MovementTracker: playerTransform es null (XR Origin no encontrado)");
     }
@@ -105,16 +115,24 @@ namespace VRLogger
         {
             var ht = leftHand.gameObject.GetComponent<HandTracker>();
             if (ht == null) ht = leftHand.gameObject.AddComponent<HandTracker>();
-            ht.handName = "left";
-            ht.enabled = true;
+            
+            if (ht != null)
+            {
+                ht.handName = "left";
+                ht.enabled = true;
+            }
         }
         
         if (rightHand != null)
         {
             var ht = rightHand.gameObject.GetComponent<HandTracker>();
             if (ht == null) ht = rightHand.gameObject.AddComponent<HandTracker>();
-            ht.handName = "right";
-            ht.enabled = true;
+            
+            if (ht != null)
+            {
+                ht.handName = "right";
+                ht.enabled = true;
+            }
         }
     }
 
@@ -123,14 +141,24 @@ namespace VRLogger
     {
         var rl = gameObject.GetComponent<RaycastLogger>();
         if (rl == null) rl = gameObject.AddComponent<RaycastLogger>();
-        rl.enabled = true;
+        if (rl != null) rl.enabled = true;
     }
 
     if (useCollisionLogger)
     {
-        var cl = gameObject.GetComponent<CollisionLogger>();
-        if (cl == null) cl = gameObject.AddComponent<CollisionLogger>();
-        cl.enabled = true;
+        // CollisionLogger requiere un Collider. Si no hay, AddComponent fallará o devolverá un componente inútil.
+        // Verificamos si podemos añadirlo.
+        var col = gameObject.GetComponent<Collider>();
+        if (col != null)
+        {
+            var cl = gameObject.GetComponent<CollisionLogger>();
+            if (cl == null) cl = gameObject.AddComponent<CollisionLogger>();
+            if (cl != null) cl.enabled = true;
+        }
+        else
+        {
+            Debug.LogWarning("[VRTracking] ⚠️ CollisionLogger habilitado pero no hay Collider en VRTrackingManager. Se omite para evitar errores.");
+        }
     }
 
     Debug.Log($"[VRTracking] Tracking ON → {userId} / {sessionId}");
@@ -143,7 +171,8 @@ private void TryFindReferences()
     if (vrCamera == null)
     {
         vrCamera = Camera.main;
-        if (vrCamera != null) Debug.Log("[VRTracking] 🔍 Auto-asignada Main Camera.");
+        if (vrCamera == null) vrCamera = Object.FindFirstObjectByType<Camera>(); // Fallback agresivo
+        if (vrCamera != null) Debug.Log("[VRTracking] 🔍 Auto-asignada Main Camera (o primera cámara encontrada).");
     }
 
     // 2. XR Origin / Player
@@ -159,6 +188,12 @@ private void TryFindReferences()
         {
             playerTransform = origin.transform;
             Debug.Log($"[VRTracking] 🔍 Auto-asignado Player Transform: {origin.name}");
+        }
+        else if (vrCamera != null)
+        {
+            // Fallback para No-VR: El usuario es la cámara
+            playerTransform = vrCamera.transform;
+            Debug.Log("[VRTracking] ⚠️ XR Origin no encontrado. Usando la Cámara como Player Transform (Modo No-VR).");
         }
     }
 

@@ -16,6 +16,7 @@ from python_analysis.log_parser import LogParser
 from python_analysis.metrics import MetricsCalculator
 from python_analysis.exporter import MetricsExporter
 from python_visualization.visualize_groups import Visualizer
+from python_visualization.spatial_plotter import SpatialVisualizer
 from python_visualization.pdf_reporter import PDFReport
 from datetime import datetime
 import os
@@ -211,7 +212,17 @@ if grouped_path.exists():
     viz_grouped.generate_all()
     generated_figures += len(list(grouped_dir.glob("*.png")))
 
+    generated_figures += len(list(grouped_dir.glob("*.png")))
+
 print(f"📊 Figuras generadas: {generated_figures}\n")
+
+# ============================================================
+# 8.1️⃣  Generar figuras espaciales (Mapas de calor / Trayectorias)
+# ============================================================
+print("🗺️ Generando visualizaciones espaciales (si existen datos de tracking)...")
+spatial_viz = SpatialVisualizer(df, output_dir=figures_dir / "spatial")
+spatial_viz.generate_all()
+print("\n")
 
 
 # ============================================================
