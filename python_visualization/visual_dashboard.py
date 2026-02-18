@@ -297,6 +297,33 @@ def main():
         st.plotly_chart(fig, use_container_width=True)
 
     # ============================================================
+    # 🔹 Visualizaciones Espaciales (Estáticas)
+    # ============================================================
+    st.header("🗺️ Análisis Espacial (Pre-generado)")
+    # results_dir is inside 'results', so go up one level to 'figures/spatial'
+    figures_dir = results_dir.parent / "figures" / "spatial"
+    
+    if figures_dir.exists():
+        expected_images = [
+            ("Trayectorias (Todos)", "Spatial_Trajectories.png"),
+            ("Mapa de Calor: Posición", "Spatial_Heatmap_Global.png"),
+            ("Mapa de Calor: Mirada", "Gaze_Heatmap.png")
+        ]
+        
+        # Mostrar en columnas/tabs
+        tab1, tab2, tab3 = st.tabs([t[0] for t in expected_images])
+        
+        for tab, (title, filename) in zip([tab1, tab2, tab3], expected_images):
+            img_path = figures_dir / filename
+            with tab:
+                if img_path.exists():
+                    st.image(str(img_path), caption=title, use_column_width=True)
+                else:
+                    st.info(f"Imagen no disponible: {filename}")
+    else:
+        st.info("No se han encontrado figuras espaciales generadas. Ejecuta vr_analysis.py para crearlas.")
+
+    # ============================================================
     # 🔹 Tabla completa
     # ============================================================
     st.header("📋 Tabla completa de métricas")
