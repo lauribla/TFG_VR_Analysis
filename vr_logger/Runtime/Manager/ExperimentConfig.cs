@@ -141,7 +141,7 @@ namespace VRLogger
             Progression = new MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 10, Invert = false },
             SuccessAfterRestart = new MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 1, Invert = false },
 
-            AvgReactionTimeMs = new MetricConfig { Enabled = true, Weight = 0.40f, Min = 100, Max = 2000, Invert = true },
+            AvgReactionTimeMs = new MetricConfig { Enabled = true, Weight = 0.40f, Min = 100, Max = 5000, Invert = true },
             AvgTaskDurationMs = new MetricConfig { Enabled = true, Weight = 0.30f, Min = 1000, Max = 30000, Invert = true },
             TimePerSuccessS = new MetricConfig { Enabled = true, Weight = 0.20f, Min = 0, Max = 60, Invert = true },
             NavigationErrors = new MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 10, Invert = true },
