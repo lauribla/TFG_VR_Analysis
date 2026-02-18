@@ -18,6 +18,9 @@ Incluye:
 * **Unity 2021.3+**
 * **MongoDB Community Server** (o Atlas Cloud)
 * **Python 3.9+**
+* **Para Eye Tracking:**
+    *   Tener la carpeta **`VIVESR`** (SDK de HTC) en el proyecto.
+    *   Asegurar que la escena tenga el prefab **`SRanipal Eye Framework`** activo.
 
 ### 2. Configuración del Entorno Python
 Para ejecutar el análisis y visualizar el dashboard, instala las dependencias:

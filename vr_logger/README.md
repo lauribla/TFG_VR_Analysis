@@ -20,7 +20,12 @@ Novedades v2.0:
 
 ---
 
-## 🚀 Guía de uso rápido
+## 🚀 Guía de### 3. Eye Tracking (Opcional)
+Para usar las funcionalidades de **seguimiento ocular** (EyeTracker o GazeTracker), es **OBLIGATORIO**:
+1.  Importar el SDK de **VIVESR** en el proyecto (`Assets/VIVESR`).
+2.  Asegurar que la escena tiene el prefab **`SRanipal Eye Framework`** configurado y activo.
+
+## 🚀 Uso Básico
 
 ### 1️⃣ Configuración de la Escena (OBLIGATORIO)
 

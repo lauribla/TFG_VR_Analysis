@@ -18,6 +18,9 @@ Este documento es la referencia técnica para integrar **VR Logger** en proyecto
 ### A. Dependencias
 Asegúrate de tener las DLLs de MongoDB en `Assets/Plugins/`:
 * `MongoDB.Driver.dll`, `MongoDB.Bson.dll`, etc. Además, asegúrate de que todo requirement.txt está instalado. Finalmente, debes tener un archivo Experiment_config.json en Assets/Resources (hay un ejemplo en la carpeta vr-logger).
+* **IMPORTANTE PARA EYE TRACKING**: Si vas a usar seguimiento ocular, necesitas:
+    1.  La carpeta **`VIVESR`** (SDK de SRanipal) importada en `Assets/`.
+    2.  El prefab **`SRanipal Eye Framework`** presente en la escena.
 
 
 23: ### B. Inicialización
