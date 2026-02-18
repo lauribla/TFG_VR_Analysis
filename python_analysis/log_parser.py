@@ -55,8 +55,19 @@ class LogParser:
             # Contexto dinámico
             context = {}
             if "event_context" in log and isinstance(log["event_context"], dict):
-                context = {k: v for k, v in log["event_context"].items()
-                           if k not in ["session_id", "group_id"]}
+                raw_context = log["event_context"]
+                for k, v in raw_context.items():
+                    if k in ["session_id", "group_id"]:
+                        continue
+                    
+                    # Flatten Vector3-like dicts (x, y, z)
+                    if isinstance(v, dict) and all(key in v for key in ["x", "y", "z"]):
+                        context[f"{k}_x"] = v["x"]
+                        context[f"{k}_y"] = v["y"]
+                        context[f"{k}_z"] = v["z"]
+                        # Also keep original for reference if needed? No, flat is better for dataframe
+                    else:
+                        context[k] = v
 
             if expand_context:
                 # Expandir el contexto en columnas separadas

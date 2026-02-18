@@ -104,11 +104,12 @@ class SpatialVisualizer:
         (o coordenadas locales de un plano si se define así).
         Asumiremos 'world_pos' flattenado como 'hit_point_x', 'hit_point_z'.
         """
-        gazes = self.df[self.df["event_name"] == "gaze_sustained"].copy()
+        gazes = self.df[self.df["event_name"] == "gaze_frame"].copy()
         
-        # Verificar columnas (log_parser aplanará Vector3 hit_point → hit_point_x, hit_point_y, hit_point_z)
-        bx = "hit_point_x"
-        bz = "hit_point_z"
+        # Verificar columnas (log_parser aplanará Vector3 hit_position → hit_position_x, hit_position_y, hit_position_z)
+        # Adaptar si el nombre en Unity es 'hit_position' o 'hit_point'
+        bx = "hit_position_x" if "hit_position_x" in gazes.columns else "hit_point_x"
+        bz = "hit_position_z" if "hit_position_z" in gazes.columns else "hit_point_z"
         
         if bx not in gazes.columns or bz not in gazes.columns:
             return

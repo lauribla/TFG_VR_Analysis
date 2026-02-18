@@ -114,7 +114,11 @@ else
     {
         try
         {
-            var contextJson = Newtonsoft.Json.JsonConvert.SerializeObject(eventContext);
+            var settings = new Newtonsoft.Json.JsonSerializerSettings
+            {
+                ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
+            };
+            var contextJson = Newtonsoft.Json.JsonConvert.SerializeObject(eventContext, settings);
             var contextBson = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BsonDocument>(contextJson);
             logDoc.Add("event_context", contextBson);
         }
