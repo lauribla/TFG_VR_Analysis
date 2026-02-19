@@ -61,7 +61,7 @@ namespace VRLogger
     // Gaze Tracker
     if (useGazeTracker)
     {
-        if (vrCamera != null)
+        if (vrCamera != null)h
         {
             var gt = vrCamera.gameObject.GetComponent<GazeTracker>();
             if (gt == null) gt = vrCamera.gameObject.AddComponent<GazeTracker>();
@@ -77,17 +77,24 @@ namespace VRLogger
     }
 
     // Eye Tracker
-    if (useEyeTracker)
+    try
     {
-        if (vrCamera != null)
+        if (useEyeTracker)
         {
-            var et = vrCamera.gameObject.GetComponent<EyeTracker>();
-            if (et == null) et = vrCamera.gameObject.AddComponent<EyeTracker>();
-            
-            if (et != null) et.enabled = true;
-            else Debug.LogWarning("[VRTracking] ⚠️ Error al añadir EyeTracker (Script missing?)");
+            if (vrCamera != null)
+            {
+                var et = vrCamera.gameObject.GetComponent<EyeTracker>();
+                if (et == null) et = vrCamera.gameObject.AddComponent<EyeTracker>();
+                
+                if (et != null) et.enabled = true;
+                else Debug.LogWarning("[VRTracking] ⚠️ Error al añadir EyeTracker (Script missing?)");
+            }
+            else Debug.LogWarning("[VRTracking] ⚠️ No se puede iniciar EyeTracker: vrCamera es null");
         }
-        else Debug.LogWarning("[VRTracking] ⚠️ No se puede iniciar EyeTracker: vrCamera es null");
+    }
+    catch (System.Exception)
+    {
+        // Ignorar error de DLLs faltantes de Vive
     }
 
     // Movement Tracker

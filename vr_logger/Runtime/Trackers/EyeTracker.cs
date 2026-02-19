@@ -40,36 +40,43 @@ namespace VRLogger
 
         private async void TrackEyes()
         {
-            // LÓGICA SRANIPAL REAL (Corregido namespace: ViveSR y clase: SRanipal_Eye)
-            ViveSR.anipal.Eye.VerboseData eyeData;
-
-            // GetVerboseData está en SRanipal_Eye (wrapper), no en API.
-            bool success = ViveSR.anipal.Eye.SRanipal_Eye.GetVerboseData(out eyeData);
-
-            if (success)
+            try
             {
-                var combined = eyeData.combined.eye_data;
-                var left = eyeData.left;
-                var right = eyeData.right;
+                // LÓGICA SRANIPAL REAL (Corregido namespace: ViveSR y clase: SRanipal_Eye)
+                ViveSR.anipal.Eye.VerboseData eyeData;
 
-                // FIXED: Use GetValidity method instead of non-existent get_validity property
-                bool valid = combined.GetValidity(ViveSR.anipal.Eye.SingleEyeDataValidity.SINGLE_EYE_DATA_GAZE_DIRECTION_VALIDITY);
+                // GetVerboseData está en SRanipal_Eye (wrapper), no en API.
+                bool success = ViveSR.anipal.Eye.SRanipal_Eye.GetVerboseData(out eyeData);
 
-                await LoggerService.LogEvent(
-                    "eye_tracking",
-                    "eye_frame",
-                    null,
-                    new
-                    {
-                        valid_combined = valid,
-                        gaze_direction_normalized = new { x = combined.gaze_direction_normalized.x, y = combined.gaze_direction_normalized.y, z = combined.gaze_direction_normalized.z },
-                        gaze_origin_mm = new { x = combined.gaze_origin_mm.x, y = combined.gaze_origin_mm.y, z = combined.gaze_origin_mm.z },
-                        pupil_diameter_left = left.pupil_diameter_mm,
-                        pupil_diameter_right = right.pupil_diameter_mm,
-                        openness_left = left.eye_openness,
-                        openness_right = right.eye_openness
-                    }
-                );
+                if (success)
+                {
+                    var combined = eyeData.combined.eye_data;
+                    var left = eyeData.left;
+                    var right = eyeData.right;
+
+                    // FIXED: Use GetValidity method instead of non-existent get_validity property
+                    bool valid = combined.GetValidity(ViveSR.anipal.Eye.SingleEyeDataValidity.SINGLE_EYE_DATA_GAZE_DIRECTION_VALIDITY);
+
+                    await LoggerService.LogEvent(
+                        "eye_tracking",
+                        "eye_frame",
+                        null,
+                        new
+                        {
+                            valid_combined = valid,
+                            gaze_direction_normalized = new { x = combined.gaze_direction_normalized.x, y = combined.gaze_direction_normalized.y, z = combined.gaze_direction_normalized.z },
+                            gaze_origin_mm = new { x = combined.gaze_origin_mm.x, y = combined.gaze_origin_mm.y, z = combined.gaze_origin_mm.z },
+                            pupil_diameter_left = left.pupil_diameter_mm,
+                            pupil_diameter_right = right.pupil_diameter_mm,
+                            openness_left = left.eye_openness,
+                            openness_right = right.eye_openness
+                        }
+                    );
+                }
+            }
+            catch (System.Exception)
+            {
+                // Ignorar error si no hay Vive SR
             }
         }
     }
