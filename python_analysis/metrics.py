@@ -63,6 +63,11 @@ class MetricsCalculator:
             return 0.0
         if min_val is None or max_val is None:
             return value  # sin normalización declarada en config
+            
+        # Avoid division by zero if range is invalid
+        if abs(max_val - min_val) < 1e-9:
+            return 0.0
+
         v = np.clip((value - min_val) / (max_val - min_val), 0, 1)
         return 1 - v if invert else v
 
@@ -394,9 +399,44 @@ class MetricsCalculator:
                 return (score_with - score_without) / score_without
         return 0.0
 
+        return 0.0
+
     # ----------------------------------------------------------------------
-    # PROCESAR MÉTRICAS POR CATEGORÍA (efectividad, eficiencia…)
+    # GENERIC METRIC CALCULATION (For Custom Metrics)
     # ----------------------------------------------------------------------
+    def _calculate_generic_metric(self, df, target_event, aggregation):
+        """
+        Calcula una métrica basada en reglas genéricas.
+        :param df: DataFrame flitrado
+        :param target_event: Nombre del evento a buscar
+        :param aggregation: Tipo de agregación (count, average, sum, max, min)
+        """
+        if df is None or df.empty: return 0.0
+        
+        # Filtrar por el evento objetivo
+        subset = df[df["event_name"] == target_event]
+        if subset.empty: return 0.0
+
+        agg_lower = aggregation.lower()
+
+        if agg_lower == "count":
+            return float(len(subset))
+        
+        # Para operaciones numéricas, asegurar que tenemos valores
+        vals = pd.to_numeric(subset["event_value"], errors="coerce").dropna()
+        
+        if vals.empty: return 0.0
+
+        if agg_lower == "average" or agg_lower == "mean":
+            return float(vals.mean())
+        elif agg_lower == "sum":
+            return float(vals.sum())
+        elif agg_lower == "max":
+            return float(vals.max())
+        elif agg_lower == "min":
+            return float(vals.min())
+        
+        return 0.0 # Unknown aggregation
     def compute_category(self, category_name, df=None):
         if df is None:
             df = self.df
@@ -410,14 +450,23 @@ class MetricsCalculator:
 
         for metric_name, params in cat_cfg.items():
             func = metric_funcs.get(metric_name)
-            if func is None:
-                continue
-
             # Check if metric is enabled in config (Default: True)
             if not params.get("enabled", True):
                 continue
 
-            raw_value = func(df)
+            # Check if we have a hardcoded function
+            if func is not None:
+                raw_value = func(df)
+            else:
+                # Try generic calculation if params exist
+                target_event = params.get("target_event")
+                aggregation = params.get("aggregation")
+                
+                if target_event and aggregation:
+                    raw_value = self._calculate_generic_metric(df, target_event, aggregation)
+                else:
+                    # Metric defined in config but no function and no generic params? Skip
+                    continue
 
             # Logic for optional metrics (return None -> Skip)
             if raw_value is None:
@@ -497,9 +546,19 @@ class MetricsCalculator:
                 # Desempaquetar cada métrica de la categoría para que esté disponible en el JSON plano
                 for metric_key, val_dict in cat_result.items():
                     if metric_key == "score": continue
+                    
                     # Guardamos el valor raw para visualización
                     if isinstance(val_dict, dict) and "raw" in val_dict:
-                        entry[metric_key] = val_dict["raw"]
+                        # CRITICAL FIX: Ensure custom metrics are prefixed with category so Visualizer can find them
+                        # Standard metrics are usually unique or already handled. Custom metrics need context.
+                        # If metric_name is NOT in standard functions, it's likely custom.
+                        final_key = metric_key
+                        if metric_key not in metric_funcs:
+                             # It's a custom/generic metric. Prefix it if not already prefixed.
+                             if not metric_key.startswith(cat_name):
+                                 final_key = f"{cat_name}_{metric_key}"
+                        
+                        entry[final_key] = val_dict["raw"]
 
             entry.update(cat_scores)
 

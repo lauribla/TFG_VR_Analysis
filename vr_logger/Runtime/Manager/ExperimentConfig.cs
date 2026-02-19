@@ -1,6 +1,7 @@
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace VRLogger
 {
@@ -50,6 +51,38 @@ namespace VRLogger
         [Header("Flow")]
         public FlowModeType FlowMode = FlowModeType.Turns;
         public EndConditionType EndCondition = EndConditionType.Timer;
+
+        [System.Serializable]
+        public enum MetricCategoryType
+        {
+            Efectividad,
+            Eficiencia,
+            Satisfaccion,
+            Presencia
+        }
+
+        [System.Serializable]
+        public enum MetricAggregationType
+        {
+            Count,          // Count number of events
+            Average,        // Average of event_value
+            Sum,            // Sum of event_value
+            Max,            // Max of event_value
+            Min             // Min of event_value
+        }
+
+        [System.Serializable]
+        public struct CustomMetricDefinition
+        {
+            public string MetricName;
+            public string TargetEventName;
+            public MetricCategoryType Category;
+            public MetricAggregationType Aggregation;
+            public MetricConfig Config;
+        }
+
+        [Header("Custom Metrics")]
+        public List<CustomMetricDefinition> CustomMetrics = new List<CustomMetricDefinition>();
 
         [System.Serializable]
         public struct MetricConfig
@@ -218,6 +251,8 @@ namespace VRLogger
             
             // Custom Roles Source
             List<EventRoleMapping> customRoles = p ? p.CustomEventRoles : CustomEventRoles;
+            // Custom Metrics Source
+            List<CustomMetricDefinition> customMet = p ? p.CustomMetrics : CustomMetrics;
 
             Debug.Log($"[ExperimentConfig] Building JSON. ActiveProfile: {(p ? p.name : "None")}");
             Debug.Log($"[ExperimentConfig] Sample Metric (HitRatio): Enabled={met.HitRatio.Enabled}, Weight={met.HitRatio.Weight}");
@@ -314,6 +349,39 @@ namespace VRLogger
                     } 
                 }
             };
+
+            // Inject Custom Metrics into their categories
+            // Inject Custom Metrics into their categories
+            if (customMet != null)
+            {
+                Debug.Log($"[ExperimentConfig] Processing Custom Metrics. Count: {customMet.Count}");
+                foreach (var cm in customMet)
+                {
+                    if (string.IsNullOrEmpty(cm.MetricName)) continue;
+
+                    string catKey = cm.Category.ToString().ToLower(); // efectividad, eficiencia...
+                    if (jsonConfig["metrics"][catKey] is JObject catObj)
+                    {
+                        JObject metricJson = MetricToJson(cm.Config);
+                        // Add extra fields for Python parser
+                        metricJson["target_event"] = cm.TargetEventName;
+                        metricJson["aggregation"] = cm.Aggregation.ToString().ToLower();
+                        
+                        // Prevent duplicates
+                        string safeName = cm.MetricName.Replace(" ", "_").ToLower();
+                        catObj[safeName] = metricJson;
+                        Debug.Log($"[ExperimentConfig] Injected Custom Metric: {safeName} into {catKey}");
+                    }
+                    else
+                    {
+                         Debug.LogError($"[ExperimentConfig] Could not find category '{catKey}' in jsonConfig['metrics'] when injecting {cm.MetricName}. Available keys: {string.Join(", ", jsonConfig["metrics"].ToObject<JObject>().Properties().Select(p => p.Name))}");
+                    }
+                }
+            }
+            else
+            {
+                 Debug.LogWarning("[ExperimentConfig] CustomMetrics list is NULL during JSON build.");
+            }
 
             // Event Roles (Base Hardcoded + Custom Overrides)
             // Strategy: Create a Dictionary for fast lookup/override, then serialize
@@ -499,6 +567,7 @@ namespace VRLogger
             
             Metrics = activeProfile.Metrics;
             CustomEventRoles = new List<EventRoleMapping>(activeProfile.CustomEventRoles);
+            CustomMetrics = new List<CustomMetricDefinition>(activeProfile.CustomMetrics);
 
             Debug.Log($"Loaded values from profile: {activeProfile.name}");
         }
@@ -541,6 +610,7 @@ namespace VRLogger
             
             activeProfile.Metrics = Metrics;
             activeProfile.CustomEventRoles = new List<EventRoleMapping>(CustomEventRoles);
+            activeProfile.CustomMetrics = new List<CustomMetricDefinition>(CustomMetrics);
 
             UnityEditor.EditorUtility.SetDirty(activeProfile);
             UnityEditor.AssetDatabase.SaveAssets();

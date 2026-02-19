@@ -130,6 +130,24 @@ class Visualizer:
         # print(f"[Visualizer] ✅ Figura generada: {filepath.name}")
         return True
 
+    def _plot_metric_custom_name(self, y_col, title, ylabel, filename, palette="Blues_d"):
+        """Versión de graficado con control directo del nombre de archivo output."""
+        if y_col not in self.df.columns: return False
+        
+        x_col = self._get_x_col()
+        
+        plt.figure(figsize=(8, 5))
+        sns.barplot(data=self.df, x=x_col, y=y_col, hue=x_col, palette=palette, legend=False)
+        plt.title(title)
+        plt.xlabel(self.X_LABEL)
+        plt.ylabel(ylabel)
+        plt.tight_layout()
+
+        filepath = self.output_dir / filename
+        plt.savefig(filepath)
+        plt.close()
+        return True
+
     # ============================================================
     # GRÁFICAS ESTÁNDAR (GENERACIÓN MASIVA)
     # ============================================================
@@ -165,6 +183,54 @@ class Visualizer:
                     count += 1
 
         print(f"[Visualizer] ✅ {count} gráficas estándar generadas.")
+        
+        # --------------------------------------------------------
+        # GENERACIÓN DINÁMICA DE MÉTRICAS PERSONALIZADAS
+        # --------------------------------------------------------
+        print("[Visualizer] 🔍 Buscando métricas personalizadas dinámicas...")
+        custom_count = 0
+        
+        # 1. Construir conjunto de todas las columnas "estándar" posibles
+        # Esto incluye el nombre de la métrica tal cual Y con el prefijo de la categoría
+        known_standard_cols = set()
+        for cat, metrics in self.METRIC_CATEGORIES.items():
+            for m in metrics:
+                known_standard_cols.add(m)
+                known_standard_cols.add(f"{cat.lower()}_{m}")
+
+        # 2. Recorrer columnas del DataFrame
+        for col in self.df.columns:
+            # Si es una columna estándar conocida, ignorar
+            if col in known_standard_cols:
+                continue
+
+            # Detectar si pertenece a una categoría (empieza por "efectividad_", etc.)
+            matched_cat = None
+            for cat in self.METRIC_CATEGORIES.keys():
+                prefix = cat.lower() + "_"
+                if col.startswith(prefix):
+                    matched_cat = cat
+                    break
+            
+            # Si tiene prefijo de categoría pero NO estaba en la lista de conocidas -> Es Custom
+            if matched_cat:
+                metric_name = col[len(matched_cat)+1:] # quitar prefix + underscore
+                
+                # Graficar como Custom
+                filename = f"Custom_{matched_cat}_{metric_name}.png"
+                title = f"{matched_cat}: {metric_name.replace('_', ' ').title()} (Custom)"
+                
+                if self._plot_metric_custom_name(
+                    col, 
+                    title=title, 
+                    ylabel=metric_name.replace('_', ' '), 
+                    filename=filename,
+                    palette="Set2"
+                ):
+                    custom_count += 1
+
+        if custom_count > 0:
+            print(f"[Visualizer] ✅ {custom_count} gráficas custom dinámicas generadas.")
 
     # ============================================================
     # CUSTOM EVENTS DINÁMICOS

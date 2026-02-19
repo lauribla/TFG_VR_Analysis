@@ -68,5 +68,8 @@ namespace VRLogger
 
         [Header("Event Roles")]
         public List<ExperimentConfig.EventRoleMapping> CustomEventRoles = new List<ExperimentConfig.EventRoleMapping>();
+
+        [Header("Custom Metrics")]
+        public List<ExperimentConfig.CustomMetricDefinition> CustomMetrics = new List<ExperimentConfig.CustomMetricDefinition>();
     }
 }

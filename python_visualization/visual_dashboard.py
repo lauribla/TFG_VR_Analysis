@@ -284,17 +284,69 @@ def main():
     # ============================================================
     # 🔹 Eventos personalizados
     # ============================================================
-    st.header("🎯 Custom Events")
-    custom_cols = [c for c in df.columns if c.startswith("custom_events_")]
-    if not custom_cols:
-        st.info("No se encontraron eventos personalizados.")
-    else:
-        melted = df.melt(id_vars=eje_x, value_vars=custom_cols,
+    # ============================================================
+    # 🔹 Eventos personalizados A (Listas de eventos raw)
+    # ============================================================
+    st.header("🎯 Custom Events & Metrics")
+    
+    # 1. Buscar columnas de eventos raw (custom_events_*)
+    custom_event_cols = [c for c in df.columns if c.startswith("custom_events_")]
+    
+    # 2. Buscar métricas personalizadas (con prefijo de categoría pero no estándar)
+    # Definimos lo que es "estándar" para excluirlo
+    std_metrics = {
+        "efectividad": ["hit_ratio", "success_rate", "learning_curve_mean", "progression", "success_after_restart"],
+        "eficiencia": ["avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s", "navigation_errors"],
+        "satisfaccion": ["learning_stability", "error_reduction_rate", "voluntary_play_time_s", "aid_usage", "interface_errors"],
+        "presencia": ["activity_level_per_min", "first_success_time_s", "inactivity_time_s", "sound_localization_time_s", "audio_performance_gain", "spatial_coverage", "head_rotation_speed"]
+    }
+    
+    known_std = set()
+    for cat, m_list in std_metrics.items():
+        for m in m_list:
+            known_std.add(m)
+            known_std.add(f"{cat}_{m}") # Prefixed version
+            
+    # Detectar custom metrics (ej: efectividad_shot_fired)
+    custom_metric_cols = []
+    for col in df.columns:
+        if col in known_std or col in ["user_id", "group_id", "session_id", "timestamp"]:
+            continue
+            
+        # Check if starts with a known category
+        for cat in std_metrics.keys():
+            if col.startswith(f"{cat}_") and not col.startswith("custom_events_") and not col.endswith("_score"):
+                custom_metric_cols.append(col)
+                break
+
+    # --- Mostrar Eventos Raw ---
+    if custom_event_cols:
+        st.subheader("Raw Events")
+        melted = df.melt(id_vars=eje_x, value_vars=custom_event_cols,
                          var_name="custom_event", value_name="count")
         melted["custom_event"] = melted["custom_event"].str.replace("custom_events_", "")
         fig = px.bar(melted, x=eje_x, y="count", color="custom_event",
-                     title="Frecuencia de Custom Events", barmode="group", text_auto=True)
+                     title="Frecuencia de Custom Events (Raw)", barmode="group", text_auto=True)
         st.plotly_chart(fig, use_container_width=True)
+
+    # --- Mostrar Métricas Personalizadas Calculadas ---
+    if custom_metric_cols:
+        st.subheader("Calculated Custom Metrics")
+        # Graficar cada una por separado o agrupadas
+        for cm in custom_metric_cols:
+             # Clean title: remove category prefix if present
+             clean_title = cm
+             for cat in std_metrics.keys():
+                 if cm.startswith(f"{cat}_"):
+                     clean_title = cm[len(cat)+1:]
+                     break
+             
+             fig_cm = px.bar(df, x=eje_x, y=cm, color=eje_x, 
+                             title=f"Custom Metric: {clean_title.replace('_', ' ').title()}", text_auto=".2f")
+             st.plotly_chart(fig_cm, use_container_width=True)
+             
+    if not custom_event_cols and not custom_metric_cols:
+        st.info("No se encontraron eventos personalizados ni métricas nuevas.")
 
     # ============================================================
     # 🔹 Visualizaciones Espaciales (Estáticas)
