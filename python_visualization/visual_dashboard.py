@@ -304,22 +304,38 @@ def main():
     figures_dir = results_dir.parent / "figures" / "spatial"
     
     if figures_dir.exists():
-        expected_images = [
-            ("Trayectorias (Todos)", "Spatial_Trajectories.png"),
-            ("Mapa de Calor: Posición", "Spatial_Heatmap_Global.png"),
-            ("Mapa de Calor: Mirada", "Gaze_Heatmap.png")
+
+        # Define tuples: (Title, Static Filename, Animated Filename)
+        visualizations = [
+            ("Trayectorias (Todos)", "Spatial_Trajectories.png", "Spatial_Trajectories.gif"),
+            ("Mapa de Calor: Posición", "Spatial_Heatmap_Global.png", None),
+            ("Mapa de Calor: Mirada", "Gaze_Heatmap.png", "Gaze_Heatmap.gif"),
+            ("Pupilometría (Tiempo)", "Eye_Pupilometry_OverTime.png", "Eye_Pupilometry_OverTime.gif")
         ]
         
-        # Mostrar en columnas/tabs
-        tab1, tab2, tab3 = st.tabs([t[0] for t in expected_images])
+        # Create tabs dynamically
+        tabs = st.tabs([v[0] for v in visualizations])
         
-        for tab, (title, filename) in zip([tab1, tab2, tab3], expected_images):
-            img_path = figures_dir / filename
+        for tab, (title, static_file, gif_file) in zip(tabs, visualizations):
             with tab:
-                if img_path.exists():
-                    st.image(str(img_path), caption=title, use_column_width=True)
-                else:
-                    st.info(f"Imagen no disponible: {filename}")
+                # Default to static
+                img_path = figures_dir / static_file
+                gif_path = figures_dir / gif_file if gif_file else None
+                
+                # Check availability
+                has_static = img_path.exists()
+                has_gif = gif_path and gif_path.exists()
+                
+                if has_gif:
+                    st.markdown(f"**🎬 Animación: {title}**")
+                    st.image(str(gif_path), caption=f"{title} (Animación)", use_column_width=True)
+                    st.markdown("---")
+                
+                if has_static:
+                    st.image(str(img_path), caption=f"{title} (Estático)", use_column_width=True)
+                
+                if not has_static and not has_gif:
+                     st.info(f"Visualización no disponible: {title}")
     else:
         st.info("No se han encontrado figuras espaciales generadas. Ejecuta vr_analysis.py para crearlas.")
 
