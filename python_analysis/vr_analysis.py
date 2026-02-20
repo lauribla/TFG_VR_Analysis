@@ -83,6 +83,66 @@ if experiment_config is None:
 
 if experiment_config is not None:
     print("✅ Config cargada correctamente.\n")
+
+    # ------------------------------------------------------------
+    # FILTRADO POR SESSION_NAME
+    # ------------------------------------------------------------
+    # Objetivo: Analizar SOLO las sesiones que coincidan con el session_name del config actual
+    # para evitar mezclar experimentos distintos (ej: "Experiment_A" vs "Experiment_B")
+
+    target_session_name = experiment_config.get("session", {}).get("session_name")
+
+    if target_session_name:
+        print(f"🎯 Target Session Name: '{target_session_name}' (from config)")
+
+        # Estrategia: Buscar en los logs 'config' o 'session_start' qué session_ids tienen este nombre
+        # IMPORTANTE: Usamos df_raw porque tiene la columna 'context' como string JSON.
+        # df (el expandido) NO tiene 'context' porque lo expandió en columnas.
+
+        # 1. Buscar en configs (usando df_raw)
+        matching_configs = []
+        if "context" in df_raw.columns:
+             matching_configs = df_raw[
+                (df_raw["event_type"] == "config") &
+                (df_raw["context"].fillna("").apply(lambda x: target_session_name in str(x)))
+            ]["session_id"].unique()
+
+        # 2. Buscar en session_start (usando df_raw)
+        matching_starts = []
+        if "context" in df_raw.columns:
+            matching_starts = df_raw[
+                (df_raw["event_type"] == "session_start") &
+                (df_raw["context"].fillna("").apply(lambda x: target_session_name in str(x)))
+            ]["session_id"].unique()
+
+        # 3. Fallback: Si df_raw no funciona, buscar en df expandido (columna 'session' si existe)
+        matching_expanded = []
+        if "session" in df.columns: # A veces 'session' se expande como columna si el json lo tenía
+             matching_expanded = df[
+                df["session"].apply(lambda x: isinstance(x, dict) and x.get("session_name") == target_session_name if isinstance(x, dict) else False)
+             ]["session_id"].unique()
+        elif "session_session_name" in df.columns: # Flattened key pattern
+             matching_expanded = df[df["session_session_name"] == target_session_name]["session_id"].unique()
+
+
+        # Unir todos los session_ids válidos
+        valid_sessions = set(matching_configs) | set(matching_starts) | set(matching_expanded)
+
+        # Si no encontramos nada con esos métodos, intentamos mirar si el propio config actual tiene session_id
+        current_config_sid = experiment_config.get("session_id")
+        if current_config_sid:
+            valid_sessions.add(current_config_sid)
+
+        if valid_sessions:
+            original_count = df["session_id"].nunique()
+            df = df[df["session_id"].isin(valid_sessions)]
+            filtered_count = df["session_id"].nunique()
+            print(f"🧹 Filtrando logs... Se mantienen {filtered_count} sesiones de {original_count} totales.\n")
+        else:
+            print(f"⚠️ No se encontraron sesiones coincidiendo con '{target_session_name}' en los logs. Mostrando todo.\n")
+    else:
+        print("⚠️ El config no tiene 'session_name'. No se puede filtrar por experimento.\n")
+
 else:
     print("⚠️  No existe configuración en los logs y no se forzó local.\n")
 
