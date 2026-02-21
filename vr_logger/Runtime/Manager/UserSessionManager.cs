@@ -25,46 +25,72 @@ namespace VRLogger
             if (Instance == null)
             {
                 Instance = this;
+                transform.parent = null; // Ensure we are root for DontDestroyOnLoad
                 DontDestroyOnLoad(gameObject); // Ensure persistence across scenes
+                this.enabled = true; // Ensure script is enabled so Update() runs
 
                 // -----------------------------------------------------------
-                // AUTO-INSTANTIATION (Bootstrapper)
+                // AUTO-INSTANTIATION (Bootstrapper) - SAFE LOOKUP
                 // -----------------------------------------------------------
-                if (ExperimentConfig.Instance == null)
+                if (UnityEngine.Object.FindFirstObjectByType<ExperimentConfig>() == null)
                 {
                     Debug.Log("[UserSessionManager] 🛠️ Auto-Creating ExperimentConfig...");
                     new GameObject("ExperimentConfig").AddComponent<ExperimentConfig>();
                 }
+                else if (ExperimentConfig.Instance == null)
+                {
+                    ExperimentConfig.Instance = UnityEngine.Object.FindFirstObjectByType<ExperimentConfig>();
+                }
 
-                if (VRTrackingManager.Instance == null)
+                if (UnityEngine.Object.FindFirstObjectByType<VRTrackingManager>() == null)
                 {
                     Debug.Log("[UserSessionManager] 🛠️ Auto-Creating VRTrackingManager...");
                     new GameObject("VRTrackingManager").AddComponent<VRTrackingManager>();
                 }
+                else if (VRTrackingManager.Instance == null)
+                {
+                    VRTrackingManager.Instance = UnityEngine.Object.FindFirstObjectByType<VRTrackingManager>();
+                }
 
-                if (ParticipantFlowController.Instance == null)
+                if (UnityEngine.Object.FindFirstObjectByType<ParticipantFlowController>() == null)
                 {
                     Debug.Log("[UserSessionManager] 🛠️ Auto-Creating ParticipantFlowController...");
                     new GameObject("ParticipantFlowController").AddComponent<ParticipantFlowController>();
                 }
+                else if (ParticipantFlowController.Instance == null)
+                {
+                    ParticipantFlowController.Instance = UnityEngine.Object.FindFirstObjectByType<ParticipantFlowController>();
+                }
 
-                if (FindObjectOfType<GMConsoleInput>() == null)
+                if (UnityEngine.Object.FindFirstObjectByType<GMConsoleInput>() == null)
                 {
                      Debug.Log("[UserSessionManager] 🛠️ Auto-Creating GMConsoleInput...");
                      new GameObject("GMConsoleInput").AddComponent<GMConsoleInput>();
                 }
                 // -----------------------------------------------------------
             }
-            else
+            else if (Instance != this)
             {
-                Destroy(gameObject);
+                Debug.LogWarning($"[UserSessionManager] Destruyendo script duplicado en {gameObject.name}");
+                Destroy(this);
                 return;
             }
         }
 
-        void Start()
+        private bool hasRunStartup = false;
+
+        void Update()
         {
-            // Auto-start the experiment flow using Inspector config
+            // Robust first-frame startup pattern to bypass any Unity Start() skipping issues
+            if (!hasRunStartup)
+            {
+                hasRunStartup = true;
+                RunStartupFlow();
+            }
+        }
+
+        private void RunStartupFlow()
+        {
             Debug.Log("[UserSessionManager] 🚀 Auto-Starting Experiment...");
 
             // ---------------------------------------------------------------
@@ -77,8 +103,6 @@ namespace VRLogger
                 bool gmEnabled = (bool?)cfg["participant_flow"]?["gm_controls"]?["enabled"] ?? false;
                 if (gmEnabled)
                 {
-                    // WE DO NOT SPAWN THE UI ANYMORE
-                    // if (FindObjectOfType<VRLogger.UI.GMHUDLoader>() == null) ...
                     Debug.Log("[UserSessionManager] GM Controls Enabled (Input Only)");
                 }
 
@@ -86,8 +110,6 @@ namespace VRLogger
                 string endCond = (string)cfg["participant_flow"]?["end_condition"];
                 if (endCond == "timer")
                 {
-                    // WE DO NOT SPAWN THE UI ANYMORE
-                    // if (FindObjectOfType<VRLogger.UI.TimerUILoader>() == null) ...
                     Debug.Log("[UserSessionManager] Timer Condition Active (Logic Only)");
                 }
             }

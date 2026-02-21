@@ -200,7 +200,7 @@ namespace VRLogger
                 Instance = this;
             else
             {
-                Destroy(gameObject);
+                Destroy(this);
                 return;
             }
 

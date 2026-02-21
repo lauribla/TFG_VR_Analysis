@@ -4,9 +4,42 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using MongoDB.Driver;
 using MongoDB.Bson;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using UnityEngine;
 
 namespace VRLogger
 {
+    // Custom Converters para evitar StackOverflow con Vector3 y Quaternion al serializar
+    public class Vector3Converter : JsonConverter<Vector3>
+    {
+        public override void WriteJson(JsonWriter writer, Vector3 value, JsonSerializer serializer)
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("x"); writer.WriteValue(value.x);
+            writer.WritePropertyName("y"); writer.WriteValue(value.y);
+            writer.WritePropertyName("z"); writer.WriteValue(value.z);
+            writer.WriteEndObject();
+        }
+        public override Vector3 ReadJson(JsonReader reader, Type objectType, Vector3 existingValue, bool hasExistingValue, JsonSerializer serializer) => throw new NotImplementedException();
+    }
+
+    public class QuaternionConverter : JsonConverter<Quaternion>
+    {
+        public override void WriteJson(JsonWriter writer, Quaternion value, JsonSerializer serializer)
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("x"); writer.WriteValue(value.x);
+            writer.WritePropertyName("y"); writer.WriteValue(value.y);
+            writer.WritePropertyName("z"); writer.WriteValue(value.z);
+            writer.WritePropertyName("w"); writer.WriteValue(value.w);
+            writer.WriteEndObject();
+        }
+        public override Quaternion ReadJson(JsonReader reader, Type objectType, Quaternion existingValue, bool hasExistingValue, JsonSerializer serializer) => throw new NotImplementedException();
+    }
+
     public static class LoggerService
     {
         private static IMongoCollection<BsonDocument> _collection;
@@ -87,12 +120,18 @@ if (eventValue != null)
 {
     try
     {
-        var valJson = Newtonsoft.Json.JsonConvert.SerializeObject(eventValue);
+        var settings = new Newtonsoft.Json.JsonSerializerSettings
+        {
+            ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore,
+            Converters = new List<JsonConverter> { new Vector3Converter(), new QuaternionConverter() }
+        };
+        var valJson = Newtonsoft.Json.JsonConvert.SerializeObject(eventValue, settings);
         var valBson = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BsonValue>(valJson);
         logDoc.Add("event_value", valBson);
     }
-    catch
+    catch (Exception ex)
     {
+        UnityEngine.Debug.LogWarning($"[LoggerService] ⚠️ No se pudo serializar event_value: {ex.Message}");
         logDoc.Add("event_value", eventValue.ToString());
     }
 }
@@ -100,7 +139,6 @@ else
 {
     logDoc.Add("event_value", BsonNull.Value);
 }
-
 
     // Añadir sesión y grupo automáticamente si hay UserSessionManager activo
     if (UserSessionManager.Instance != null)
@@ -116,7 +154,8 @@ else
         {
             var settings = new Newtonsoft.Json.JsonSerializerSettings
             {
-                ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
+                ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore,
+                Converters = new List<JsonConverter> { new Vector3Converter(), new QuaternionConverter() }
             };
             var contextJson = Newtonsoft.Json.JsonConvert.SerializeObject(eventContext, settings);
             var contextBson = MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BsonDocument>(contextJson);
