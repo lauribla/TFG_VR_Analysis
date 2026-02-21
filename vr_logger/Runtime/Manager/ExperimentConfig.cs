@@ -17,6 +17,8 @@ namespace VRLogger
         public string GroupName = "Grupo_A";
         public string IndependentVariable = "";
         public float TurnDurationSeconds = 60f;
+        public float PlayAreaWidth = 2.5f;
+        public float PlayAreaDepth = 2.5f;
 
         [Header("Participants")]
         public int ParticipantCount = 4;
@@ -217,6 +219,9 @@ namespace VRLogger
             string gName = p ? p.GroupName : GroupName;
             string iv = p ? p.IndependentVariable : IndependentVariable;
             float tDuration = p ? p.TurnDurationSeconds : TurnDurationSeconds;
+            // Since ExperimentProfile doesn't have PlayArea yet, we fallback to local for now
+            float pAWidth = PlayAreaWidth; 
+            float pADepth = PlayAreaDepth;
             
             // MANUAL USER ID LOGIC
             string manualUser = p ? p.ManualParticipantName : ManualParticipantName;
@@ -261,13 +266,14 @@ namespace VRLogger
             // Reconstruct the JSON structure expected by the rest of the system
             jsonConfig = new JObject();
 
-            // Session
             jsonConfig["session"] = new JObject
             {
                 { "session_name", sName },
                 { "group_name", gName },
                 { "independent_variable", iv },
-                { "turn_duration_seconds", tDuration }
+                { "turn_duration_seconds", tDuration },
+                { "play_area_width", pAWidth },
+                { "play_area_depth", pADepth }
             };
 
             // Participants

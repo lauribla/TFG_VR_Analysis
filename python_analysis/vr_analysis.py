@@ -280,7 +280,18 @@ print(f"📊 Figuras generadas: {generated_figures}\n")
 # 8.1️⃣  Generar figuras espaciales (Mapas de calor / Trayectorias)
 # ============================================================
 print("🗺️ Generando visualizaciones espaciales (si existen datos de tracking)...")
-spatial_viz = SpatialVisualizer(df, output_dir=figures_dir / "spatial")
+play_area_w = None
+play_area_d = None
+if experiment_config is not None:
+    play_area_w = experiment_config.get("session", {}).get("play_area_width")
+    play_area_d = experiment_config.get("session", {}).get("play_area_depth")
+
+spatial_viz = SpatialVisualizer(
+    df, 
+    output_dir=figures_dir / "spatial",
+    play_area_width=play_area_w,
+    play_area_depth=play_area_d
+)
 spatial_viz.generate_all()
 print("\n")
 

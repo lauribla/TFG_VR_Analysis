@@ -9,7 +9,7 @@ import io
 from PIL import Image
 
 class SpatialVisualizer:
-    def __init__(self, df, output_dir):
+    def __init__(self, df, output_dir, play_area_width=None, play_area_depth=None):
         """
         df: DataFrame RAW con eventos (debe tener event_name, timestamp, y columnas de posición expandidas)
         output_dir: ruta donde guardar las imágenes
@@ -17,6 +17,19 @@ class SpatialVisualizer:
         self.df = df
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.play_area_width = play_area_width
+        self.play_area_depth = play_area_depth
+
+    def _draw_play_area(self, ax=None):
+        if self.play_area_width is not None and self.play_area_depth is not None:
+            if self.play_area_width > 0 and self.play_area_depth > 0:
+                ax = ax or plt.gca()
+                import matplotlib.patches as patches
+                w = self.play_area_width
+                d = self.play_area_depth
+                # Centro en 0,0, así que la esquina inferior izq es -w/2, -d/2
+                rect = patches.Rectangle((-w/2, -d/2), w, d, linewidth=2, edgecolor='red', facecolor='none', linestyle='--', label="Límites Zona VR", zorder=4)
+                ax.add_patch(rect)
 
     def generate_all(self):
         print("[SpatialVisualizer] 🗺️ Generando gráficos espaciales...")
@@ -71,6 +84,7 @@ class SpatialVisualizer:
         plt.title("Trayectorias de Jugadores (Vista Superior - XZ)")
         plt.xlabel("X (m)")
         plt.ylabel("Z (m)")
+        self._draw_play_area()
         plt.axis("equal")
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         plt.grid(True, linestyle="--", alpha=0.5)
@@ -149,6 +163,7 @@ class SpatialVisualizer:
             ax.set_xlabel("X (m)")
             ax.set_ylabel("Z (m)")
             ax.grid(True, linestyle="--", alpha=0.3)
+            self._draw_play_area(ax)
             ax.axis("equal")
 
             # Guardar en buffer
@@ -194,6 +209,7 @@ class SpatialVisualizer:
         plt.title("Mapa de Calor: Ocupación del Espacio (Global)")
         plt.xlabel("X (m)")
         plt.ylabel("Z (m)")
+        self._draw_play_area()
         plt.axis("equal")
         plt.grid(True, alpha=0.3)
         
@@ -228,6 +244,7 @@ class SpatialVisualizer:
         plt.title("Mapa de Calor: Atención Visual (Gaze Fixations)")
         plt.xlabel("World X (m)")
         plt.ylabel("World Z (m)")
+        self._draw_play_area()
         plt.axis("equal")
         plt.grid(True, alpha=0.3)
         
@@ -284,6 +301,9 @@ class SpatialVisualizer:
             ax.set_title("Atención Visual Acumulada")
             ax.set_xlabel("World X (m)")
             ax.set_ylabel("World Z (m)")
+            self._draw_play_area(ax)
+            ax.axis("equal")
+            ax.grid(True, linestyle="--", alpha=0.3)
             ax.axis("equal")
             ax.grid(True, alpha=0.3)
             
@@ -422,6 +442,7 @@ class SpatialVisualizer:
         plt.title("Mapa de Calor: Ocupación de Manos")
         plt.xlabel("X (m)")
         plt.ylabel("Z (m)")
+        self._draw_play_area()
         plt.axis("equal")
         plt.grid(True, alpha=0.3)
         if "hand" in hands.columns and plt.gca().get_legend() is not None:
@@ -455,6 +476,7 @@ class SpatialVisualizer:
         plt.title("Mapa de Calor: Ocupación de Pies")
         plt.xlabel("X (m)")
         plt.ylabel("Z (m)")
+        self._draw_play_area()
         plt.axis("equal")
         plt.grid(True, alpha=0.3)
         if "foot" in feet.columns and plt.gca().get_legend() is not None:
@@ -511,6 +533,7 @@ class SpatialVisualizer:
             ax.set_title(title)
             ax.set_xlabel("X (m)")
             ax.set_ylabel("Z (m)")
+            self._draw_play_area(ax)
             ax.axis("equal")
             ax.grid(True, alpha=0.3)
             
