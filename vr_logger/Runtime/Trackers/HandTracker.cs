@@ -11,9 +11,17 @@ namespace VRLogger
         private Vector3 lastPos;
         private float timer = 0f;
 
+        public Transform targetTransform;
+
         void Update()
         {
             if (ParticipantFlowController.Instance != null && ParticipantFlowController.Instance.IsPaused) return;
+
+            if (targetTransform == null)
+            {
+                FindTarget();
+                if (targetTransform == null) return; // Esperar hasta que aparezca el mando
+            }
 
             timer += Time.deltaTime;
             if (timer >= checkInterval)
@@ -23,9 +31,30 @@ namespace VRLogger
             }
         }
 
+        private void FindTarget()
+        {
+            // Búsqueda dinámica basada en nombre de la mano
+            string[] possibleNames = handName == "left" 
+                ? new[] { "Left Controller", "LeftHand Controller", "LeftHand", "Left Controller [XR]" } 
+                : new[] { "Right Controller", "RightHand Controller", "RightHand", "Right Controller [XR]" };
+
+            foreach (var n in possibleNames)
+            {
+                GameObject obj = GameObject.Find(n);
+                if (obj != null)
+                {
+                    targetTransform = obj.transform;
+                    Debug.Log($"[HandTracker] 🖐️ Vinculado dinámicamente: {handName} a {obj.name}");
+                    return;
+                }
+            }
+        }
+
         private async void TrackHand()
         {
-            Vector3 pos = transform.position;
+            if (targetTransform == null) return;
+
+            Vector3 pos = targetTransform.position;
             Vector3 velocity = (pos - lastPos) / checkInterval;
 
             await LoggerService.LogEvent(

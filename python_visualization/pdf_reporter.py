@@ -334,7 +334,9 @@ class PDFReport:
                     "Spatial_Trajectories.png": "Trayectorias de Jugadores",
                     "Spatial_Heatmap_Global.png": "Mapa de Calor: Ocupación del Espacio",
                     "Gaze_Heatmap.png": "Mapa de Calor: Atención Visual (Mirada)",
-                    "Eye_Pupilometry_OverTime.png": "Evolución del Diámetro Pupilar"
+                    "Eye_Pupilometry_OverTime.png": "Evolución del Diámetro Pupilar",
+                    "Hand_Heatmap.png": "Mapa de Calor: Manos",
+                    "Foot_Heatmap.png": "Mapa de Calor: Pies"
                 }
 
                 for chart in spatial_charts:

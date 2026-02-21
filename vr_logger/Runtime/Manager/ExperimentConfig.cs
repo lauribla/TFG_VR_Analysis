@@ -198,7 +198,7 @@ namespace VRLogger
         {
             if (Instance == null)
                 Instance = this;
-            else
+            else if (Instance != this)
             {
                 Destroy(this);
                 return;

@@ -28,7 +28,7 @@ namespace VRLogger
         void Awake()
         {
             if (Instance == null) Instance = this;
-            else { Destroy(this); return; }
+            else if (Instance != this) { Destroy(this); return; }
         }
 
         void Start()

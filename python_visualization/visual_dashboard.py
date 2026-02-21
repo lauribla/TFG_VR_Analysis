@@ -362,7 +362,9 @@ def main():
             ("Trayectorias (Todos)", "Spatial_Trajectories.png", "Spatial_Trajectories.gif"),
             ("Mapa de Calor: Posición", "Spatial_Heatmap_Global.png", None),
             ("Mapa de Calor: Mirada", "Gaze_Heatmap.png", "Gaze_Heatmap.gif"),
-            ("Pupilometría (Tiempo)", "Eye_Pupilometry_OverTime.png", "Eye_Pupilometry_OverTime.gif")
+            ("Pupilometría (Tiempo)", "Eye_Pupilometry_OverTime.png", "Eye_Pupilometry_OverTime.gif"),
+            ("Mapa de Calor: Manos", "Hand_Heatmap.png", "Hand_Heatmap.gif"),
+            ("Mapa de Calor: Pies", "Foot_Heatmap.png", "Foot_Heatmap.gif")
         ]
         
         # Create tabs dynamically

@@ -20,7 +20,7 @@ namespace VRLogger
         void Awake()
         {
             if (Instance == null) Instance = this;
-            else { Destroy(this); return; }
+            else if (Instance != this) { Destroy(this); return; }
         }
 
         public void BeginTrackingForUser()
@@ -118,29 +118,25 @@ namespace VRLogger
             // Hand Trackers
             if (useHandTracker)
             {
-                if (leftHand != null)
-                {
-                    var ht = leftHand.gameObject.GetComponent<HandTracker>();
-                    if (ht == null) ht = leftHand.gameObject.AddComponent<HandTracker>();
+                var htLeft = gameObject.AddComponent<HandTracker>();
+                htLeft.handName = "left";
+                if (leftHand != null) htLeft.targetTransform = leftHand;
 
-                    if (ht != null)
-                    {
-                        ht.handName = "left";
-                        ht.enabled = true;
-                    }
-                }
+                var htRight = gameObject.AddComponent<HandTracker>();
+                htRight.handName = "right";
+                if (rightHand != null) htRight.targetTransform = rightHand;
+            }
 
-                if (rightHand != null)
-                {
-                    var ht = rightHand.gameObject.GetComponent<HandTracker>();
-                    if (ht == null) ht = rightHand.gameObject.AddComponent<HandTracker>();
+            // Foot Trackers (Asumiendo que useFootTracker existe en la config al añadir Hands)
+            if (useFootTracker)
+            {
+                var ftLeft = gameObject.AddComponent<FootTracker>();
+                ftLeft.footName = "left";
+                if (leftFoot != null) ftLeft.targetTransform = leftFoot;
 
-                    if (ht != null)
-                    {
-                        ht.handName = "right";
-                        ht.enabled = true;
-                    }
-                }
+                var ftRight = gameObject.AddComponent<FootTracker>();
+                ftRight.footName = "right";
+                if (rightFoot != null) ftRight.targetTransform = rightFoot;
             }
 
             // Loggers (Raycast/Collision)
@@ -226,11 +222,8 @@ namespace VRLogger
             SafeRemove<GazeTracker>(vrCamera != null ? vrCamera.gameObject : null);
             SafeRemove<MovementTracker>(playerTransform != null ? playerTransform.gameObject : null);
 
-            SafeRemove<FootTracker>(leftFoot != null ? leftFoot.gameObject : null);
-            SafeRemove<FootTracker>(rightFoot != null ? rightFoot.gameObject : null);
-
-            SafeRemove<HandTracker>(leftHand != null ? leftHand.gameObject : null);
-            SafeRemove<HandTracker>(rightHand != null ? rightHand.gameObject : null);
+            SafeRemove<FootTracker>(gameObject);
+            SafeRemove<HandTracker>(gameObject);
 
             // Loggers anadidos en este mismo objeto
             SafeRemove<RaycastLogger>(gameObject);

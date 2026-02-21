@@ -26,11 +26,17 @@ class SpatialVisualizer:
             self.plot_gaze_heatmap()
             self.plot_pupilometry()
             
+            self.plot_hand_heatmap()
+            self.plot_foot_heatmap()
+            
             # Generar GIFs
             print("[SpatialVisualizer] 🎬 Generando animaciones (GIF)...")
             self.plot_trajectory_gif()
             self.plot_gaze_heatmap_gif()
             self.plot_pupilometry_gif()
+            
+            self.plot_hand_heatmap_gif()
+            self.plot_foot_heatmap_gif()
             
             print(f"[SpatialVisualizer] ✅ Gráficos espaciales guardados en {self.output_dir}")
         except Exception as e:
@@ -384,6 +390,139 @@ class SpatialVisualizer:
         if frames:
             frames[0].save(
                 self.output_dir / "Eye_Pupilometry_OverTime.gif",
+                save_all=True,
+                append_images=frames[1:],
+                optimize=True,
+                duration=200,
+                loop=0
+            )
+
+    def plot_hand_heatmap(self):
+        """Mapa de calor de posición de manos (X vs Z)."""
+        hands = self.df[self.df["event_name"] == "hand_movement"].copy()
+        
+        if "position_x" not in hands.columns or "position_z" not in hands.columns or hands.empty:
+            return
+
+        plt.figure(figsize=(10, 8))
+        
+        try:
+            sns.kdeplot(
+                data=hands, 
+                x="position_x", 
+                y="position_z", 
+                fill=True, 
+                cmap="YlGnBu", 
+                thresh=0.05, 
+                alpha=0.8
+            )
+        except:
+             sns.scatterplot(data=hands, x="position_x", y="position_z", alpha=0.3, hue="hand" if "hand" in hands.columns else None)
+        
+        plt.title("Mapa de Calor: Ocupación de Manos")
+        plt.xlabel("X (m)")
+        plt.ylabel("Z (m)")
+        plt.axis("equal")
+        plt.grid(True, alpha=0.3)
+        if "hand" in hands.columns and plt.gca().get_legend() is not None:
+            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+            
+        plt.savefig(self.output_dir / "Hand_Heatmap.png", bbox_inches="tight")
+        plt.close()
+
+    def plot_foot_heatmap(self):
+        """Mapa de calor de posición de pies (X vs Z)."""
+        feet = self.df[self.df["event_name"] == "foot_movement"].copy()
+        
+        if "position_x" not in feet.columns or "position_z" not in feet.columns or feet.empty:
+            return
+
+        plt.figure(figsize=(10, 8))
+        
+        try:
+            sns.kdeplot(
+                data=feet, 
+                x="position_x", 
+                y="position_z", 
+                fill=True, 
+                cmap="YlOrRd", 
+                thresh=0.05, 
+                alpha=0.8
+            )
+        except:
+             sns.scatterplot(data=feet, x="position_x", y="position_z", alpha=0.3, hue="foot" if "foot" in feet.columns else None)
+        
+        plt.title("Mapa de Calor: Ocupación de Pies")
+        plt.xlabel("X (m)")
+        plt.ylabel("Z (m)")
+        plt.axis("equal")
+        plt.grid(True, alpha=0.3)
+        if "foot" in feet.columns and plt.gca().get_legend() is not None:
+            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+            
+        plt.savefig(self.output_dir / "Foot_Heatmap.png", bbox_inches="tight")
+        plt.close()
+
+    def plot_hand_heatmap_gif(self, max_frames=60):
+        self._plot_tracker_gif("hand_movement", "Hand_Heatmap.gif", "hand", "Evolución de Manos", max_frames)
+        
+    def plot_foot_heatmap_gif(self, max_frames=60):
+        self._plot_tracker_gif("foot_movement", "Foot_Heatmap.gif", "foot", "Evolución de Pies", max_frames)
+        
+    def _plot_tracker_gif(self, event_name, filename, hue_col, title, max_frames):
+        df_track = self.df[self.df["event_name"] == event_name].copy()
+        if "position_x" not in df_track.columns or "position_z" not in df_track.columns or df_track.empty:
+            return
+
+        if not pd.api.types.is_datetime64_any_dtype(df_track["timestamp"]):
+            df_track["timestamp"] = pd.to_datetime(df_track["timestamp"])
+        df_track = df_track.sort_values("timestamp")
+
+        x_min, x_max = df_track["position_x"].min(), df_track["position_x"].max()
+        z_min, z_max = df_track["position_z"].min(), df_track["position_z"].max()
+
+        step_size = max(1, len(df_track) // max_frames)
+        indices = list(range(step_size, len(df_track), step_size))
+        if len(df_track) - 1 not in indices:
+            indices.append(len(df_track) - 1)
+
+        print(f"[SpatialVisualizer] Generando {len(indices)} frames para {filename}...")
+        frames = []
+
+        for idx in indices:
+            current_data = df_track.iloc[:idx]
+            
+            fig, ax = plt.subplots(figsize=(8, 8))
+            
+            sns.scatterplot(
+                data=current_data, 
+                x="position_x", 
+                y="position_z", 
+                hue=hue_col if hue_col in current_data.columns else None,
+                alpha=0.3, 
+                s=50,
+                edgecolor=None,
+                ax=ax,
+                palette=None if hue_col not in current_data.columns else "Set1"
+            )
+            
+            ax.set_xlim(x_min, x_max)
+            ax.set_ylim(z_min, z_max)
+            ax.set_title(title)
+            ax.set_xlabel("X (m)")
+            ax.set_ylabel("Z (m)")
+            ax.axis("equal")
+            ax.grid(True, alpha=0.3)
+            
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png', bbox_inches='tight')
+            buf.seek(0)
+            frames.append(Image.open(buf))
+            plt.close(fig)
+
+        if frames:
+            frames[0].save(
+                self.output_dir / filename,
                 save_all=True,
                 append_images=frames[1:],
                 optimize=True,
