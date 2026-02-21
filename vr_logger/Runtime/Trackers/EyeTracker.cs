@@ -1,6 +1,9 @@
 using UnityEngine;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
+#if USE_SRANIPAL
+using ViveSR.anipal.Eye;
+#endif
 
 namespace VRLogger
 {
@@ -40,9 +43,10 @@ namespace VRLogger
 
         private async void TrackEyes()
         {
+#if USE_SRANIPAL
             try
             {
-                // LÓGICA SRANIPAL REAL (Corregido namespace: ViveSR y clase: SRanipal_Eye)
+                // LÓGICA SRANIPAL REAL
                 ViveSR.anipal.Eye.VerboseData eyeData;
 
                 // GetVerboseData está en SRanipal_Eye (wrapper), no en API.
@@ -78,6 +82,11 @@ namespace VRLogger
             {
                 // Ignorar error si no hay Vive SR
             }
+#else
+            Debug.LogWarning("[EyeTracker] ⚠️ Intentando usar EyeTracking pero NO tienes el SDK SRanipal. Ve a Edit > Project Settings > Player y añade 'USE_SRANIPAL' en Scripting Define Symbols.");
+            this.enabled = false;
+            await System.Threading.Tasks.Task.Yield(); // Just to suppress async warning
+#endif
         }
     }
 }
