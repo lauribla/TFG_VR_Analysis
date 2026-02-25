@@ -41,17 +41,54 @@ namespace VRLogger
 
             if (InputWrapper.GetKeyDown(keyPause))
             {
+                Debug.Log($"[GMConsoleInput] ⌨️ Detectado KEY PAUSE vía Update: {keyPause}");
                 ParticipantFlowController.Instance.TogglePause();
             }
 
             if (InputWrapper.GetKeyDown(keyEnd))
             {
+                Debug.Log($"[GMConsoleInput] ⌨️ Detectado KEY END vía Update: {keyEnd}");
                 ParticipantFlowController.Instance.GM_EndTurn();
             }
 
             if (InputWrapper.GetKeyDown(keyNext))
             {
+                Debug.Log($"[GMConsoleInput] ⌨️ Detectado KEY NEXT vía Update: {keyNext}");
                 ParticipantFlowController.Instance.GM_NextParticipant();
+            }
+        }
+
+        // Método de seguridad: OnGUI puede capturar teclas a veces incluso cuando el sistema de Input
+        // principal las ignora (ej. problemas de foco en el editor o conflictos de InputSystem)
+        void OnGUI()
+        {
+            if (!enabledControls) return;
+            if (Event.current != null && Event.current.type == EventType.KeyDown)
+            {
+                KeyCode pressed = Event.current.keyCode;
+                if (pressed == KeyCode.None) return;
+
+                if (ParticipantFlowController.Instance != null && ParticipantFlowController.Instance.IsRunning())
+                {
+                    if (pressed == keyPause)
+                    {
+                        Debug.Log($"[GMConsoleInput] ⌨️ Detectado PAUSE vía OnGUI: {keyPause}");
+                        ParticipantFlowController.Instance.TogglePause();
+                        Event.current.Use();
+                    }
+                    else if (pressed == keyEnd)
+                    {
+                        Debug.Log($"[GMConsoleInput] ⌨️ Detectado END vía OnGUI: {keyEnd}");
+                        ParticipantFlowController.Instance.GM_EndTurn();
+                        Event.current.Use();
+                    }
+                    else if (pressed == keyNext)
+                    {
+                        Debug.Log($"[GMConsoleInput] ⌨️ Detectado NEXT vía OnGUI: {keyNext}");
+                        ParticipantFlowController.Instance.GM_NextParticipant();
+                        Event.current.Use();
+                    }
+                }
             }
         }
 
