@@ -35,8 +35,8 @@ namespace VRLogger
         {
             // Búsqueda dinámica para vive trackers (pies)
             string[] possibleNames = footName == "left" 
-                ? new[] { "Left Foot Tracker", "Tracker (Left Foot)", "LeftFoot", "Vive Tracker Left", "Tracker (Left)", "Left Tracker" } 
-                : new[] { "Right Foot Tracker", "Tracker (Right Foot)", "RightFoot", "Vive Tracker Right", "Tracker (Right)", "Right Tracker" };
+                ? new[] { "Left Foot Tracker", "Tracker (Left Foot)", "LeftFoot", "Vive Tracker Left", "Tracker (Left)", "Left Tracker", "Tracker_LeftFoot" } 
+                : new[] { "Right Foot Tracker", "Tracker (Right Foot)", "RightFoot", "Vive Tracker Right", "Tracker (Right)", "Right Tracker", "Tracker_RightFoot" };
 
             foreach (var n in possibleNames)
             {
