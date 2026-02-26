@@ -38,7 +38,7 @@ namespace VRLogger
         public bool UseMovementTracker = true;
         public bool UseHandTracker = false;
         public bool UseFootTracker = false;
-        public bool UseRaycastLogger = true;
+        [HideInInspector] public bool UseRaycastLogger = true;
         public bool UseCollisionLogger = true;
 
         [Header("GM Controls")]
