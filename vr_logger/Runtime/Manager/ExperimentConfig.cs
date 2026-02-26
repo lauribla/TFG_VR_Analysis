@@ -17,8 +17,8 @@ namespace VRLogger
         public string GroupName = "Grupo_A";
         public string IndependentVariable = "";
         public float TurnDurationSeconds = 60f;
-        public float PlayAreaWidth = 2.5f;
-        public float PlayAreaDepth = 2.5f;
+        [HideInInspector] public float PlayAreaWidth = 0f;
+        [HideInInspector] public float PlayAreaDepth = 0f;
 
         [Header("Participants")]
         public int ParticipantCount = 4;
@@ -533,6 +533,23 @@ namespace VRLogger
         public JObject GetConfig()
         {
             return jsonConfig;
+        }
+
+        /// <summary>
+        /// Called by VRTrackingManager at start to inject auto-calculated scene bounds.
+        /// Updates both the C# fields and the already-built JSON so Mongo receives the real values.
+        /// </summary>
+        public void SetPlayAreaBounds(float width, float depth)
+        {
+            PlayAreaWidth = width;
+            PlayAreaDepth = depth;
+
+            if (jsonConfig != null && jsonConfig["session"] is JObject session)
+            {
+                session["play_area_width"] = width;
+                session["play_area_depth"] = depth;
+                Debug.Log($"[ExperimentConfig] 📐 Play area bounds updated → W={width:F2} m, D={depth:F2} m");
+            }
         }
 
 #if UNITY_EDITOR

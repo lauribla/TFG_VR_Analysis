@@ -135,6 +135,10 @@ namespace VRLogger
             // 1️⃣ Inicializar conexión Mongo
             LoggerService.Init(connectionString, dbName, collectionName, userId);
 
+            // 1b️⃣ Calcular bounds de la escena e inyectarlos en el config ANTES de enviarlo
+            if (VRTrackingManager.Instance != null)
+                VRTrackingManager.Instance.CalculateAndInjectSceneBounds();
+
             // 2️⃣ Enviar CONFIG REAL (ahora sí está cargado y LoggerService está listo)
             ExperimentConfig.Instance.SendConfigAsLog();
 

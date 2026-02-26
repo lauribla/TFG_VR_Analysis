@@ -166,6 +166,30 @@ namespace VRLogger
             Debug.Log($"[VRTracking] Tracking ON → {userId} / {sessionId}");
         }
 
+        /// <summary>
+        /// Calculates the axis-aligned bounding box of all Renderers in the scene
+        /// and injects width (X) and depth (Z) into ExperimentConfig.
+        /// </summary>
+        public void CalculateAndInjectSceneBounds()
+        {
+            Renderer[] renderers = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+            if (renderers.Length == 0)
+            {
+                Debug.LogWarning("[VRTracking] ⚠️ No Renderers found in scene — play area bounds set to 0.");
+                return;
+            }
+
+            Bounds sceneBounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+                sceneBounds.Encapsulate(renderers[i].bounds);
+
+            float width = sceneBounds.size.x;
+            float depth = sceneBounds.size.z;
+
+            Debug.Log($"[VRTracking] 📐 Scene bounds: W={width:F2} m, D={depth:F2} m (center={sceneBounds.center})");
+            ExperimentConfig.Instance.SetPlayAreaBounds(width, depth);
+        }
+
         // Helper para buscar referencias automáticamente si no están asignadas
         private void TryFindReferences()
         {
