@@ -46,8 +46,9 @@ Se ha incluido una interfaz web en Python para facilitar el diseño del experime
 1. Arranca el configurador local: `streamlit run python_analysis/experiment_configurator.py`
 2. Accede en tu navegador a la IP local (normalmente `http://localhost:8501`).
 3. Rellena los módulos, crea tus métricas personalizadas e inscribe a tus participantes en la base de datos de MongoDB de forma amigable.
-4. Clica en **"Push Configuration to MongoDB"**.
-5. Ve a Unity, selecciona el objeto con el componente `ExperimentConfig`, pulsa en los 3 puntitos (⋮) arriba a la derecha del script y elige la opción **"Pull Config from Streamlit (MongoDB)"**. ¡Se auto-rellenará!
+4. **Cuestionarios:** Haz que el participante rellene el cuestionario de usabilidad SUS directamente en la nueva pestaña de la web tras la prueba física. Su puntuación se unirá a sus datos de telemetría VR automáticamente.
+5. Clica en **"Push Configuration to MongoDB"**.
+6. Ve a Unity, selecciona el objeto con el componente `ExperimentConfig`, pulsa en los 3 puntitos (⋮) arriba a la derecha del script y elige la opción **"Pull Config from Streamlit (MongoDB)"**. ¡Se auto-rellenará!
 
 **Opción B: Manual desde Unity (ScriptableObjects)**
 1. Usa el componente **`UserSessionManager`** en tu escena para definir la conexión a la Base de Datos:

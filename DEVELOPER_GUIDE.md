@@ -68,6 +68,7 @@ En el Perfil, busca la lista **"Custom Event Roles"**:
 Como alternativa a los *ScriptableObjects* en el propio Editor de Unity, los investigadores ahora pueden utilizar la **Aplicación Web** `python_analysis/experiment_configurator.py` escrita en Streamlit.
 * Permite crear la configuración desde cualquier navegador.
 * Contiene una pestaña nueva para gestionar una **Colección de Participantes** (`test/participants`) donde guardar nombres, edad y notas de experiencia VR.
+* Contiene una pestaña **Cuestionarios SUS**, donde el usuario puede evaluar su experiencia tras la prueba. Estos datos subjetivos se integran automáticamente en el análisis final (`test/questionnaires`).
 * Al presionar "Push to MongoDB" desde la web, envía un JSON a la base de datos.
 * **En Unity**: El componente `ExperimentConfig` ahora incluye un atajo (*Context Menu*) llamado **`Pull Config from Streamlit (MongoDB)`**. Al usarlo, descargará la última configuración validada que hiciste en la web y la sobrepondrá en el Inspector de Unity al instante para su ejecución.
 
