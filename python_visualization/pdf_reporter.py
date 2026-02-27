@@ -144,7 +144,7 @@ class PDFReport:
 
                 mean_scores = {}
                 for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score",
-                            "total_score"]:
+                            "total_score", "global_score", "sus_score"]:
                     if col in df.columns:
                         mean_scores[col] = round(df[col].mean(), 2)
 
@@ -180,7 +180,8 @@ class PDFReport:
                     ("Eficiencia", "eficiencia_score"),
                     ("Satisfacción", "satisfaccion_score"),
                     ("Presencia", "presencia_score"),
-                    ("Total Global", "global_score")
+                    ("Total Global", "global_score"),
+                    ("Cuestionario SUS (Subjetivo)", "sus_score")
                 ]
 
                 # Respaldo: intentar sin _score si no existe (retrocompatibilidad)
@@ -196,9 +197,15 @@ class PDFReport:
 
                 for label, key in score_keys:
                     if key in row and not pd.isna(row[key]):
-                        val = round(float(row[key]) * 100, 2) if key != "global_score" else round(float(row[key]) * 100,
-                                                                                                  2)
-                        data.append([label, f"{val}%"])
+                        if key == "sus_score":
+                            val = round(float(row[key]), 2)
+                            data.append([label, f"{val} / 100"])
+                        elif key != "global_score":
+                            val = round(float(row[key]) * 100, 2)
+                            data.append([label, f"{val}%"])
+                        else:
+                            val = round(float(row[key]) * 100, 2)
+                            data.append([label, f"{val}%"])
 
                 score_table = Table(data, hAlign="LEFT")
                 score_table.setStyle([

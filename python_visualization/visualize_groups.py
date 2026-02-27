@@ -34,7 +34,10 @@ class Visualizer:
             "presencia_score"
         ],
         "Global": [
-            "global_score", "total_score"
+            "global_score", "total_score", "sus_score"
+        ],
+        "Cuestionarios": [
+            "sus_score", "subj_efectividad", "subj_eficiencia", "subj_satisfaccion", "subj_presencia"
         ]
     }
 
@@ -56,6 +59,11 @@ class Visualizer:
             self.df = pd.read_csv(input_file)
         else:
             raise ValueError("Formato de archivo no soportado (usa .json o .csv)")
+
+        # Normalizar scores de 0-1 a 0-100 (para que guarden proporción con el SUS score en las gráficas)
+        for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "global_score", "total_score"]:
+            if col in self.df.columns:
+                self.df[col] = pd.to_numeric(self.df[col], errors="coerce") * 100
 
         # --- Detectar modo ---
         self.mode = self._detect_mode()
@@ -172,6 +180,8 @@ class Visualizer:
                     palette = "Oranges_d"
                 elif category == "Global":
                     palette = "Reds_d"
+                elif category == "Cuestionarios":
+                    palette = "YlOrBr_d"
 
                 # Intentar graficar
                 if self._plot_metric(
@@ -278,7 +288,7 @@ class Visualizer:
         grouped = self.df.groupby(iv_col)[numeric_cols].mean().reset_index()
 
         # Para cada score principal, generar un gráfico comparativo
-        main_scores = ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "global_score"]
+        main_scores = ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "global_score", "sus_score"]
 
         for score in main_scores:
             if score in grouped.columns:

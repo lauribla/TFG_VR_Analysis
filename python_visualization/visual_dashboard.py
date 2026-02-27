@@ -99,6 +99,12 @@ def main():
     if df.empty:
         st.warning("⚠️ No se pudieron cargar los datos.")
         return
+        
+    # Normalizar scores a 0-100 para comparar con el SUS equitativamente
+    for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "global_score", "total_score"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce") * 100
+
     st.success(f"✅ Datos cargados correctamente ({detected_mode.upper()})")
 
     # ============================================================
@@ -136,9 +142,9 @@ def main():
     # ============================================================
     # 🔹 Definir categorías de métricas (Dinámico)
     # ============================================================
-    known_categories = ["efectividad", "eficiencia", "satisfaccion", "presencia"]
+    known_categories = ["efectividad", "eficiencia", "satisfaccion", "presencia", "cuestionarios"]
     cat_cols = {
-        f"{'🟢' if c == 'efectividad' else '🟠' if c == 'eficiencia' else '🟣' if c == 'satisfaccion' else '🔵'} {c.capitalize()}": []
+        f"{'🟢' if c == 'efectividad' else '🟠' if c == 'eficiencia' else '🟣' if c == 'satisfaccion' else '🔵' if c == 'presencia' else '🟡'} {c.capitalize()}": []
         for c in known_categories}
 
     metric_to_cat = {
@@ -152,7 +158,10 @@ def main():
         "voluntary_play_time_s": "satisfaccion", "aid_usage": "satisfaccion", "interface_errors": "satisfaccion",
 
         "activity_level_per_min": "presencia", "first_success_time_s": "presencia", "inactivity_time_s": "presencia",
-        "sound_localization_time_s": "presencia", "audio_performance_gain": "presencia"
+        "sound_localization_time_s": "presencia", "audio_performance_gain": "presencia",
+        
+        "sus_score": "cuestionarios", "subj_efectividad": "cuestionarios", "subj_eficiencia": "cuestionarios",
+        "subj_satisfaccion": "cuestionarios", "subj_presencia": "cuestionarios"
     }
 
     # Rellenar con columnas presentes en DF
@@ -187,7 +196,7 @@ def main():
 
         # Calculate means for comparison
         numeric_cols = ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score",
-                        "global_score"]
+                        "global_score", "sus_score"]
         available_cols = [c for c in numeric_cols if c in df.columns]
 
         if available_cols and len(selected_vars) > 0:
@@ -258,6 +267,7 @@ def main():
         "presencia": "Presencia",
         "global_score": "Total Global",
         "total_score": "Total Global",
+        "sus_score": "SUS Score (Cuestionario)"
     }
 
     present = [c for c in score_candidates.keys() if c in df.columns]
