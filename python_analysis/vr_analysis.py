@@ -37,7 +37,14 @@ df_raw = parser.parse_logs(logs, expand_context=False)
 
 # df expandido → métricas
 df = parser.parse_logs(logs, expand_context=True)
-print(df.columns)
+
+# Buscar cuestionarios (SUS) antes de cerrar conexión
+quest_data = []
+try:
+    quests_col = parser.client[parser.db_name]["questionnaires"]
+    quest_data = list(quests_col.find({}))
+except Exception as e:
+    print(f"⚠️ Warning: Podría no haber cuestionarios. {e}")
 
 parser.close()
 
@@ -236,6 +243,24 @@ exporter.to_json("results.json")
 exporter.to_csv("results.csv")
 
 grouped_df = metrics.compute_grouped_metrics()
+
+# --- INTEGRATING SUBJECTIVE QUESTIONNAIRES ---
+print("📋 Integrando cuestionarios subjetivos (SUS)...")
+if quest_data and not grouped_df.empty:
+    df_q = pd.DataFrame(quest_data)
+    cols_to_keep = ["user_id", "sus_score", "subj_efectividad", "subj_eficiencia", "subj_satisfaccion", "subj_presencia"]
+    cols_to_keep = [c for c in cols_to_keep if c in df_q.columns]
+    
+    if len(cols_to_keep) > 1: # user_id + al menos otra columna
+        df_q = df_q[cols_to_keep]
+        # Quedarse con el último intento en caso de duplicados
+        df_q = df_q.drop_duplicates(subset=["user_id"], keep="last")
+        grouped_df = pd.merge(grouped_df, df_q, on="user_id", how="left")
+        print(f"✅ Se cruzaron datos subjetivos (SUS) correctamente.")
+else:
+    print("⚠️ No hay datos de cuestionarios para cruzar.")
+# ---------------------------------------------
+
 grouped_path = results_dir / "grouped_metrics.csv"
 grouped_df.to_csv(grouped_path, index=False)
 
