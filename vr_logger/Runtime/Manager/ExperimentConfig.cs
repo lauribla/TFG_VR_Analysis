@@ -2,6 +2,8 @@ using UnityEngine;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Linq;
+using MongoDB.Driver;
+using MongoDB.Bson;
 
 namespace VRLogger
 {
@@ -638,6 +640,128 @@ namespace VRLogger
             UnityEditor.EditorUtility.SetDirty(activeProfile);
             UnityEditor.AssetDatabase.SaveAssets();
             Debug.Log($"Saved values to profile: {activeProfile.name}");
+        }
+
+        [ContextMenu("Pull Config from Streamlit (MongoDB)")]
+        public async void PullConfigFromMongoDB()
+        {
+            var usm = FindFirstObjectByType<UserSessionManager>();
+            string uri = usm != null && !string.IsNullOrEmpty(usm.connectionString) ? usm.connectionString : "mongodb://localhost:27017";
+            string db = usm != null && !string.IsNullOrEmpty(usm.dbName) ? usm.dbName : "test";
+            string col = usm != null && !string.IsNullOrEmpty(usm.collectionName) ? usm.collectionName : "tfg";
+
+            Debug.Log($"[ExperimentConfig] Connecting to Mongo to pull config from: {uri} -> {db}.{col}");
+            
+            try
+            {
+                var client = new MongoClient(uri);
+                var database = client.GetDatabase(db);
+                var collection = database.GetCollection<BsonDocument>(col);
+
+                // Find the latest document where event_type == "config"
+                var filter = Builders<BsonDocument>.Filter.Eq("event_type", "config");
+                var sort = Builders<BsonDocument>.Sort.Descending("timestamp");
+                var latestConfigDoc = await collection.Find(filter).Sort(sort).FirstOrDefaultAsync();
+
+                if (latestConfigDoc == null)
+                {
+                    Debug.LogWarning("[ExperimentConfig] No configuration found in MongoDB.");
+#if UNITY_EDITOR
+                    UnityEditor.EditorUtility.DisplayDialog("Pull Config", "No configuration found in MongoDB.", "OK");
+#endif
+                    return;
+                }
+
+                if (!latestConfigDoc.Contains("event_context"))
+                {
+                    Debug.LogError("[ExperimentConfig] Latest config doc missing event_context.");
+                    return;
+                }
+                
+                // Read Bson to JSON string and parse
+                string jsonString = latestConfigDoc["event_context"].ToJson();
+                JObject cfg = JObject.Parse(jsonString);
+
+                // Apply to fields
+                SessionName = (string)cfg["session"]?["session_name"] ?? SessionName;
+                GroupName = (string)cfg["session"]?["group_name"] ?? GroupName;
+                IndependentVariable = (string)cfg["session"]?["independent_variable"] ?? IndependentVariable;
+                
+                if (cfg["session"]?["turn_duration_seconds"] != null)
+                    TurnDurationSeconds = (float)cfg["session"]["turn_duration_seconds"];
+
+                if (cfg["participants"]?["count"] != null)
+                    ParticipantCount = (int)cfg["participants"]["count"];
+                
+                if (cfg["participants"]?["order"] is JArray arr)
+                {
+                    ParticipantOrder = new List<string>();
+                    foreach (var token in arr) ParticipantOrder.Add(token.ToString());
+                }
+
+                string manualUser = (string)cfg["_ui"]?["manual_participant"];
+                if (manualUser != null) ManualParticipantName = manualUser;
+
+                ExperimentId = (string)cfg["experiment_selection"]?["experiment_id"] ?? ExperimentId;
+                FormulaProfile = (string)cfg["experiment_selection"]?["formula_profile"] ?? FormulaProfile;
+                Description = (string)cfg["experiment_selection"]?["description"] ?? Description;
+
+                if (cfg["modules"] != null)
+                {
+                    UseGazeTracker = (bool?)cfg["modules"]["useGazeTracker"] ?? UseGazeTracker;
+                    UseEyeTracker = (bool?)cfg["modules"]["useEyeTracker"] ?? UseEyeTracker;
+                    UseMovementTracker = (bool?)cfg["modules"]["useMovementTracker"] ?? UseMovementTracker;
+                    UseHandTracker = (bool?)cfg["modules"]["useHandTracker"] ?? UseHandTracker;
+                    UseFootTracker = (bool?)cfg["modules"]["useFootTracker"] ?? UseFootTracker;
+                    UseRaycastLogger = (bool?)cfg["modules"]["useRaycastLogger"] ?? UseRaycastLogger;
+                    UseCollisionLogger = (bool?)cfg["modules"]["useCollisionLogger"] ?? UseCollisionLogger;
+                }
+
+                if (cfg["participant_flow"] != null)
+                {
+                    string mode = (string)cfg["participant_flow"]["mode"];
+                    if (mode == "manual") FlowMode = FlowModeType.Manual;
+                    else FlowMode = FlowModeType.Turns;
+
+                    string end = (string)cfg["participant_flow"]["end_condition"];
+                    if (end == "gm") EndCondition = EndConditionType.GM;
+                    else EndCondition = EndConditionType.Timer;
+
+                    EnableGMControls = (bool?)cfg["participant_flow"]["gm_controls"]?["enabled"] ?? EnableGMControls;
+                }
+
+                // If metrics weights were changed, apply them:
+                if (cfg["metrics"]?["efectividad"]?["hit_ratio"]?["weight"] != null)
+                    Metrics.HitRatio.Weight = (float)cfg["metrics"]["efectividad"]["hit_ratio"]["weight"];
+
+                if (cfg["metrics"]?["efectividad"]?["success_rate"]?["weight"] != null)
+                    Metrics.SuccessRate.Weight = (float)cfg["metrics"]["efectividad"]["success_rate"]["weight"];
+
+                // Crucial step: if we have an activeProfile, unassign it so the Inspector fields take precedence.
+                // Or you could let them save it to the profile by clicking "Save To Profile" later.
+                if (activeProfile != null)
+                {
+                    Debug.LogWarning("[ExperimentConfig] An Active Profile was assigned. It has been unlinked so the downloaded values take precedence. If you want to overwrite your old profile, assign it back and click 'Save To Profile'.");
+                    activeProfile = null;
+                }
+
+                // Force Editor Refresh
+                UnityEditor.EditorUtility.SetDirty(this);
+                // Required to ensure the inspector actually repaints its values immediately
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+
+                Debug.Log("[ExperimentConfig] ✅ Successfully pulled and applied configuration from MongoDB!");
+#if UNITY_EDITOR
+                UnityEditor.EditorUtility.DisplayDialog("Pull Config", "Successfully pulled and applied configuration from MongoDB!", "OK");
+#endif
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[ExperimentConfig] ❌ Failed to pull config: {ex.Message}");
+#if UNITY_EDITOR
+                UnityEditor.EditorUtility.DisplayDialog("Error", $"Failed to pull config: {ex.Message}", "OK");
+#endif
+            }
         }
 #endif
     }

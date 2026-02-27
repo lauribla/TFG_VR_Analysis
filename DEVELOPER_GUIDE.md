@@ -64,6 +64,16 @@ En el Perfil, busca la lista **"Custom Event Roles"**:
 * `"globo_escapado"` -> `action_fail` (Cuenta para HitRatio)
 * `"tocar_pincho"` -> `navigation_error` (Cuenta para NavigationErrors)
 
+### 🌐 VR Logger Configurator (Manejo Vía Streamlit)
+Como alternativa a los *ScriptableObjects* en el propio Editor de Unity, los investigadores ahora pueden utilizar la **Aplicación Web** `python_analysis/experiment_configurator.py` escrita en Streamlit.
+* Permite crear la configuración desde cualquier navegador.
+* Contiene una pestaña nueva para gestionar una **Colección de Participantes** (`test/participants`) donde guardar nombres, edad y notas de experiencia VR.
+* Al presionar "Push to MongoDB" desde la web, envía un JSON a la base de datos.
+* **En Unity**: El componente `ExperimentConfig` ahora incluye un atajo (*Context Menu*) llamado **`Pull Config from Streamlit (MongoDB)`**. Al usarlo, descargará la última configuración validada que hiciste en la web y la sobrepondrá en el Inspector de Unity al instante para su ejecución.
+
+### 📐 Área de Juego Dinámica para Mapas de Calor
+El componente `VRTrackingManager` ahora se encarga de leer el área física de juego configurada en las gafas VR (Guardian/Chaperone) al arrancar el experimento (Runtime). 
+Automáticamente enviará esta información (`PlayAreaWidth` y `PlayAreaDepth`) al script `ExperimentConfig`. Por este motivo, estos campos ya no aparecen ocultos ni necesitan ser rellenados a mano por el experimentador. Los scripts de visualización en Python (`spatial_plotter.py` y el dashboard) usarán estas **medidas reales y dinámicas** para dibujar y centrar los mapas 2D de trayectorias (heatmap) de las manos o el usuario con las dimensiones exactas del mundo real.
 
 ---
 

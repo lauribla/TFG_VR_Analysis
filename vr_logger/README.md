@@ -4,10 +4,12 @@
 
 El **VR Logger** es un paquete para Unity que facilita la captura y análisis de comportamiento en VR.
 
-Novedades v2.0:
+Novedades v2.1:
 * **ExperimentConfig**: Configuración centralizada sin código (Inspector).
 * **ExperimentProfile**: Perfiles reutilizables (ScriptableObjects).
-* **Inspector Event Mapping**: Define tus eventos (ej: `bullet_hit` -> `Action_Success`) visualmente.
+* **Streamlit Configurator**: Crea configuraciones de experimentos en una UI web y descárgalas en Unity con 1 clic ("Pull Config from Streamlit (MongoDB)").
+* **Dynamic Play Area**: El tamaño del área de juego para los mapas de seguimiento espaciales se extrae **automáticamente** en tiempo de ejecución de las gafas de RV.
+* **Inspector Event Mapping**: Define tus eventos (ej: `bullet_hit` -> `action_success`) visualmente.
 * **Plugins Modulares**: Activa/desactiva Gaze, Movement, Hand, etc.
 
 ---

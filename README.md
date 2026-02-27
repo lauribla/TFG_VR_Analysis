@@ -9,6 +9,8 @@ Incluye:
 * **Base de datos MongoDB** (local o remota).
 * **Pipeline de análisis automático** en Python (Efectividad, Eficiencia, Satisfacción, Presencia).
 * **Informes PDF** y **dashboard interactivo**.
+* **Streamlit Configurator** para gestión visual de experimentos y participantes externos a Unity.
+* **Mapeo Espacial Dinámico** que lee el área del Guardian/Chaperone automáticamente.
 
 ---
 
@@ -35,14 +37,28 @@ Este comando instalará librerías clave como `pandas`, `pymongo`, `streamlit`, 
 
 ## 🚀 Flujo de Trabajo (Unity -> Mongo -> Python)
 
-### Paso 1: Configurar en Unity
+### Paso 1: Configurar en Unity / Streamlit
+
+Tienes dos opciones para diseñar la configuración de métricas, módulos y roles que el Tracker va a usar para analizar a tus usuarios:
+
+**Opción A: Desde Streamlit Configurator (Recomendado)**
+Se ha incluido una interfaz web en Python para facilitar el diseño del experimento y gestionar a los participantes de la prueba.
+1. Arranca el configurador local: `streamlit run python_analysis/experiment_configurator.py`
+2. Accede en tu navegador a la IP local (normalmente `http://localhost:8501`).
+3. Rellena los módulos, crea tus métricas personalizadas e inscribe a tus participantes en la base de datos de MongoDB de forma amigable.
+4. Clica en **"Push Configuration to MongoDB"**.
+5. Ve a Unity, selecciona el objeto con el componente `ExperimentConfig`, pulsa en los 3 puntitos (⋮) arriba a la derecha del script y elige la opción **"Pull Config from Streamlit (MongoDB)"**. ¡Se auto-rellenará!
+
+**Opción B: Manual desde Unity (ScriptableObjects)**
 1. Usa el componente **`UserSessionManager`** en tu escena para definir la conexión a la Base de Datos:
    * **Connection String**: `mongodb://localhost:27017`
    * **Database Name**: `vr_experiment_db`
    * **Collection Name**: `logs`
-2. Configura tu experimento con **`ExperimentConfig`** y un **`ExperimentProfile`**.
+2. Configura tu experimento creando un archivo **`ExperimentProfile`**. Asígnalo al inspector del script.
 
-*(Ver detalles completos en `vr_logger/README.md`)*
+> **💡 Novedad (Mapas Dinámicos):** El tamaño del área de juego (`PlayAreaWidth` y `PlayAreaDepth`) para los mapas de calor ya no necesita configurarse manualmente. Al darle al Play, `VRTrackingManager` detecta automáticamente los límites actuales del sistema (Guardian/Chaperone) y los envía a la base de datos y al log para crear las escalas de los radares con precisión.
+
+*(Ver detalles completos en `vr_logger/README.md` y en `DEVELOPER_GUIDE.md`)*
 
 ### Paso 2: Análisis Automático
 El script `python_analysis/vr_analysis.py` se conecta a MongoDB, descarga los nuevos logs y genera los informes.
