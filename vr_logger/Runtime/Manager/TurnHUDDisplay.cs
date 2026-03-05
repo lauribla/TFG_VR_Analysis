@@ -25,6 +25,12 @@ namespace VRLogger
         [Tooltip("Mostrar HUD cuando el modo es 'manual' / GM")]
         public bool showInGMMode = true;
 
+        [Header("Camera")]
+        [Tooltip("Arrastra aquí la cámara que debe seguir el HUD. Tiene prioridad sobre Camera Name.")]
+        public Camera cameraOverride;
+        [Tooltip("Nombre exacto del GameObject de la cámara (ej: 'Main Camera', 'CenterEyeAnchor'). Se usa si Camera Override está vacío.")]
+        public string cameraName = "";
+
         [Header("Position")]
         [Tooltip("Distancia frente a la cámara (metros). Recomendado: 1.5-2.5 en VR")]
         public float distanceFromCamera = 2.0f;
@@ -56,9 +62,8 @@ namespace VRLogger
         // ──────────────────────────────────────────────────────────────────
         void Start()
         {
-            _cam = Camera.main;
-            if (_cam == null)
-                _cam = FindFirstObjectByType<Camera>();
+            // Use override if assigned, otherwise try to find automatically
+            _cam = ResolveCamera();
 
             BuildUI();
         }
@@ -67,8 +72,29 @@ namespace VRLogger
         {
             if (!_uiBuilt) return;
 
+            // If camera still not found (spawned dynamically), keep retrying
+            if (_cam == null)
+            {
+                _cam = ResolveCamera();
+                if (_cam == null) return; // still not ready, wait next frame
+            }
+
             UpdatePosition();
             UpdateContent();
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Camera Resolution: override → name → MainCamera tag → any camera
+        // ──────────────────────────────────────────────────────────────────
+        private Camera ResolveCamera()
+        {
+            if (cameraOverride != null) return cameraOverride;
+            if (!string.IsNullOrEmpty(cameraName))
+            {
+                GameObject go = GameObject.Find(cameraName);
+                if (go != null) return go.GetComponent<Camera>();
+            }
+            return Camera.main ?? FindFirstObjectByType<Camera>();
         }
 
         // ──────────────────────────────────────────────────────────────────
