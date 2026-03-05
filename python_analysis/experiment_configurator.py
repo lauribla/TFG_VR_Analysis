@@ -378,7 +378,7 @@ with tabs[0]:
             try:
                 # Construir el Documento a la manera de LoggerService.cs
                 log_doc = {
-                    "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+                    "timestamp": datetime.utcnow(),
                     "user_id": manual_user if manual_user else "WEB_CONFIG",
                     "event_type": "config",
                     "event_name": "experiment_config",
