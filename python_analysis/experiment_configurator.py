@@ -18,28 +18,35 @@ load_dotenv()
 def get_db_client(mongo_uri):
     return MongoClient(mongo_uri)
 
-def load_profiles_from_disk(directory="python_analysis/profiles"):
-    os.makedirs(directory, exist_ok=True)
+def load_profiles_from_db(collection):
     profiles = {}
-    for filename in os.listdir(directory):
-        if filename.endswith(".json"):
-            with open(os.path.join(directory, filename), 'r', encoding='utf-8') as f:
-                try:
-                    data = json.load(f)
-                    profiles[filename] = data
-                except Exception as e:
-                    st.error(f"Error loading {filename}: {e}")
+    if collection is None:
+        return profiles
+    try:
+        cursor = collection.find({})
+        for doc in cursor:
+            name = doc.get("profile_name")
+            data = doc.get("profile_data")
+            if name and data:
+                profiles[name] = data
+    except Exception as e:
+        st.error(f"Error cargando perfiles: {e}")
     return profiles
 
-def save_profile_to_disk(profile_name, data, directory="python_analysis/profiles"):
-    os.makedirs(directory, exist_ok=True)
-    safe_name = profile_name.replace(" ", "_").lower()
-    if not safe_name.endswith(".json"):
-        safe_name += ".json"
-    path = os.path.join(directory, safe_name)
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4)
-    return path
+def save_profile_to_db(collection, profile_name, data):
+    if collection is None:
+        st.error("No hay conexión a la colección de perfiles")
+        return False
+    try:
+        collection.update_one(
+            {"profile_name": profile_name},
+            {"$set": {"profile_name": profile_name, "profile_data": data, "updated_at": datetime.now(timezone.utc)}},
+            upsert=True
+        )
+        return True
+    except Exception as e:
+        st.error(f"Error guardando perfil: {e}")
+        return False
 
 # --- Interfaz Principal ---
 st.title("VR Logger & Experiment Configurator")
@@ -66,10 +73,13 @@ except Exception as e:
     st.sidebar.error(f"Error de conexión: {e}")
 
 quests_col_name = st.sidebar.text_input("Questionnaires Collection", value="questionnaires")
+profiles_col_name = st.sidebar.text_input("Profiles Collection", value="profiles")
 try:
     quests_col = db[quests_col_name]
+    profiles_col = db[profiles_col_name]
 except Exception:
-    pass
+    quests_col = None
+    profiles_col = None
 
 tabs = st.tabs(["⚙️ Experimento: Config", "👥 Participantes", "📝 Cuestionarios"])
 
@@ -88,7 +98,7 @@ with tabs[0]:
     st.header("Configuración del Experimento (Experiment Profile)")
     
     # Profile Management
-    profiles = load_profiles_from_disk()
+    profiles = load_profiles_from_db(profiles_col)
     col1, col2 = st.columns([3, 1])
     with col1:
         selected_profile_name = st.selectbox("Cargar Perfil Guardado", ["-- Nuevo --"] + list(profiles.keys()))
@@ -365,11 +375,11 @@ with tabs[0]:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("💾 Guardar Perfil Localmente")
+        st.subheader("💾 Guardar Perfil en MongoDB")
         save_name = st.text_input("Profile Name", value=session_name)
-        if st.button("Guardar Perfil (JSON)"):
-            path = save_profile_to_disk(save_name, final_config_json)
-            st.success(f"Perfil guardado en {path}")
+        if st.button("Guardar Perfil"):
+            if save_profile_to_db(profiles_col, save_name, final_config_json):
+                st.success(f"Perfil '{save_name}' guardado en MongoDB.")
             
     with col2:
         st.subheader("🚀 Comenzar Experimento (Enviar DB)")
