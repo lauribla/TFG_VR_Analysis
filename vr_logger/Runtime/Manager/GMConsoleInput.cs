@@ -12,6 +12,20 @@ namespace VRLogger
         private KeyCode keyEnd = KeyCode.E;
         private KeyCode keyPause = KeyCode.P;
 
+        // Prevention for double input triggers (Update vs OnGUI)
+        private float lastInputTime = 0f;
+        private const float INPUT_COOLDOWN = 0.5f;
+
+        private bool AttemptAction()
+        {
+            if (Time.unscaledTime - lastInputTime >= INPUT_COOLDOWN)
+            {
+                lastInputTime = Time.unscaledTime;
+                return true;
+            }
+            return false;
+        }
+
         void Start()
         {
             JObject cfg = ExperimentConfig.Instance.GetConfig();
@@ -39,19 +53,19 @@ namespace VRLogger
             if (ParticipantFlowController.Instance == null) return;
             if (!ParticipantFlowController.Instance.IsRunning()) return;
 
-            if (InputWrapper.GetKeyDown(keyPause))
+            if (InputWrapper.GetKeyDown(keyPause) && AttemptAction())
             {
                 Debug.Log($"[GMConsoleInput] ⌨️ Detectado KEY PAUSE vía Update: {keyPause}");
                 ParticipantFlowController.Instance.TogglePause();
             }
 
-            if (InputWrapper.GetKeyDown(keyEnd))
+            if (InputWrapper.GetKeyDown(keyEnd) && AttemptAction())
             {
                 Debug.Log($"[GMConsoleInput] ⌨️ Detectado KEY END vía Update: {keyEnd}");
                 ParticipantFlowController.Instance.GM_EndTurn();
             }
 
-            if (InputWrapper.GetKeyDown(keyNext))
+            if (InputWrapper.GetKeyDown(keyNext) && AttemptAction())
             {
                 Debug.Log($"[GMConsoleInput] ⌨️ Detectado KEY NEXT vía Update: {keyNext}");
                 ParticipantFlowController.Instance.GM_NextParticipant();
@@ -70,19 +84,19 @@ namespace VRLogger
 
                 if (ParticipantFlowController.Instance != null && ParticipantFlowController.Instance.IsRunning())
                 {
-                    if (pressed == keyPause)
+                    if (pressed == keyPause && AttemptAction())
                     {
                         Debug.Log($"[GMConsoleInput] ⌨️ Detectado PAUSE vía OnGUI: {keyPause}");
                         ParticipantFlowController.Instance.TogglePause();
                         Event.current.Use();
                     }
-                    else if (pressed == keyEnd)
+                    else if (pressed == keyEnd && AttemptAction())
                     {
                         Debug.Log($"[GMConsoleInput] ⌨️ Detectado END vía OnGUI: {keyEnd}");
                         ParticipantFlowController.Instance.GM_EndTurn();
                         Event.current.Use();
                     }
-                    else if (pressed == keyNext)
+                    else if (pressed == keyNext && AttemptAction())
                     {
                         Debug.Log($"[GMConsoleInput] ⌨️ Detectado NEXT vía OnGUI: {keyNext}");
                         ParticipantFlowController.Instance.GM_NextParticipant();
