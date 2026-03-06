@@ -154,6 +154,9 @@ else:
     print("⚠️  No existe configuración en los logs y no se forzó local.\n")
 
 
+# Eliminar los eventos de configuración web puros para que no cuenten como un participante fantasma
+df = df[df["user_id"] != "WEB_CONFIG"]
+
 # ============================================================
 # 3️⃣ Resumen de sesiones y usuarios
 # ============================================================
@@ -248,15 +251,34 @@ grouped_df = metrics.compute_grouped_metrics()
 print("📋 Integrando cuestionarios subjetivos (SUS)...")
 if quest_data and not grouped_df.empty:
     df_q = pd.DataFrame(quest_data)
-    cols_to_keep = ["user_id", "sus_score", "subj_efectividad", "subj_eficiencia", "subj_satisfaccion", "subj_presencia"]
+    cols_to_keep = ["user_id", "sus_score", "subj_efectividad", "subj_eficiencia", "subj_satisfaccion", "subj_presencia", "presence_score", "satisfaction_score"]
     cols_to_keep = [c for c in cols_to_keep if c in df_q.columns]
     
     if len(cols_to_keep) > 1: # user_id + al menos otra columna
         df_q = df_q[cols_to_keep]
         # Quedarse con el último intento en caso de duplicados
         df_q = df_q.drop_duplicates(subset=["user_id"], keep="last")
-        grouped_df = pd.merge(grouped_df, df_q, on="user_id", how="left")
-        print(f"✅ Se cruzaron datos subjetivos (SUS) correctamente.")
+        
+        # Match robusto por si Unity incluye el formato "Grupo_Usuario" y la BD tiene "Usuario" o viceversa
+        for col in cols_to_keep:
+            if col != "user_id" and col not in grouped_df.columns:
+                grouped_df[col] = pd.NA
+                
+        for i, log_row in grouped_df.iterrows():
+            log_uid = str(log_row["user_id"])
+            match = None
+            for _, q_row in df_q.iterrows():
+                q_uid = str(q_row["user_id"])
+                if q_uid in log_uid or log_uid in q_uid:
+                    match = q_row
+                    break
+                    
+            if match is not None:
+                for col in cols_to_keep:
+                    if col != "user_id":
+                        grouped_df.at[i, col] = match[col]
+                        
+        print(f"✅ Se cruzaron datos subjetivos (SUS y nuevos) con coincidencia flexible.")
 else:
     print("⚠️ No hay datos de cuestionarios para cruzar.")
 # ---------------------------------------------

@@ -181,7 +181,9 @@ class PDFReport:
                     ("Satisfacción", "satisfaccion_score"),
                     ("Presencia", "presencia_score"),
                     ("Total Global", "global_score"),
-                    ("Cuestionario SUS (Subjetivo)", "sus_score")
+                    ("Cuestionario SUS (Subjetivo)", "sus_score"),
+                    ("Cuestionario Presencia (Subjetivo)", "presence_score"),
+                    ("Cuestionario Satisfacción (Subjetivo)", "satisfaction_score")
                 ]
 
                 # Respaldo: intentar sin _score si no existe (retrocompatibilidad)
@@ -197,7 +199,7 @@ class PDFReport:
 
                 for label, key in score_keys:
                     if key in row and not pd.isna(row[key]):
-                        if key == "sus_score":
+                        if key in ["sus_score", "presence_score", "satisfaction_score"]:
                             val = round(float(row[key]), 2)
                             data.append([label, f"{val} / 100"])
                         elif key != "global_score":

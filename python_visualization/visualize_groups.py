@@ -37,7 +37,8 @@ class Visualizer:
             "global_score", "total_score", "sus_score"
         ],
         "Cuestionarios": [
-            "sus_score", "subj_efectividad", "subj_eficiencia", "subj_satisfaccion", "subj_presencia"
+            "sus_score", "subj_efectividad", "subj_eficiencia", "subj_satisfaccion", "subj_presencia",
+            "presence_score", "satisfaction_score"
         ]
     }
 

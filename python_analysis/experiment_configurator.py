@@ -515,40 +515,122 @@ with tabs[2]:
                     sus_answers.append(ans)
                     
                 st.divider()
-                st.subheader("Valoración Específica del Experimento")
-                st.markdown("Valora tu percepción sobre los siguientes aspectos de 1 (Muy baja) a 5 (Muy alta):")
+                st.subheader("Presence Questionnaire (Witmer & Singer)")
+                st.markdown("Valora tu percepción sobre los siguientes aspectos de 1 (Muy baja) a 7 (Muy alta):")
                 
-                colE1, colE2 = st.columns(2)
-                sub_efectividad = colE1.slider("🎯 Efectividad (¿Lograste tus metas de forma precisa?)", 1, 5, 3)
-                sub_eficiencia = colE2.slider("⚡ Eficiencia (¿El esfuerzo y tiempo requerido fue adecuado?)", 1, 5, 3)
-                sub_satisfaccion = colE1.slider("😊 Satisfacción (¿Disfrutaste la experiencia?)", 1, 5, 3)
-                sub_presencia = colE2.slider("🌍 Presencia (¿Te sentiste inmerso en el entorno virtual?)", 1, 5, 3)
+                presence_qs = [
+                    # Interacción con el entorno
+                    "How much were you able to control events?",
+                    "How responsive was the environment to actions that you initiated (or performed)?",
+                    "How natural did your interactions with the environment seem?",
+                    "How natural was the mechanism which controlled movement through the environment?",
+                    # Inmersión y realismo
+                    "How much did the visual aspects of the environment involve you?",
+                    "How compelling was your sense of objects moving through space?",
+                    "How much did your experiences in the virtual environment seem consistent with your real-world experiences?",
+                    "How compelling was your sense of moving around inside the virtual environment?",
+                    "How involved were you in the virtual environment experience?",
+                    # Predicción y comprensión del entorno
+                    "Were you able to anticipate what would happen next in response to the actions that you performed?",
+                    # Exploración del entorno
+                    "How completely were you able to actively survey or search the environment using vision?",
+                    "How closely were you able to examine objects?",
+                    "How well could you examine objects from multiple viewpoints?",
+                    # Rendimiento y adaptación
+                    "How quickly did you adjust to the virtual environment experience?",
+                    "How proficient in moving and interacting with the virtual environment did you feel at the end of the experience?",
+                    # Calidad de la interfaz (Invertidas en concepto, pero aquí se asumen escala 1-7 donde 7 es mejor/más concentrado, si son negativas al revés)
+                    "How much delay did you experience between your actions and expected outcomes?", # INVERTIR (1=Mucho, 7=Poco) o dejar estándar
+                    "How much did the visual display quality interfere or distract you from performing assigned tasks or required activities?",
+                    "How much did the control devices interfere with the performance of assigned tasks or with other activities?",
+                    "How well could you concentrate on the assigned tasks or required activities rather than on the mechanisms used to perform those tasks or activities?",
+                    # Audio
+                    "How much did the auditory aspects of the environment involve you?",
+                    "How well could you identify sounds?",
+                    "How well could you localize sounds?",
+                    # Háptico
+                    "How well could you actively survey or search the virtual environment using touch?",
+                    "How well could you move or manipulate objects in the virtual environment?"
+                ]
+
+                # List of indices for questions that should be visually inverted (e.g., 1 is bad, 7 is good)
+                # For delay and interference, 1=much delay/interference, 7=no delay/interference
+                presence_answers = []
+                for i, q in enumerate(presence_qs):
+                    ans = st.radio(f"{i+1}. {q}", [1, 2, 3, 4, 5, 6, 7], index=3, horizontal=True)
+                    presence_answers.append(ans)
+
+                st.divider()
+                st.subheader("Satisfaction Questionnaire")
+                st.markdown("Valora tu percepción sobre los siguientes aspectos de 1 (Muy en desacuerdo) a 7 (Muy de acuerdo):")
                 
-                submit_q = st.form_submit_button("Guardar y Enviar", type="primary")
+                satisfaction_qs = [
+                    "Finding the targets to be shot was easy.",
+                    "The solution provided to control my point of view was satisfactory.",
+                    "The solution provided to aim the gun was satisfactory.",
+                    "The solution provided to shoot the gun was satisfactory.",
+                    "I would imagine that most people would learn to use this game very quickly.",
+                    "I felt very confident using the game.",
+                    "I enjoyed playing the game.",
+                    "I think that I would like to play this game frequently."
+                ]
+
+                satisfaction_answers = []
+                for i, q in enumerate(satisfaction_qs):
+                    ans = st.radio(f"S{i+1}. {q}", [1, 2, 3, 4, 5, 6, 7], index=3, horizontal=True)
+                    satisfaction_answers.append(ans)
+                    
+                submit_q = st.form_submit_button("Guardar Todos los Cuestionarios", type="primary")
                 
                 if submit_q:
-                    sum_score = 0
+                    # Calc SUS (0-100)
+                    sum_score_sus = 0
                     for i, val in enumerate(sus_answers):
                         if (i + 1) % 2 != 0: # Impar
-                            sum_score += (val - 1)
+                            sum_score_sus += (val - 1)
                         else: # Par
-                            sum_score += (5 - val)
-                    sus_final = sum_score * 2.5
+                            sum_score_sus += (5 - val)
+                    sus_final = sum_score_sus * 2.5
                     
+                    # Calc Presence (0-100)
+                    # For a 7 point scale, min score is N*1, max is N*7
+                    # Formula: ((Sum - N) / (N*6)) * 100
+                    # Note: We need to invert the 3 interference/delay questions (indices 16, 17, 18) 
+                    # If user puts 7 (Very much delay), we want it to count as 1 (Bad score).
+                    inverted_indices = [16, 17, 18]
+                    presence_adjusted = []
+                    for i, val in enumerate(presence_answers):
+                        if i in inverted_indices:
+                            presence_adjusted.append(8 - val) # 7 becomes 1, 1 becomes 7
+                        else:
+                            presence_adjusted.append(val)
+                            
+                    presence_sum = sum(presence_adjusted)
+                    presence_n = len(presence_qs)
+                    presence_final = ((presence_sum - presence_n) / (presence_n * 6)) * 100
+
+                    # Calc Satisfaction (0-100)
+                    satisfaction_sum = sum(satisfaction_answers)
+                    satisfaction_n = len(satisfaction_qs)
+                    satisfaction_final = ((satisfaction_sum - satisfaction_n) / (satisfaction_n * 6)) * 100
+
                     q_doc = {
                         "user_id": selected_q_user,
                         "sus_score": sus_final,
                         "sus_answers": sus_answers,
-                        "subj_efectividad": sub_efectividad,
-                        "subj_eficiencia": sub_eficiencia,
-                        "subj_satisfaccion": sub_satisfaccion,
-                        "subj_presencia": sub_presencia,
+                        "presence_score": presence_final,
+                        "presence_answers": presence_answers, # Guardamos raw
+                        "satisfaction_score": satisfaction_final,
+                        "satisfaction_answers": satisfaction_answers,
                         "timestamp": datetime.now(timezone.utc)
                     }
                     
                     try:
-                        quests_col.update_one({"user_id": selected_q_user}, {"$set": q_doc}, upsert=True)
-                        st.success(f"¡Cuestionario guardado con éxito! Puntuación SUS final: {sus_final}/100")
+                        if quests_col is not None:
+                            quests_col.update_one({"user_id": selected_q_user}, {"$set": q_doc}, upsert=True)
+                            st.success(f"¡Cuestionario guardado con éxito!\n- SUS: {sus_final:.1f}/100\n- Presencia: {presence_final:.1f}/100\n- Satisfacción: {satisfaction_final:.1f}/100")
+                        else:
+                            st.error("Error: No hay conexión a la colección de cuestionarios.")
                     except Exception as e:
                         st.error(f"Error al guardar: {e}")
 

@@ -161,7 +161,8 @@ def main():
         "sound_localization_time_s": "presencia", "audio_performance_gain": "presencia",
         
         "sus_score": "cuestionarios", "subj_efectividad": "cuestionarios", "subj_eficiencia": "cuestionarios",
-        "subj_satisfaccion": "cuestionarios", "subj_presencia": "cuestionarios"
+        "subj_satisfaccion": "cuestionarios", "subj_presencia": "cuestionarios",
+        "presence_score": "cuestionarios", "satisfaction_score": "cuestionarios"
     }
 
     # Rellenar con columnas presentes en DF
