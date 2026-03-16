@@ -21,10 +21,41 @@ class SpatialVisualizer:
         self.play_area_depth = play_area_depth
 
     def _draw_play_area(self, ax=None):
+        ax = ax or plt.gca()
+        import matplotlib.patches as patches
+        import numpy as np
+        
+        # 1. Intentar usar los marcadores de entorno (EnvironmentBoundsMarker)
+        markers = self.df[self.df["event_name"] == "ENVIRONMENT_BOUNDARY_MARKER"]
+        if not markers.empty:
+            points = []
+            for val in markers["event_value"]:
+                if isinstance(val, str):
+                    import json
+                    try:
+                        # Reemplazar comillas simples de python dict strings si existen
+                        val = json.loads(val.replace("'", '"')) 
+                    except:
+                        pass
+                if isinstance(val, dict) and "marker_x" in val and "marker_z" in val:
+                    points.append([float(val["marker_x"]), float(val["marker_z"])])
+            
+            # Necesitamos al menos 3 puntos para hacer un polígono convexo visible y que el hull no falle
+            if len(points) >= 3:
+                from scipy.spatial import ConvexHull
+                pts = np.array(points)
+                try:
+                    hull = ConvexHull(pts)
+                    hull_points = pts[hull.vertices]
+                    poly = patches.Polygon(hull_points, closed=True, linewidth=2, edgecolor='red', facecolor='none', linestyle='--', label="Límites Reales (Markers)", zorder=4)
+                    ax.add_patch(poly)
+                    return # Si dibujó el polígono con éxito, salir
+                except Exception as e:
+                    print(f"[SpatialVisualizer] Aviso: Error calculando ConvexHull para marcadores: {e}")
+
+        # 2. Fallback al rectángulo clásico (si width y depth existen y > 0)
         if self.play_area_width is not None and self.play_area_depth is not None:
             if self.play_area_width > 0 and self.play_area_depth > 0:
-                ax = ax or plt.gca()
-                import matplotlib.patches as patches
                 w = self.play_area_width
                 d = self.play_area_depth
                 # Centro en 0,0, así que la esquina inferior izq es -w/2, -d/2

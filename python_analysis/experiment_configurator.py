@@ -73,7 +73,7 @@ except Exception as e:
     st.sidebar.error(f"Error de conexión: {e}")
 
 quests_col_name = st.sidebar.text_input("Questionnaires Collection", value="questionnaires")
-profiles_col_name = st.sidebar.text_input("Profiles Collection", value="profiles")
+profiles_col_name = st.sidebar.text_input("Diseños del experimento", value="profiles")
 try:
     quests_col = db[quests_col_name]
     profiles_col = db[profiles_col_name]
