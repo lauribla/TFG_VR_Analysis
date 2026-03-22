@@ -95,15 +95,15 @@ except Exception:
 # TAB 1: EXPERIMENT CONFIGURATION
 # -------------------------------------------------------------
 with tabs[0]:
-    st.header("Configuración del Experimento (Experiment Profile)")
+    st.header("Diseño del Experimento")
     
     # Profile Management
     profiles = load_profiles_from_db(profiles_col)
     col1, col2 = st.columns([3, 1])
     with col1:
-        selected_profile_name = st.selectbox("Cargar Perfil Guardado", ["-- Nuevo --"] + list(profiles.keys()))
+        selected_profile_name = st.selectbox("Cargar Diseño Guardado", ["-- Nuevo --"] + list(profiles.keys()))
     with col2:
-        if st.button("↻ Refrescar Perfiles", use_container_width=True):
+        if st.button("↻ Refrescar Diseños", use_container_width=True):
             st.rerun()
 
     # Pre-cargar datos del perfil seleccionado
@@ -376,7 +376,7 @@ with tabs[0]:
     
     with col1:
         st.subheader("💾 Guardar Perfil en MongoDB")
-        save_name = st.text_input("Profile Name", value=session_name)
+        save_name = st.text_input("Nombre del Diseño", value=session_name)
         if st.button("Guardar Perfil"):
             if save_profile_to_db(profiles_col, save_name, final_config_json):
                 st.success(f"Perfil '{save_name}' guardado en MongoDB.")
