@@ -38,8 +38,8 @@ namespace VRLogger.Components
 
             LoggerService.LogEvent(
                 eventType: "metrics_reactions",
-                eventName: "TARGET_SPAWNED",
-                eventValue: new { targetId = this.targetId },
+                eventName: "task_start",
+                eventValue: new { taskId = this.targetId, targetId = this.targetId },
                 eventContext: null
             );
         }
@@ -65,15 +65,12 @@ namespace VRLogger.Components
             hasLoggedDeath = true;
             float reactionTimeMs = (Time.time - spawnedStateTime) * 1000f;
 
+            string resultStr = reasonStr == "Destroyed" ? "success" : "abandoned";
             LoggerService.LogEvent(
                 eventType: "metrics_reactions",
-                eventName: "TARGET_NEUTRALIZED",
-                eventValue: new { 
-                    targetId = this.targetId, 
-                    reactionTime_ms = reactionTimeMs,
-                    reason = reasonStr
-                },
-                eventContext: null
+                eventName: "task_end",
+                eventValue: resultStr, // "success" o "abandoned" puro
+                eventContext: new { targetId = this.targetId, reactionTime_ms = reactionTimeMs, reason = reasonStr }
             );
         }
     }

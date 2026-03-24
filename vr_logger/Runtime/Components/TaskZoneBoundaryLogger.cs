@@ -56,7 +56,7 @@ namespace VRLogger.Components
 
                 LoggerService.LogEvent(
                     eventType: "metrics",
-                    eventName: "TASK_ATTEMPT_START",
+                    eventName: "task_start",
                     eventValue: new { taskId = this.taskId, triggerEntity = other.name },
                     eventContext: null
                 );
@@ -70,7 +70,7 @@ namespace VRLogger.Components
             // El jugador salió voluntariamente de la zona de intento inicial.
             if (failOnExit)
             {
-                EndTask("Aborted/Fail");
+                EndTask("abandoned");
             }
         }
 
@@ -82,7 +82,7 @@ namespace VRLogger.Components
                 // Un chequeo de contención de bounds sirve bien para wrappers automáticos sin requerir scripts en la meta
                 if (successExitZone.bounds.Intersects(expectedPlayerCollider.bounds))
                 {
-                    EndTask("Success");
+                    EndTask("success");
                 }
             }
         }
@@ -94,13 +94,9 @@ namespace VRLogger.Components
 
             LoggerService.LogEvent(
                 eventType: "metrics",
-                eventName: "TASK_ATTEMPT_END",
-                eventValue: new { 
-                    taskId = this.taskId, 
-                    result = result, 
-                    duration_ms = durationMs 
-                },
-                eventContext: null
+                eventName: "task_end",
+                eventValue: result.ToLower(), // "success" o "abandoned" en formato string puro para el script original Python
+                eventContext: new { taskId = this.taskId, duration_ms = durationMs } // Mandamos el extra context_data aquí para no perderlo
             );
 
             // Reseteamos por si quiere volver a intentarlo reentrando

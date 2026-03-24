@@ -71,9 +71,11 @@ namespace VRLogger.Components
 
         private void OnUIActionInvoked()
         {
+            string eventNameToLog = isErrorContext ? "ui_error" : "UI_INTERACTION";
+
             LoggerService.LogEvent(
                 eventType: "metrics_ui",
-                eventName: "UI_INTERACTION",
+                eventName: eventNameToLog,
                 eventValue: new { 
                     actionId = this.actionId, 
                     isError = this.isErrorContext,

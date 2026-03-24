@@ -45,7 +45,7 @@ namespace VRLogger.Components
                 {
                     LoggerService.LogEvent(
                         eventType: "metrics",
-                        eventName: "AID_CONSUMED",
+                        eventName: "help_event",
                         eventValue: new { 
                             aidId = this.aidId, 
                             timeObserved_ms = totalHoverTimeMs 

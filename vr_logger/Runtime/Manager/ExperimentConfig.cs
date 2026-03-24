@@ -414,6 +414,7 @@ namespace VRLogger
                 { "controller_error", "interface_error" },
                 { "wrong_button", "interface_error" },
                 { "ui_interaction", "interface_action" },
+                { "ui_error", "interface_error" },
                 { "menu_opened", "interface_action" },
                 { "menu_closed", "interface_action" },
                 { "help_requested", "help_event" },

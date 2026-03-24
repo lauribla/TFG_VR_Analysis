@@ -13,6 +13,12 @@ namespace VRLogger.Components
     {
         private void Start()
         {
+            // Pequeño retraso para asegurar que UserSessionManager y LoggerService están completamente conectados a Mongo
+            Invoke(nameof(LogMarkerData), 2.5f);
+        }
+
+        private void LogMarkerData()
+        {
             LoggerService.LogEvent(
                 eventType: "config",
                 eventName: "ENVIRONMENT_BOUNDARY_MARKER",

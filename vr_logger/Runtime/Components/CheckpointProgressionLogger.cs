@@ -56,7 +56,7 @@ namespace VRLogger.Components
 
                 LoggerService.LogEvent(
                     eventType: "metrics_progression",
-                    eventName: "CHECKPOINT_REACHED",
+                    eventName: "goal_reached",
                     eventValue: new { 
                         checkpointName = this.checkpointName, 
                         progressPercent = this.progressValue,

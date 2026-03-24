@@ -11,7 +11,7 @@ namespace VRLogger.Components
     public class NavigationErrorColliderLogger : MonoBehaviour
     {
         [Header("Configuración del Error de Navegación")]
-        [Tooltip("Identificador lógico de la infracción: "Muro_Atravesado", "Mesa_Prohibida", etc.")]
+        [Tooltip("Identificador lógico de la infracción: \"Muro_Atravesado\", \"Mesa_Prohibida\", etc.")]
         public string penaltyId;
 
         [Tooltip("Máscaras de colisiones que triggeran este error. Normalmente será la capa en la que estén los obstáculos de este tipo.")]
@@ -45,7 +45,7 @@ namespace VRLogger.Components
                     lastPenalizationTime = Time.time;
                     LoggerService.LogEvent(
                         eventType: "metrics_errors",
-                        eventName: "NAVIGATION_PENALTY",
+                        eventName: "navigation_error",
                         eventValue: new { 
                             penaltyId = string.IsNullOrEmpty(this.penaltyId) ? hitObject.name : this.penaltyId, 
                             colliderType = "Physical_Impact",

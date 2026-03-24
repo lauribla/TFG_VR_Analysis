@@ -154,8 +154,9 @@ namespace VRLogger.Components
 
             LoggerService.LogEvent(
                 eventType: "metrics_activity",
-                eventName: "INACTIVE_PERIOD_START",
+                eventName: "inactivity_event",
                 eventValue: new { 
+                    phase = "start",
                     trackerName = targetTracker.name,
                     threshold_s = inactivityThreshold_s
                 },
@@ -172,8 +173,9 @@ namespace VRLogger.Components
 
             LoggerService.LogEvent(
                 eventType: "metrics_activity",
-                eventName: "INACTIVE_PERIOD_END",
+                eventName: "inactivity_event",
                 eventValue: new { 
+                    phase = "end",
                     duration_ms = totalInactiveTimeMs
                 },
                 eventContext: null
