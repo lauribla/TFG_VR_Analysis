@@ -27,6 +27,22 @@ class SpatialVisualizer:
         import matplotlib.patches as patches
         import numpy as np
         import json
+        from pathlib import Path
+
+        # -1. Dibujar el Labyrinth Ideal Path si existe
+        ideal_path_file = Path("ideal_path.json")
+        if ideal_path_file.exists():
+            try:
+                with open(ideal_path_file, 'r', encoding='utf-8') as f:
+                    ideal_data = json.load(f)
+                if isinstance(ideal_data, list) and len(ideal_data) > 1:
+                    ix = [pt["x"] for pt in ideal_data if "x" in pt and "z" in pt]
+                    iz = [pt["z"] for pt in ideal_data if "x" in pt and "z" in pt]
+                    if len(ix) > 1:
+                        ax.plot(ix, iz, color='#39FF14', linewidth=4, alpha=0.9, linestyle='-', label="Ideal Path",
+                                zorder=3, solid_capstyle='round', solid_joinstyle='round')
+            except Exception as e:
+                print(f"[SpatialVisualizer] Aviso: No se pudo dibujar el ideal_path.json: {e}")
 
         # 0. Intentar usar NavMesh_Boundary (Prioridad 1)
         navmesh_logs = self.df[self.df["event_name"] == "NAVMESH_BOUNDARY"]

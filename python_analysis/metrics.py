@@ -63,7 +63,7 @@ class MetricsCalculator:
             return 0.0
         if min_val is None or max_val is None:
             return value  # sin normalización declarada en config
-            
+
         # Avoid division by zero if range is invalid
         if abs(max_val - min_val) < 1e-9:
             return 0.0
@@ -291,23 +291,23 @@ class MetricsCalculator:
             return 0.0
 
         success_count = 0
-        
+
         # Iterar sobre cada reinicio para ver si DESPUÉS hubo un éxito
         for idx, restart_row in restarts.iterrows():
             restart_time = restart_row["timestamp"]
             session_id = restart_row["session_id"]
-            
+
             # Buscar éxitos posteriores en la MISMA sesión
             future_successes = df[
-                (df["session_id"] == session_id) & 
+                (df["session_id"] == session_id) &
                 (df["timestamp"] > restart_time) &
                 (df["event_role"] == "task_end") &
                 (df["event_value"].astype(str).str.lower() == "success")
-            ]
-            
+                ]
+
             if not future_successes.empty:
                 success_count += 1
-                
+
         return success_count / len(restarts)
 
     def navigation_errors(self, df=None):
@@ -347,6 +347,59 @@ class MetricsCalculator:
         if len(vals) < 2: return 0.0
         return vals[-1] - vals[0]  # Simple: mejora final vs inicial
 
+    def path_efficiency(self, df=None):
+        if df is None: df = self.df
+
+        # 1. Leer el ideal_path.json si existe
+        from pathlib import Path
+        import json
+        import numpy as np
+
+        ideal_file = Path("ideal_path.json")
+        if not ideal_file.exists():
+            return np.nan  # Null seguro (no rompe la puntuación si no es un laberinto)
+
+        try:
+            with open(ideal_file, "r", encoding="utf-8") as f:
+                ideal_data = json.load(f)
+
+            if not isinstance(ideal_data, list) or len(ideal_data) < 2:
+                return np.nan
+
+            # Calcular distancia euclidiana total del ideal_path
+            ix = [pt["x"] for pt in ideal_data if "x" in pt and "z" in pt]
+            iz = [pt["z"] for pt in ideal_data if "x" in pt and "z" in pt]
+            if len(ix) < 2: return np.nan
+
+            ideal_pts = np.column_stack((ix, iz))
+            ideal_dist = np.sum(np.sqrt(np.sum(np.diff(ideal_pts, axis=0) ** 2, axis=1)))
+
+            # 2. Calcular distancia euclidiana total caminada por el participante
+            moves = df[df["event_name"] == "movement_frame"]
+            if "position_x" not in moves.columns or "position_z" not in moves.columns or len(moves) < 2:
+                return np.nan
+
+            rx = pd.to_numeric(moves["position_x"], errors="coerce")
+            rz = pd.to_numeric(moves["position_z"], errors="coerce")
+            valid = rx.notna() & rz.notna()
+            rx = rx[valid].values
+            rz = rz[valid].values
+
+            if len(rx) < 2: return np.nan
+
+            real_pts = np.column_stack((rx, rz))
+            real_dist = np.sum(np.sqrt(np.sum(np.diff(real_pts, axis=0) ** 2, axis=1)))
+
+            if real_dist <= 0: return 0.0
+
+            # Eficiencia: (Distancia Ideal / Distancia Real). Máx 1.0 (100% eficiente)
+            eff = ideal_dist / real_dist
+            return float(min(1.0, eff))
+
+        except Exception as e:
+            print(f"[Metrics] Aviso calculando path_efficiency: {e}")
+            return np.nan
+
     # ----------------------------------------------------------------------
     # MAPEO dinámico de nombres → funciones internas
     # ----------------------------------------------------------------------
@@ -380,7 +433,8 @@ class MetricsCalculator:
             "interface_errors": self.interface_errors,
             "learning_stability": self.learning_stability,
             "error_reduction_rate": self.error_reduction_rate,
-            "audio_performance_gain": self.audio_performance_gain
+            "audio_performance_gain": self.audio_performance_gain,
+            "path_efficiency": self.path_efficiency
         }
 
     def audio_performance_gain(self, df=None):
@@ -412,7 +466,7 @@ class MetricsCalculator:
         :param aggregation: Tipo de agregación (count, average, sum, max, min)
         """
         if df is None or df.empty: return 0.0
-        
+
         # Filtrar por el evento objetivo
         subset = df[df["event_name"] == target_event]
         if subset.empty: return 0.0
@@ -421,10 +475,10 @@ class MetricsCalculator:
 
         if agg_lower == "count":
             return float(len(subset))
-        
+
         # Para operaciones numéricas, asegurar que tenemos valores
         vals = pd.to_numeric(subset["event_value"], errors="coerce").dropna()
-        
+
         if vals.empty: return 0.0
 
         if agg_lower == "average" or agg_lower == "mean":
@@ -435,8 +489,9 @@ class MetricsCalculator:
             return float(vals.max())
         elif agg_lower == "min":
             return float(vals.min())
-        
-        return 0.0 # Unknown aggregation
+
+        return 0.0  # Unknown aggregation
+
     def compute_category(self, category_name, df=None):
         if df is None:
             df = self.df
@@ -461,7 +516,7 @@ class MetricsCalculator:
                 # Try generic calculation if params exist
                 target_event = params.get("target_event")
                 aggregation = params.get("aggregation")
-                
+
                 if target_event and aggregation:
                     raw_value = self._calculate_generic_metric(df, target_event, aggregation)
                 else:
@@ -546,7 +601,7 @@ class MetricsCalculator:
                 # Desempaquetar cada métrica de la categoría para que esté disponible en el JSON plano
                 for metric_key, val_dict in cat_result.items():
                     if metric_key == "score": continue
-                    
+
                     # Guardamos el valor raw para visualización
                     if isinstance(val_dict, dict) and "raw" in val_dict:
                         # CRITICAL FIX: Ensure custom metrics are prefixed with category so Visualizer can find them
@@ -554,10 +609,10 @@ class MetricsCalculator:
                         # If metric_name is NOT in standard functions, it's likely custom.
                         final_key = metric_key
                         if metric_key not in metric_funcs:
-                             # It's a custom/generic metric. Prefix it if not already prefixed.
-                             if not metric_key.startswith(cat_name):
-                                 final_key = f"{cat_name}_{metric_key}"
-                        
+                            # It's a custom/generic metric. Prefix it if not already prefixed.
+                            if not metric_key.startswith(cat_name):
+                                final_key = f"{cat_name}_{metric_key}"
+
                         entry[final_key] = val_dict["raw"]
 
             entry.update(cat_scores)
