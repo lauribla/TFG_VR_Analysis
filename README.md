@@ -137,6 +137,9 @@ Cada análisis genera una carpeta con fecha en `python_analysis/pruebas/`:
 *   `final_report.pdf`: Informe ejecutivo automático con gráficas y tablas.
 *   `figures/`: Todas las gráficas en formato PNG de alta resolución.
 
+*   **`Path Efficiency`**: Exclusivo para juegos de tipo laberinto o navegación pura. Requiere depositar manualmente un fichero llamado `ideal_path.json` en el directorio de ejecución de Python. La herramienta calculará automáticamente cuánta distancia "extra" y errática caminó el jugador en comparación con la distancia matemática del trayecto óptimo perfecto (Max 1.0 = 100% de eficiencia en la ruta).
+
+
 ---
 
 ## 📅 Autoría y licencia
