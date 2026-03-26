@@ -1,145 +1,141 @@
-# 🧠 VR USER EVALUATION – README ACTUALIZADO (v2.1)
+# 🎮 VR Logger – Unity Package (v2.1)
 
 ## 📘 Descripción general
 
-Sistema modular para **monitorizar, almacenar y analizar el comportamiento de usuarios en entornos VR**, combinando **Unity + MongoDB + Python**.
+El **VR Logger** es un paquete para Unity que facilita la captura y análisis de comportamiento en VR.
 
-Incluye:
-* SDK de **logging universal para Unity**.
-* **Base de datos MongoDB** (local o remota).
-* **Pipeline de análisis automático** en Python (Efectividad, Eficiencia, Satisfacción, Presencia).
-* **Informes PDF** y **dashboard interactivo**.
-* **Streamlit Configurator** para gestión visual de experimentos y participantes externos a Unity.
-* **Mapeo Espacial Dinámico** que lee el área del Guardian/Chaperone automáticamente.
+Novedades v2.1:
+* **ExperimentConfig**: Configuración centralizada sin código (Inspector).
+* **ExperimentProfile**: Perfiles reutilizables (ScriptableObjects).
+* **Streamlit Configurator**: Crea configuraciones de experimentos en una UI web y descárgalas en Unity con 1 clic ("Pull Config from Streamlit"). Incluye **Gestión de Participantes** y **Cuestionarios SUS** integrados directamente con el Dashboard de visualización y el Informe en PDF.
+* **Dynamic Play Area**: El tamaño del área de juego para los mapas de seguimiento espaciales se extrae **automáticamente** en tiempo de ejecución de las gafas de RV o usando el nuevo **NavMeshBoundsLogger** para dibujar la geometría real del mapa.
+* **Inspector Event Mapping**: Define tus eventos (ej: `bullet_hit` -> `action_success`) visualmente.
+* **Catálogo de Componentes**: Colección inmensa de scripts listos para arrastrar y soltar que evitan tener que programar eventos (`SemanticZoneLogger`, `TaskZoneBoundaryLogger`, etc.).
 
 ---
 
-## 🛠️ Instalación y Configuración
+## ⚙️ Requisitos
 
-### 1. Requisitos Previos
 * **Unity 2021.3+**
-* **MongoDB Community Server** (o Atlas Cloud)
-* **Python 3.9+**
-* **Para Eye Tracking:**
-    *   Tener la carpeta **`VIVESR`** (SDK de HTC) en el proyecto.
-    *   Asegurar que la escena tenga el prefab **`SRanipal Eye Framework`** activo.
+* **MongoDB** (local o remoto)
+* **Plugins incluidos**: `MongoDB.Driver`, `MongoDB.Bson`, etc. (en `Assets/Plugins/`)
 
-### 2. Configuración del Entorno Python
-Para ejecutar el análisis y visualizar el dashboard, instala las dependencias:
+---
 
-```bash
-pip install -r requirements.txt
+## 🚀 Guía de### 3. Eye Tracking (Opcional)
+Para usar las funcionalidades de **seguimiento ocular** (EyeTracker o GazeTracker), es **OBLIGATORIO**:
+1.  Importar el SDK de **VIVESR** en el proyecto (`Assets/VIVESR`).
+2.  Asegurar que la escena tiene el prefab **`SRanipal Eye Framework`** configurado y activo.
+
+## 🚀 Uso Básico
+
+### 1️⃣ Configuración de la Escena (OBLIGATORIO)
+
+Para que el sistema funcione, debes tener estos 3 componentes en tu escena (pueden estar en un mismo GameObject vacío llamado `VRManager`):
+
+1.  **`UserSessionManager`**: Gestiona la conexión a la base de datos y el ciclo de vida de la sesión.
+2.  **`ExperimentConfig`**: Carga el perfil del experimento (`ExperimentProfile`) y la configuración JSON.
+3.  **`VRTrackingManager`**: Gestiona las referencias a los objetos físicos.
+    *   Debes asignarle manualmente:
+        *   `Vr Camera` -> Tu Main Camera.
+        *   `Player Transform` -> Tu XR Origin / XR Rig.
+        *   `Left/Right Hand` -> Los objetos de tus manos.
+    *   Si no lo configuras, el sistema intentará buscarlos automáticamente. Si no usas VR, no pasa nada, no dará error. 
+
+> **Nota:** Si usas múltiples escenas, asegúrate de que el `VRTrackingManager` esté presente y configurado en CADA escena, ya que las referencias (cámara, manos) cambian al cambiar de escena. `UserSessionManager` sobrevive entre escenas.
+
+### 2️⃣ Conexión a Base de Datos (UserSessionManager)
+
+Antes de nada, define tu destino de log en el inspector de **UserSessionManager**:
+* **Connection String**: `mongodb://localhost:27017` (Defecto para local) o tu URI de Mongo Atlas.
+* **Database Name**: El nombre de tu base de datos (se creará si no existe), ej: `vr_experiment_db`.
+* **Collection Name**: Nombre de la colección, ej: `logs`.
+
+### 3️⃣ Crear un Perfil (`ExperimentProfile`)
+
+En lugar de configurar todo en la escena cada vez, crea un activo de perfil:
+
+1. En la ventana **Project**, haz clic derecho > **Create** > **VRLogger** > **Experiment Profile**.
+2. Ponle nombre (ej: `Experimento_Disparos`).
+3. Selecciónalo y configura en el inspector:
+   * **Session Name**, **Group Name**, **Independent Variable**.
+   * **Participantes**: Lista de IDs o activa **Manual Participant Name** para pruebas rápidas.
+   * **Métricas**: Define pesos, minimos/máximos para cada métrica.
+   * **Event Mapping**: Mapea tus eventos a roles estándar.
+
+### 4️⃣ Asignar Perfil en Escena
+
+1. Selecciona tu objeto `VRManager`.
+2. En el componente **`ExperimentConfig`**, arrastra tu perfil al campo **Active Profile**.
+3. (Opcional) Haz clic derecho en el componente y selecciona **"Load From Profile"** para ver los valores en el inspector, o **"Save To Profile"** si haces cambios locales que quieres guardar.
+
+### 5️⃣ Configurar Event Mapping (¡Importante!)
+
+Para que Python entienda tus eventos, defínelos en el perfil:
+
+* **Event Name**: `platano_hit` (El string que envías desde el código).
+* **Role**: Selecciona del Dropdown (ej: `Action_Success`).
+
+Esto asegura que `platano_hit` cuente como un acierto en las gráficas de Eficacia.
+
+---
+
+## 💻 Envío de Eventos desde Código
+
+Usa `LoggerService` o `UserSessionManager` para enviar eventos. El sistema usará la configuración cargada al inicio.
+
+```csharp
+// Envío con contexto automático de sesión
+await UserSessionManager.Instance.LogEventWithSession(
+    eventType: "interaction",
+    eventName: "platano_hit", // Debe coincidir con tu Event Mapping
+    eventValue: 1.0f,
+    eventContext: new { distance = 5.5f, weapon = "hand" }
+);
 ```
 
-Este comando instalará librerías clave como `pandas`, `pymongo`, `streamlit`, `plotly`, `reportlab`, etc.
+---
+
+## 🧩 Componentes y Plugins de Registro
+
+Úsalos arrastrándolos a tus objetos (`Assets/vr_logger/Runtime/Components`) o actívalos desde el **ExperimentProfile**:
+
+| Componente | Descripción | Log generado / Rol |
+| :--- | :--- | :--- |
+| **NavMeshBoundsLogger** | Extrae automáticamente el contorno del NavMesh para dibujar el plano de la habitación exacto en Python. | `NAVMESH_BOUNDARY` |
+| **SemanticZoneLogger** | Convierte triggers volumétricos (zonas del mapa) en aciertos o errores automáticos para estudios de decisión en laberintos o puzzles. | `action_success` / `action_fail` |
+| **TaskZoneBoundaryLogger**| Registra el inicio y fin de una tarea concreta al entrar/salir de un collider. | `task_start` / `task_end` |
+| **CheckpointProgression** | Marca checkponts intermedios para curvas de aprendizaje. | `action_success` |
+| **NavigationErrorCollider**| Registra colisiones físicas con paredes u obstáculos penalizando la eficiencia. | `action_fail` / `navigation_error` |
+| **AidInteractionLogger** * | Registra solicitudes de ayuda o visualización de pistas al mirarlas o tocarlas. | `help_event` |
+| **UIActionInterceptor** * | Intercepta clicks en botones de UI (Canvas) automáticamente sin tocar el código del botón. | (Según config map) |
+| **InertiaInactivityLogger**| Analiza la varianza de la cámara para detectar si el usuario se ha quedado "congelado" o inactivo, ignorando temblores. | `inactivity_detected` |
+| **LifecycleReactionLogger**| Mide tiempos de reacción en milisegundos puros basándose en cuándo un objeto aparece y se destruye/apaga. | `action_success` |
+| **GazeTracker** | Registra qué objeto mira el usuario (Raycast cruzado desde cámara). | `gaze_sustained` |
+| **MovementTracker** | Registra posición/rotación de cabeza y manos cada X segundos (Telemetría para mapas espaciales). | `movement_update` |
+
+*\* Requieren colliders físicos, oculares o componentes Selectable de Unity UI para funcionar.*
 
 ---
 
-## 🚀 Flujo de Trabajo (Unity -> Mongo -> Python)
+## 🛠️ Estructura final de eventos (MongoDB)
 
-### Paso 1: Configurar en Unity / Streamlit
-
-Tienes dos opciones para diseñar la configuración de métricas, módulos y roles que el Tracker va a usar para analizar a tus usuarios:
-
-**Opción A: Desde Streamlit Configurator (Recomendado)**
-Se ha incluido una interfaz web en Python para facilitar el diseño del experimento y gestionar a los participantes de la prueba.
-1. Arranca el configurador local: `streamlit run python_analysis/experiment_configurator.py`
-2. Accede en tu navegador a la IP local (normalmente `http://localhost:8501`).
-3. Rellena los módulos, crea tus métricas personalizadas e inscribe a tus participantes en la base de datos de MongoDB de forma amigable.
-4. **Cuestionarios:** Haz que el participante rellene el cuestionario de usabilidad SUS directamente en la nueva pestaña de la web tras la prueba física. Su puntuación se unirá a sus datos de telemetría VR automáticamente.
-5. Clica en **"Push Configuration to MongoDB"**.
-6. Ve a Unity, selecciona el objeto con el componente `ExperimentConfig`, pulsa en los 3 puntitos (⋮) arriba a la derecha del script y elige la opción **"Pull Config from Streamlit (MongoDB)"**. ¡Se auto-rellenará!
-
-**Opción B: Manual desde Unity (ScriptableObjects)**
-1. Usa el componente **`UserSessionManager`** en tu escena para definir la conexión a la Base de Datos:
-   * **Connection String**: `mongodb://localhost:27017`
-   * **Database Name**: `vr_experiment_db`
-   * **Collection Name**: `logs`
-2. Configura tu experimento creando un archivo **`ExperimentProfile`**. Asígnalo al inspector del script.
-
-> **💡 Novedad (Mapas Dinámicos):** El tamaño del área de juego (`PlayAreaWidth` y `PlayAreaDepth`) para los mapas de calor ya no necesita configurarse manualmente. Al darle al Play, `VRTrackingManager` detecta automáticamente los límites actuales del sistema (Guardian/Chaperone) y los envía a la base de datos y al log para crear las escalas de los radares con precisión.
-
-*(Ver detalles completos en `vr_logger/README.md` y en `DEVELOPER_GUIDE.md`)*
-
-### Paso 2: Análisis Automático
-El script `python_analysis/vr_analysis.py` se conecta a MongoDB, descarga los nuevos logs y genera los informes.
-
-**Ejecución manual:**
-```bash
-python -m python_analysis.vr_analysis
+```json
+{
+  "timestamp": ISODate(),
+  "user_id": "U001",
+  "event_name": "platano_hit",
+  "event_type": "interaction",
+  "event_role": "action_success", // Inyectado automáticamente por ExperimentConfig
+  "session_id": "guid-1234",
+  "group_id": "Grupo_A",
+  "event_context": { ... }
+}
 ```
 
-**Automatización (Task Scheduler / Cron):**
-Puedes programar este script para que se ejecute cada noche y tener los informes listos por la mañana.
-
-*   **Windows (Task Scheduler):**
-    1.  Crear Tarea Básica > "Analisis Diario VR".
-    2.  Acción: Iniciar programa.
-    3.  Programa: `python.exe`.
-    4.  Argumentos: `ruta/al/proyecto/python_analysis/vr_analysis.py`.
-*   **Mac/Linux (Cron):**
-    ```bash
-    0 3 * * * /usr/bin/python3 /ruta/proyecto/python_analysis/vr_analysis.py >> /tmp/log_analisis.txt
-    ```
-
-### Paso 3: Visualización en Dashboard
-El dashboard interactivo permite filtrar y comparar datos en tiempo real.
-
-```bash
-streamlit run python_visualization/visual_dashboard.py
-```
-
-**Características del Dashboard:**
-*   **Filtros Dinámicos:** Selecciona un `User ID`, `Group ID` (Control vs Experimental) o `Session ID` específico.
-*   **Comparativas:** Visualiza gráficas de barras comparando métricas entre grupos.
-*   **Deep Dive:** Haz clic en los puntos de las gráficas de dispersión para ver detalles de esa sesión.
-
 ---
 
-## 📊 Glosario de Métricas
+## 📚 Créditos
 
-Para una interpretación científica correcta, distinguimos entre variables independientes (lo que cambias) y dependientes (lo que mides).
-
-### 🔹 Variables Independientes (Input)
-Son las condiciones que manipulas en el experimento. Se configuran en el `ExperimentProfile`:
-*   **Grupo:** (Ej: "Con Ayudas" vs "Sin Ayudas").
-*   **Variable Independiente:** Un valor específico (ej: "Velocidad=Alta", "Iluminación=Baja") que define la condición de la sesión.
-
-### 🔸 Variables Dependientes (Output)
-Son las métricas calculadas automáticamente por el sistema.
-
-#### 1. Efectividad (¿Logran el objetivo?)
-*   **`Hit Ratio`**: Precisión pura. `(Aciertos / Disparos Totales)`. Ideal para shooters o tareas de selección.
-*   **`Success Rate`**: Tasa de éxito en tareas. `(Tareas Completadas / Tareas Intentadas)`.
-*   **`Success After Restart`**: Resiliencia. `(Reinicios seguidos de éxito / Total de reinicios)`. Indica si el usuario aprende tras fallar.
-
-#### 2. Eficiencia (¿Cuánto recursos consumen?)
-*   **`Avg Task Duration`**: Tiempo medio (ms) en completar una tarea exitosa.
-*   **`Navigation Errors`**: Cantidad de colisiones o salidas de ruta (`navigation_error` role).
-*   **`Time Per Success`**: Tiempo total de sesión dividido por número de éxitos. Métrica global de rendimiento.
-
-#### 3. Satisfacción (Experiencia de usuario)
-*   **`Aid Usage`**: Cuántas veces el usuario solicitó ayuda o usó pistas (`help_event`).
-*   **`Interface Errors`**: Errores al interactuar con UI (botones equivocados, menús cerrados sin querer).
-*   **`Voluntary Play Time`**: Tiempo (s) que el usuario sigue jugando *después* de completar la tarea obligatoria. Indicador fuerte de "Engagement".
-
-#### 4. Presencia (Inmersión)
-*   **`Sound Localization Time`**: Tiempo (s) desde que suena un estímulo (`audio_event`) hasta que el usuario lo mira (`head_turn`).
-*   **`Activity Level`**: Cantidad de acciones por minuto.
-*   **`Inactivity Time`**: Tiempo acumulado sin inputs ni movimiento significativo.
-
----
-
-## 📂 Estructura de Salida
-Cada análisis genera una carpeta con fecha en `python_analysis/pruebas/`:
-*   `results.json/csv`: Datos crudos para Excel/SPSS.
-*   `grouped_metrics.csv`: Una fila por sesión (ideal para ANOVA).
-*   `final_report.pdf`: Informe ejecutivo automático con gráficas y tablas.
-*   `figures/`: Todas las gráficas en formato PNG de alta resolución.
-
----
-
-## 📅 Autoría y licencia
-
-Proyecto **VR USER EVALUATION v2.1**
-Licencia: Uso académico y experimental.
+**VR Logger – Unity SDK v2.1**
+Parte del proyecto **VR User Evaluation**.
