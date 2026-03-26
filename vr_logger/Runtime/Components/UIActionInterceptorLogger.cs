@@ -10,7 +10,6 @@ namespace VRLogger.Components
     /// preconfigurado en el Inspector de Unity EventSystem del botón.
     /// Sirve para: Medir errores de navegación en menús, contabilizar selecciones o recolectar respuestas de un formulario.
     /// </summary>
-    [RequireComponent(typeof(Selectable))] // Botones, Toggles, Sliders, Dropdowns
     public class UIActionInterceptorLogger : MonoBehaviour
     {
         [Header("Configuración del Log UI")]
@@ -25,6 +24,11 @@ namespace VRLogger.Components
 
         private void Awake()
         {
+            if (GetComponent<Selectable>() == null)
+            {
+                Debug.LogWarning($"[UIActionInterceptorLogger] ⚠️ {gameObject.name} no tiene un componente interactuable (Button, Toggle...). Este logger se quedará huérfano y no detectará clicks automáticos.");
+            }
+
             if (string.IsNullOrEmpty(actionId))
             {
                 actionId = gameObject.name;

@@ -52,6 +52,11 @@ namespace VRLogger.Components
 
         private void Start()
         {
+            if (inactivityThreshold_s <= 1.0f)
+            {
+                Debug.LogWarning($"[InertiaInactivityLogger] ⚠️ El umbral de inactividad de {gameObject.name} es muy bajo ({inactivityThreshold_s}s) y puede causar falsos positivos o spam de logs de inactividad.");
+            }
+
             if (targetTracker == null)
             {
                 if (Camera.main != null)

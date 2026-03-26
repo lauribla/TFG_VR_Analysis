@@ -25,6 +25,14 @@ namespace VRLogger.Components
 
         private float lastPenalizationTime = -999f;
 
+        private void Start()
+        {
+            if (GetComponent<Collider>() == null)
+            {
+                Debug.LogWarning($"[NavigationErrorColliderLogger] ⚠️ Falta un Collider en {gameObject.name}. Este componente usa colisiones físicas (OnCollision / OnTrigger) para detectar errores de navegación.");
+            }
+        }
+
         private void OnCollisionEnter(Collision collision)
         {
             ProcessImpact(collision.gameObject);

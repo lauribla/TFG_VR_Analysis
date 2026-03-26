@@ -16,7 +16,6 @@ namespace VRLogger.Components
     /// Emite los eventos estándar de success/fail de VRLogger o eventos de zona personalizados,
     /// ideal para análisis espacial simplificando el esfuerzo del desarrollador.
     /// </summary>
-    [RequireComponent(typeof(Collider))]
     public class SemanticZoneLogger : MonoBehaviour
     {
         [Header("Configuración de la Zona Semántica")]
@@ -37,9 +36,13 @@ namespace VRLogger.Components
         private void Awake()
         {
             Collider myCol = GetComponent<Collider>();
-            if (myCol != null && !myCol.isTrigger)
+            if (myCol == null)
             {
-                Debug.LogWarning($"[SemanticZoneLogger] El collider de {gameObject.name} debería ser isTrigger para no bloquear físicamente al jugador.");
+                Debug.LogWarning($"[SemanticZoneLogger] ⚠️ Falta un Collider en {gameObject.name}. Este script requiere un Collider configurado como isTrigger.");
+            }
+            else if (!myCol.isTrigger)
+            {
+                Debug.LogWarning($"[SemanticZoneLogger] ⚠️ El collider de {gameObject.name} debería ser isTrigger para no bloquear físicamente al jugador.");
                 myCol.isTrigger = true;
             }
         }

@@ -26,6 +26,11 @@ namespace VRLogger.Components
         {
             if (string.IsNullOrEmpty(aidId))
                 aidId = gameObject.name;
+
+            if (GetComponent<Collider>() == null && GetComponent<UnityEngine.UI.Graphic>() == null)
+            {
+                Debug.LogWarning($"[AidInteractionLogger] ⚠️ {gameObject.name} no tiene Collider ni un elemento de UI (Graphic). Los punteros o Gaze de VR no podrán detectarlo.");
+            }
         }
 
         public void OnPointerEnter(PointerEventData eventData)

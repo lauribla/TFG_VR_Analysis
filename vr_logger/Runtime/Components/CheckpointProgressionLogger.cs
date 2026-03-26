@@ -9,7 +9,6 @@ namespace VRLogger.Components
     /// Una vez el objetivo entra y es consumido, se deshabilita garantizando limpieza en los logs
     /// si el jugador retrocede a zonas anteriores del nivel.
     /// </summary>
-    [RequireComponent(typeof(Collider))]
     public class CheckpointProgressionLogger : MonoBehaviour
     {
         [Header("Configuración del Checkpoint")]
@@ -31,10 +30,14 @@ namespace VRLogger.Components
         private void Awake()
         {
             Collider col = GetComponent<Collider>();
-            if (col != null && !col.isTrigger)
+            if (col == null)
+            {
+                Debug.LogWarning($"[CheckpointProgressionLogger] ⚠️ Falta un Collider en {gameObject.name}. Este script necesita un Collider configurado como isTrigger para detectar el paso del jugador.");
+            }
+            else if (!col.isTrigger)
             {
                 col.isTrigger = true;
-                Debug.LogWarning($"[CheckpointProgressionLogger] El collider en {gameObject.name} se cambió a Trigger automáticamente.");
+                Debug.LogWarning($"[CheckpointProgressionLogger] ⚠️ El collider en {gameObject.name} se cambió a Trigger automáticamente.");
             }
 
             if (string.IsNullOrEmpty(checkpointName))

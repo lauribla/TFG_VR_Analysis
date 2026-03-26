@@ -20,7 +20,7 @@ namespace VRLogger.Components
         private void LogMarkerData()
         {
             LoggerService.LogEvent(
-                eventType: "config",
+                eventType: "system",
                 eventName: "ENVIRONMENT_BOUNDARY_MARKER",
                 eventValue: new { 
                     marker_x = transform.position.x,

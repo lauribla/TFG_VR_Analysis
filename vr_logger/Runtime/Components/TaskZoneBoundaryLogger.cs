@@ -11,7 +11,6 @@ namespace VRLogger.Components
     /// Completamente automático, sólo requiere configurar colliders en modo trigger.
     /// Funciona bien para: Puzzles espaciales, zonas de escape, tareas de navegación.
     /// </summary>
-    [RequireComponent(typeof(Collider))]
     public class TaskZoneBoundaryLogger : MonoBehaviour
     {
         [Header("Configuración de la Tarea")]
@@ -36,9 +35,13 @@ namespace VRLogger.Components
         private void Awake()
         {
             Collider myCol = GetComponent<Collider>();
-            if (myCol != null && !myCol.isTrigger)
+            if (myCol == null)
             {
-                Debug.LogWarning($"[TaskZoneBoundaryLogger] El collider de {gameObject.name} debería ser isTrigger para no bloquear físicamente al jugador.");
+                Debug.LogWarning($"[TaskZoneBoundaryLogger] ⚠️ Falta un Collider en {gameObject.name}. Se necesita un Collider configurado como isTrigger para detectar la zona de la tarea.");
+            }
+            else if (!myCol.isTrigger)
+            {
+                Debug.LogWarning($"[TaskZoneBoundaryLogger] ⚠️ El collider de {gameObject.name} debería ser isTrigger para no bloquear físicamente al jugador (modificando a isTrigger=true automáticamente).");
                 myCol.isTrigger = true;
             }
         }

@@ -28,6 +28,11 @@ namespace VRLogger.Components
         {
             if (string.IsNullOrEmpty(targetId))
                 targetId = gameObject.name;
+
+            if (!logOnDestroy && !logOnDisable)
+            {
+                Debug.LogWarning($"[LifecycleReactionLogger] ⚠️ {gameObject.name} tiene 'logOnDestroy' y 'logOnDisable' en false. El tiempo de reacción nunca terminará de medirse.");
+            }
         }
 
         private void OnEnable()
