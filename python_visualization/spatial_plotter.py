@@ -22,27 +22,28 @@ class SpatialVisualizer:
         self.play_area_width = play_area_width
         self.play_area_depth = play_area_depth
 
-    def _draw_play_area(self, ax=None):
+    def _draw_play_area(self, ax=None, draw_ideal_path=False):
         ax = ax or plt.gca()
         import matplotlib.patches as patches
         import numpy as np
         import json
         from pathlib import Path
 
-        # -1. Dibujar el Labyrinth Ideal Path si existe
-        ideal_path_file = Path("ideal_path.json")
-        if ideal_path_file.exists():
-            try:
-                with open(ideal_path_file, 'r', encoding='utf-8') as f:
-                    ideal_data = json.load(f)
-                if isinstance(ideal_data, list) and len(ideal_data) > 1:
-                    ix = [pt["x"] for pt in ideal_data if "x" in pt and "z" in pt]
-                    iz = [pt["z"] for pt in ideal_data if "x" in pt and "z" in pt]
-                    if len(ix) > 1:
-                        ax.plot(ix, iz, color='#39FF14', linewidth=4, alpha=0.9, linestyle='-', label="Ideal Path",
-                                zorder=3, solid_capstyle='round', solid_joinstyle='round')
-            except Exception as e:
-                print(f"[SpatialVisualizer] Aviso: No se pudo dibujar el ideal_path.json: {e}")
+        # -1. Dibujar el Labyrinth Ideal Path si existe y si fue solicitado
+        if draw_ideal_path:
+            ideal_path_file = Path("ideal_path.json")
+            if ideal_path_file.exists():
+                try:
+                    with open(ideal_path_file, 'r', encoding='utf-8') as f:
+                        ideal_data = json.load(f)
+                    if isinstance(ideal_data, list) and len(ideal_data) > 1:
+                        ix = [pt["x"] for pt in ideal_data if "x" in pt and "z" in pt]
+                        iz = [pt["z"] for pt in ideal_data if "x" in pt and "z" in pt]
+                        if len(ix) > 1:
+                            ax.plot(ix, iz, color='#39FF14', linewidth=4, alpha=0.9, linestyle='-', label="Ideal Path",
+                                    zorder=3, solid_capstyle='round', solid_joinstyle='round')
+                except Exception as e:
+                    print(f"[SpatialVisualizer] Aviso: No se pudo dibujar el ideal_path.json: {e}")
 
         # 0. Intentar usar NavMesh_Boundary (Prioridad 1)
         navmesh_logs = self.df[self.df["event_name"] == "NAVMESH_BOUNDARY"]
@@ -51,8 +52,7 @@ class SpatialVisualizer:
                 if isinstance(val, str):
                     try:
                         val = json.loads(val.replace("'", '"'))
-                    except:
-                        pass
+                    except: pass
                 if isinstance(val, dict) and "vertices_x" in val and "vertices_z" in val:
                     vx = val["vertices_x"]
                     vz = val["vertices_z"]
@@ -76,6 +76,7 @@ class SpatialVisualizer:
             points = []
             for val in markers["event_value"]:
                 if isinstance(val, str):
+                    import json
                     try:
                         # Reemplazar comillas simples de python dict strings si existen
                         val = json.loads(val.replace("'", '"'))
@@ -162,7 +163,7 @@ class SpatialVisualizer:
         plt.title("Trayectorias de Jugadores (Vista Superior - XZ)")
         plt.xlabel("X (m)")
         plt.ylabel("Z (m)")
-        self._draw_play_area()
+        self._draw_play_area(draw_ideal_path=True)
         plt.axis("equal")
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         plt.grid(True, linestyle="--", alpha=0.5)
@@ -241,7 +242,7 @@ class SpatialVisualizer:
             ax.set_xlabel("X (m)")
             ax.set_ylabel("Z (m)")
             ax.grid(True, linestyle="--", alpha=0.3)
-            self._draw_play_area(ax)
+            self._draw_play_area(ax, draw_ideal_path=True)
             ax.axis("equal")
 
             # Guardar en buffer
