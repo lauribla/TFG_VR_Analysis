@@ -164,6 +164,21 @@ namespace VRLogger.EditorScripts
             semLogger.zoneId = "Safe_Room";
             semLogger.validTriggerMask = ~0; // ¡SOLUCIÓN! Necesitaba la máscara -1 para detectarte
 
+            // 8.1 DirectionalSemanticZoneLogger
+            GameObject dirZone = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            dirZone.name = "Test_DirectionalSemanticZone";
+            dirZone.transform.SetParent(root.transform);
+            dirZone.transform.position = new Vector3(-6, 1, -2);
+            dirZone.GetComponent<Collider>().isTrigger = true;
+            SetColor(dirZone, new Color(0, 1, 0.5f)); // Verde azulado / turquesa
+            var dirLogger = dirZone.AddComponent<DirectionalSemanticZoneLogger>();
+            dirLogger.zoneId = "Crossroads_Test";
+            dirLogger.validTriggerMask = ~0;
+            // Configuramos una trampa de lados
+            dirLogger.exitForwardZ = SemanticZoneType.Success;
+            dirLogger.exitBackwardZ = SemanticZoneType.Backtrack;
+            dirLogger.exitLeftX = SemanticZoneType.Fail;
+            dirLogger.exitRightX = SemanticZoneType.Fail;
 
             // 9. EnvironmentBoundsMarker (4 corners for Convex Hull in Python)
             Vector3[] corners = new Vector3[] {
