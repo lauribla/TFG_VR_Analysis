@@ -197,6 +197,11 @@ namespace VRLogger.EditorScripts
             }
 
 
+            // 10. Validation Test Controller (UI Panel on Screen)
+            GameObject testerUi = new GameObject("Test_ValidationUiController");
+            testerUi.transform.SetParent(root.transform);
+            testerUi.AddComponent<ValidationTestController>();
+
             // Seleccionar en el editor para que el usuario lo vea
             Selection.activeGameObject = root;
             Debug.Log("VR Logger Test Environment creado temporalmente en la escena. ¡Recuerda añadir tu ExperimentConfig y VRTrackingManager a la escena!");
