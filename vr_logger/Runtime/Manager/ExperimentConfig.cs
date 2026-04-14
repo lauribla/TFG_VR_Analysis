@@ -738,6 +738,105 @@ namespace VRLogger
                 if (cfg["metrics"]?["efectividad"]?["success_rate"]?["weight"] != null)
                     Metrics.SuccessRate.Weight = (float)cfg["metrics"]["efectividad"]["success_rate"]["weight"];
 
+                // ----- NEW: Parsed Custom Event Roles and Mappings ----- //
+                if (cfg["event_roles"] is JObject eventRolesObj)
+                {
+                    Dictionary<string, string> baseRoleMap = new Dictionary<string, string>
+                    {
+                        { "target_hit", "action_success" }, { "target_miss", "action_fail" },
+                        { "goal_reached", "action_success" }, { "object_placed_correctly", "action_success" },
+                        { "object_dropped", "action_fail" }, { "fall_detected", "action_fail" },
+                        { "task_start", "task_start" }, { "task_end", "task_end" },
+                        { "task_restart", "task_restart" }, { "task_timeout", "task_abandoned" },
+                        { "task_abandoned", "task_abandoned" }, { "session_start", "session_start" },
+                        { "session_end", "session_end" }, { "early_leave", "session_end" },
+                        { "collision", "navigation_error" }, { "navigation_error", "navigation_error" },
+                        { "controller_error", "interface_error" }, { "wrong_button", "interface_error" },
+                        { "ui_interaction", "interface_action" }, { "ui_error", "interface_error" },
+                        { "menu_opened", "interface_action" }, { "menu_closed", "interface_action" },
+                        { "help_requested", "help_event" }, { "guide_used", "help_event" },
+                        { "hint_used", "help_event" }, { "tutorial_step", "help_event" },
+                        { "movement_frame", "movement_update" }, { "teleport_used", "movement_action" },
+                        { "walk_step", "movement_action" }, { "sharp_turn", "movement_action" },
+                        { "turn_event", "movement_action" }, { "inspect_object", "exploration_event" },
+                        { "gaze_sustained", "gaze_event" }, { "gaze_frequency_change", "gaze_event" },
+                        { "gaze_exit", "gaze_event" }, { "action_with_gaze_check", "gaze_action" },
+                        { "eye_tracking_sample", "gaze_sample" }, { "controller_action", "interaction_event" },
+                        { "object_grabbed", "interaction_event" }, { "object_released", "interaction_event" },
+                        { "trigger_pull", "interaction_event" }, { "audio_triggered", "audio_event" },
+                        { "sound_source_active", "audio_event" }, { "head_turn", "audio_reaction" },
+                        { "inactivity_frame", "inactivity_event" }, { "timeout_detected", "inactivity_event" },
+                        { "system_warning", "system_event" }, { "performance_drop", "system_event" },
+                        { "latency_spike", "system_event" }, { "spawn_object", "task_start" },
+                        { "bullet_hit", "action_success" }, { "reaction_time", "performance_measure" },
+                        { "manual_despawn", "action_fail" }, { "custom_event", "custom_event" }
+                    };
+
+                    CustomEventRoles.Clear();
+                    foreach (var prop in eventRolesObj.Properties())
+                    {
+                        string eName = prop.Name;
+                        string rValue = prop.Value.ToString();
+
+                        if (!baseRoleMap.ContainsKey(eName) || baseRoleMap[eName] != rValue)
+                        {
+                            if (System.Enum.TryParse(rValue, true, out EventRoleType parsedRole))
+                            {
+                                CustomEventRoles.Add(new EventRoleMapping { EventName = eName, Role = parsedRole });
+                            }
+                        }
+                    }
+                }
+
+                // ----- NEW: Parsed Custom Metrics ----- //
+                if (cfg["metrics"] is JObject metricsObj)
+                {
+                    HashSet<string> baseMetricKeys = new HashSet<string> {
+                        "hit_ratio", "success_rate", "learning_curve_mean", "progression", "success_after_restart",
+                        "avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s", "navigation_errors",
+                        "learning_stability", "error_reduction_rate", "voluntary_play_time_s", "aid_usage", "interface_errors",
+                        "activity_level_per_min", "first_success_time_s", "inactivity_time_s", "sound_localization_time_s", "audio_performance_gain"
+                    };
+
+                    CustomMetrics.Clear();
+                    foreach (var categoryProp in metricsObj.Properties())
+                    {
+                        string catStr = categoryProp.Name;
+                        if (!System.Enum.TryParse(catStr, true, out MetricCategoryType catEnum)) continue;
+
+                        if (categoryProp.Value is JObject catObj)
+                        {
+                            foreach (var metricProp in catObj.Properties())
+                            {
+                                string mName = metricProp.Name;
+                                if (!baseMetricKeys.Contains(mName) && metricProp.Value is JObject mData)
+                                {
+                                    CustomMetricDefinition cmd = new CustomMetricDefinition();
+                                    cmd.MetricName = mName;
+                                    cmd.Category = catEnum;
+                                    cmd.TargetEventName = (string)mData["target_event"] ?? mName;
+
+                                    string aggStr = (string)mData["aggregation"] ?? "Count";
+                                    if (System.Enum.TryParse(aggStr, true, out MetricAggregationType aggEnum))
+                                        cmd.Aggregation = aggEnum;
+                                    else
+                                        cmd.Aggregation = MetricAggregationType.Count;
+
+                                    cmd.Config = new MetricConfig {
+                                        Enabled = (bool?)mData["enabled"] ?? true,
+                                        Weight = (float?)mData["weight"] ?? 0.5f,
+                                        Min = (float?)mData["min"] ?? 0f,
+                                        Max = (float?)mData["max"] ?? 100f,
+                                        Invert = (bool?)mData["invert"] ?? false
+                                    };
+                                    CustomMetrics.Add(cmd);
+                                }
+                            }
+                        }
+                    }
+                }
+                // ------------------------------------------------------- //
+
                 // Crucial step: if we have an activeProfile, unassign it so the Inspector fields take precedence.
                 // Or you could let them save it to the profile by clicking "Save To Profile" later.
                 if (activeProfile != null)
