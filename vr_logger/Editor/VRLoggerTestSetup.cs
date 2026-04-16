@@ -164,7 +164,7 @@ namespace VRLogger.EditorScripts
             semLogger.zoneId = "Safe_Room";
             semLogger.validTriggerMask = ~0; // ¡SOLUCIÓN! Necesitaba la máscara -1 para detectarte
 
-            // 8.1 DirectionalSemanticZoneLogger
+            // 8.1 DirectionalSemanticZoneLogger (Con Balizas)
             GameObject dirZone = GameObject.CreatePrimitive(PrimitiveType.Cube);
             dirZone.name = "Test_DirectionalSemanticZone";
             dirZone.transform.SetParent(root.transform);
@@ -174,11 +174,37 @@ namespace VRLogger.EditorScripts
             var dirLogger = dirZone.AddComponent<DirectionalSemanticZoneLogger>();
             dirLogger.zoneId = "Crossroads_Test";
             dirLogger.validTriggerMask = ~0;
-            // Configuramos una trampa de lados
-            dirLogger.exitForwardZ = SemanticZoneType.Success;
-            dirLogger.exitBackwardZ = SemanticZoneType.Backtrack;
-            dirLogger.exitLeftX = SemanticZoneType.Fail;
-            dirLogger.exitRightX = SemanticZoneType.Fail;
+
+            // Creamos 3 balizas (GameObjects vacíos) simulando pasillos a los lados y al frente
+            GameObject beaconSuccess = new GameObject("Beacon_Success_Front");
+            beaconSuccess.transform.SetParent(dirZone.transform);
+            beaconSuccess.transform.position = dirZone.transform.position + Vector3.forward * 2f; // 2 metros pa'lante
+
+            GameObject beaconFail1 = new GameObject("Beacon_Fail_Left");
+            beaconFail1.transform.SetParent(dirZone.transform);
+            beaconFail1.transform.position = dirZone.transform.position + Vector3.left * 2f; // 2 metros a la izquierda
+
+            GameObject beaconFail2 = new GameObject("Beacon_Fail_Right");
+            beaconFail2.transform.SetParent(dirZone.transform);
+            beaconFail2.transform.position = dirZone.transform.position + Vector3.right * 2f; // 2 metros a la derecha
+
+            // Se las añadimos a la lista del Logger
+            dirLogger.customExits.Add(new DirectionalSemanticZoneLogger.CustomDirectionalExit() {
+                faceName = "Frontal_Correcto",
+                beaconTransform = beaconSuccess.transform,
+                resultType = SemanticZoneType.Success
+            });
+            dirLogger.customExits.Add(new DirectionalSemanticZoneLogger.CustomDirectionalExit() {
+                faceName = "Izquierda_Equivocada",
+                beaconTransform = beaconFail1.transform,
+                resultType = SemanticZoneType.Fail
+            });
+            dirLogger.customExits.Add(new DirectionalSemanticZoneLogger.CustomDirectionalExit() {
+                faceName = "Derecha_Equivocada",
+                beaconTransform = beaconFail2.transform,
+                resultType = SemanticZoneType.Fail
+            });
+
 
             // 9. EnvironmentBoundsMarker (4 corners for Convex Hull in Python)
             Vector3[] corners = new Vector3[] {
