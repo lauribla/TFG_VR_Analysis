@@ -104,6 +104,7 @@ await UserSessionManager.Instance.LogEventWithSession(
 | :--- | :--- | :--- |
 | **NavMeshBoundsLogger** | Extrae automáticamente el contorno del NavMesh para dibujar el plano de la habitación exacto en Python. | `NAVMESH_BOUNDARY` |
 | **SemanticZoneLogger** | Convierte triggers volumétricos (zonas del mapa) en aciertos o errores automáticos para estudios de decisión en laberintos o puzzles. | `action_success` / `action_fail` |
+| **DirectionalSemanticZoneLogger** | Permite asignar éxitos/errores según la cara (N/S/E/O) por la que se sale de un cruce. Soporta formas complejas (ej. pentágonos) asignándoles 'Balizas' en cada salida. | `action_success` / `action_fail` / `backtrack` |
 | **TaskZoneBoundaryLogger**| Registra el inicio y fin de una tarea concreta al entrar/salir de un collider. | `task_start` / `task_end` |
 | **CheckpointProgression** | Marca checkponts intermedios para curvas de aprendizaje. | `action_success` |
 | **NavigationErrorCollider**| Registra colisiones físicas con paredes u obstáculos penalizando la eficiencia. | `action_fail` / `navigation_error` |
