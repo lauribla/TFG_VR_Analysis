@@ -114,8 +114,19 @@ await UserSessionManager.Instance.LogEventWithSession(
 | **LifecycleReactionLogger**| Mide tiempos de reacción en milisegundos puros basándose en cuándo un objeto aparece y se destruye/apaga. | `action_success` |
 | **GazeTracker** | Registra qué objeto mira el usuario (Raycast cruzado desde cámara). | `gaze_sustained` |
 | **MovementTracker** | Registra posición/rotación de cabeza y manos cada X segundos (Telemetría para mapas espaciales). | `movement_update` |
+| **NetcodeVRLoggerBridge**| Script puente para juegos Multijugador (NGO). Sincroniza las teclas del Game Master (N, P, E) por la red. | (Comandos Internos) |
 
 *\* Requieren colliders físicos, oculares o componentes Selectable de Unity UI para funcionar.*
+
+---
+
+## 🌐 Integración con Multijugador (Netcode for GameObjects)
+
+Si tu experimento es **Multijugador / Remoto** y usas la tecnología oficial de Unity NGO con un Game Master (GM), sigue estos pasos para que todo funcione perfecto sin duplicar datos en MongoDB:
+
+1. **Añadir el Puente**: Arrastra el componente `NetcodeVRLoggerBridge` a cualquier `NetworkObject` persistente de tu escena (ej. tu jugador en red, o el NetworkManager). 
+2. **Desactivar controles locales**: En el perfil `ExperimentProfile` de tu escena, DEBES destildar la casilla **"Enable GM Controls (Keyboard)"**. Ahora será tu red la que sincronice las pulsaciones de todo el mundo.
+3. **El "Truco de la Abuela" para la Base de Datos**: Como todos usaréis la misma "build" del juego (.exe), debes evitar que el PC del GM también se conecte a Mongo y mande eventos vacíos. En la versión que vayas a usar como GM, en el `UserSessionManager`, **escribe un Connection String falso o inventado** (ej: `mongodb://no-conectar:111`). Al tener la IP rota, su base de datos fallará en silencio y ¡solo tu jugador VR oficial enviará logs!
 
 ---
 
