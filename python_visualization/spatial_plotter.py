@@ -29,6 +29,28 @@ class SpatialVisualizer:
         import json
         from pathlib import Path
 
+        # -2. Dibujar la geometría interna del Labyrinth (Malla del suelo) si existe
+        labyrinth_mesh_file = Path("labyrinth_mesh.json")
+        if labyrinth_mesh_file.exists():
+            try:
+                with open(labyrinth_mesh_file, 'r', encoding='utf-8') as f:
+                    mesh_data = json.load(f)
+                if "vertices" in mesh_data and "indices" in mesh_data:
+                    import matplotlib.collections as mcoll
+                    indices = mesh_data["indices"]
+                    vertices = mesh_data["vertices"]
+                    pts = np.array([[pt["x"], pt["z"]] for pt in vertices if "x" in pt and "z" in pt])
+                    if len(pts) >= 3:
+                        polys = []
+                        for i in range(0, len(indices), 3):
+                            if i+2 < len(indices):
+                                polys.append([pts[indices[i]], pts[indices[i+1]], pts[indices[i+2]]])
+                        if polys:
+                            collection = mcoll.PolyCollection(polys, facecolors='lightgray', edgecolors='black', linewidths=0.5, alpha=0.4, zorder=1)
+                            ax.add_collection(collection)
+            except Exception as e:
+                print(f"[SpatialVisualizer] Aviso: No se pudo dibujar la malla labyrinth_mesh.json: {e}")
+
         # -1. Dibujar el Labyrinth Ideal Path si existe y si fue solicitado
         if draw_ideal_path:
             ideal_path_file = Path("ideal_path.json")
