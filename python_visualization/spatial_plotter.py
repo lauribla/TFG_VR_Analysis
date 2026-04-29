@@ -22,7 +22,7 @@ class SpatialVisualizer:
         self.play_area_width = play_area_width
         self.play_area_depth = play_area_depth
 
-    def _draw_play_area(self, ax=None, draw_ideal_path=False):
+    def _draw_play_area(self, ax=None, draw_ideal_path=False, draw_labyrinth_mesh=False):
         ax = ax or plt.gca()
         import matplotlib.patches as patches
         import numpy as np
@@ -30,8 +30,9 @@ class SpatialVisualizer:
         from pathlib import Path
 
         # -2. Dibujar la geometría interna del Labyrinth (Malla del suelo) si existe
-        labyrinth_mesh_file = Path("labyrinth_mesh.json")
-        if labyrinth_mesh_file.exists():
+        if draw_labyrinth_mesh:
+            labyrinth_mesh_file = Path("labyrinth_mesh.json")
+            if labyrinth_mesh_file.exists():
             try:
                 with open(labyrinth_mesh_file, 'r', encoding='utf-8') as f:
                     mesh_data = json.load(f)
@@ -185,7 +186,7 @@ class SpatialVisualizer:
         plt.title("Trayectorias de Jugadores (Vista Superior - XZ)")
         plt.xlabel("X (m)")
         plt.ylabel("Z (m)")
-        self._draw_play_area(draw_ideal_path=True)
+        self._draw_play_area(draw_ideal_path=True, draw_labyrinth_mesh=True)
         plt.axis("equal")
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         plt.grid(True, linestyle="--", alpha=0.5)
@@ -264,7 +265,7 @@ class SpatialVisualizer:
             ax.set_xlabel("X (m)")
             ax.set_ylabel("Z (m)")
             ax.grid(True, linestyle="--", alpha=0.3)
-            self._draw_play_area(ax, draw_ideal_path=True)
+            self._draw_play_area(ax, draw_ideal_path=True, draw_labyrinth_mesh=True)
             ax.axis("equal")
 
             # Guardar en buffer
