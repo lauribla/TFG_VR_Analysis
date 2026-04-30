@@ -99,9 +99,10 @@ def main():
     if df.empty:
         st.warning("⚠️ No se pudieron cargar los datos.")
         return
-        
+
     # Normalizar scores a 0-100 para comparar con el SUS equitativamente
-    for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "global_score", "total_score"]:
+    for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score", "global_score",
+                "total_score"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce") * 100
 
@@ -159,7 +160,7 @@ def main():
 
         "activity_level_per_min": "presencia", "first_success_time_s": "presencia", "inactivity_time_s": "presencia",
         "sound_localization_time_s": "presencia", "audio_performance_gain": "presencia",
-        
+
         "sus_score": "cuestionarios", "subj_efectividad": "cuestionarios", "subj_eficiencia": "cuestionarios",
         "subj_satisfaccion": "cuestionarios", "subj_presencia": "cuestionarios",
         "presence_score": "cuestionarios", "satisfaction_score": "cuestionarios"
@@ -299,31 +300,33 @@ def main():
     # 🔹 Eventos personalizados A (Listas de eventos raw)
     # ============================================================
     st.header("🎯 Custom Events & Metrics")
-    
+
     # 1. Buscar columnas de eventos raw (custom_events_*)
     custom_event_cols = [c for c in df.columns if c.startswith("custom_events_")]
-    
+
     # 2. Buscar métricas personalizadas (con prefijo de categoría pero no estándar)
     # Definimos lo que es "estándar" para excluirlo
     std_metrics = {
         "efectividad": ["hit_ratio", "success_rate", "learning_curve_mean", "progression", "success_after_restart"],
         "eficiencia": ["avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s", "navigation_errors"],
-        "satisfaccion": ["learning_stability", "error_reduction_rate", "voluntary_play_time_s", "aid_usage", "interface_errors"],
-        "presencia": ["activity_level_per_min", "first_success_time_s", "inactivity_time_s", "sound_localization_time_s", "audio_performance_gain", "spatial_coverage", "head_rotation_speed"]
+        "satisfaccion": ["learning_stability", "error_reduction_rate", "voluntary_play_time_s", "aid_usage",
+                         "interface_errors"],
+        "presencia": ["activity_level_per_min", "first_success_time_s", "inactivity_time_s",
+                      "sound_localization_time_s", "audio_performance_gain", "spatial_coverage", "head_rotation_speed"]
     }
-    
+
     known_std = set()
     for cat, m_list in std_metrics.items():
         for m in m_list:
             known_std.add(m)
-            known_std.add(f"{cat}_{m}") # Prefixed version
-            
+            known_std.add(f"{cat}_{m}")  # Prefixed version
+
     # Detectar custom metrics (ej: efectividad_shot_fired)
     custom_metric_cols = []
     for col in df.columns:
         if col in known_std or col in ["user_id", "group_id", "session_id", "timestamp"]:
             continue
-            
+
         # Check if starts with a known category
         for cat in std_metrics.keys():
             if col.startswith(f"{cat}_") and not col.startswith("custom_events_") and not col.endswith("_score"):
@@ -345,17 +348,17 @@ def main():
         st.subheader("Calculated Custom Metrics")
         # Graficar cada una por separado o agrupadas
         for cm in custom_metric_cols:
-             # Clean title: remove category prefix if present
-             clean_title = cm
-             for cat in std_metrics.keys():
-                 if cm.startswith(f"{cat}_"):
-                     clean_title = cm[len(cat)+1:]
-                     break
-             
-             fig_cm = px.bar(df, x=eje_x, y=cm, color=eje_x, 
-                             title=f"Custom Metric: {clean_title.replace('_', ' ').title()}", text_auto=".2f")
-             st.plotly_chart(fig_cm, use_container_width=True)
-             
+            # Clean title: remove category prefix if present
+            clean_title = cm
+            for cat in std_metrics.keys():
+                if cm.startswith(f"{cat}_"):
+                    clean_title = cm[len(cat) + 1:]
+                    break
+
+            fig_cm = px.bar(df, x=eje_x, y=cm, color=eje_x,
+                            title=f"Custom Metric: {clean_title.replace('_', ' ').title()}", text_auto=".2f")
+            st.plotly_chart(fig_cm, use_container_width=True)
+
     if not custom_event_cols and not custom_metric_cols:
         st.info("No se encontraron eventos personalizados ni métricas nuevas.")
 
@@ -365,7 +368,7 @@ def main():
     st.header("🗺️ Análisis Espacial (Pre-generado)")
     # results_dir is inside 'results', so go up one level to 'figures/spatial'
     figures_dir = results_dir.parent / "figures" / "spatial"
-    
+
     if figures_dir.exists():
 
         # Define tuples: (Title, Static Filename, Animated Filename)
@@ -373,34 +376,36 @@ def main():
             ("Trayectorias (Todos)", "Spatial_Trajectories.png", "Spatial_Trajectories.gif"),
             ("Mapa de Calor: Posición", "Spatial_Heatmap_Global.png", None),
             ("Mapa de Calor: Mirada", "Gaze_Heatmap.png", "Gaze_Heatmap.gif"),
+            ("Objetos Mirados (Gaze)", "Gaze_Targets_BarChart.png", None),
+            ("Objetos Mirados (Eye Tracking)", "Eye_Targets_BarChart.png", None),
             ("Pupilometría (Tiempo)", "Eye_Pupilometry_OverTime.png", "Eye_Pupilometry_OverTime.gif"),
             ("Mapa de Calor: Manos", "Hand_Heatmap.png", "Hand_Heatmap.gif"),
             ("Mapa de Calor: Pies", "Foot_Heatmap.png", "Foot_Heatmap.gif")
         ]
-        
+
         # Create tabs dynamically
         tabs = st.tabs([v[0] for v in visualizations])
-        
+
         for tab, (title, static_file, gif_file) in zip(tabs, visualizations):
             with tab:
                 # Default to static
                 img_path = figures_dir / static_file
                 gif_path = figures_dir / gif_file if gif_file else None
-                
+
                 # Check availability
                 has_static = img_path.exists()
                 has_gif = gif_path and gif_path.exists()
-                
+
                 if has_gif:
                     st.markdown(f"**🎬 Animación: {title}**")
                     st.image(str(gif_path), caption=f"{title} (Animación)", use_column_width=True)
                     st.markdown("---")
-                
+
                 if has_static:
                     st.image(str(img_path), caption=f"{title} (Estático)", use_column_width=True)
-                
+
                 if not has_static and not has_gif:
-                     st.info(f"Visualización no disponible: {title}")
+                    st.info(f"Visualización no disponible: {title}")
     else:
         st.info("No se han encontrado figuras espaciales generadas. Ejecuta vr_analysis.py para crearlas.")
 

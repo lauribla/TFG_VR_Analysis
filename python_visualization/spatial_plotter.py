@@ -160,6 +160,7 @@ class SpatialVisualizer:
             self.plot_position_heatmap()
             self.plot_gaze_heatmap()
             self.plot_gaze_targets()  # <-- NUEVO GRAFICO DE BARRAS DE OBJETOS
+            self.plot_eye_targets()   # <-- GRAFICO DE BARRAS DE EYE TRACKING
             self.plot_pupilometry()
 
             self.plot_hand_heatmap()
@@ -401,6 +402,31 @@ class SpatialVisualizer:
         plt.grid(True, axis="x", linestyle="--", alpha=0.7)
 
         plt.savefig(self.output_dir / "Gaze_Targets_BarChart.png", bbox_inches="tight")
+        plt.close()
+
+    def plot_eye_targets(self):
+        """Gráfico de barras con los objetos más mirados usando Eye Tracking (Pupilas)."""
+        eyes = self.df[self.df["event_name"] == "eye_frame"].copy()
+
+        if "target" not in eyes.columns or eyes.empty:
+            return
+
+        eyes = eyes[~eyes["target"].isin(["none", "null", "", "Ground", "Floor", "Suelo"])]
+        if eyes.empty:
+            return
+
+        target_counts = eyes["target"].value_counts().head(10).reset_index()
+        target_counts.columns = ["Objeto", "Frames (Frecuencia)"]
+
+        plt.figure(figsize=(10, 6))
+        sns.barplot(data=target_counts, x="Frames (Frecuencia)", y="Objeto", palette="mako")
+
+        plt.title("Objetos Más Mirados (Eye Tracking Real)")
+        plt.xlabel("Cantidad de registros (proporcional al tiempo)")
+        plt.ylabel("Nombre del Objeto en Unity")
+        plt.grid(True, axis="x", linestyle="--", alpha=0.7)
+
+        plt.savefig(self.output_dir / "Eye_Targets_BarChart.png", bbox_inches="tight")
         plt.close()
 
     def plot_gaze_heatmap_gif(self, max_frames=60):
