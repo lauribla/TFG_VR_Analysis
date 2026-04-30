@@ -48,7 +48,7 @@ class SpatialVisualizer:
             # Buscamos primero el fichero con el nombre del escenario (ej: labyrinth_mesh_Laberinto1.json)
             mesh_file = Path(f"labyrinth_mesh_{scenario_id}.json") if scenario_id else Path("labyrinth_mesh.json")
             if not mesh_file.exists():
-                mesh_file = Path("labyrinth_mesh.json") # Fallback al genérico
+                mesh_file = Path("labyrinth_mesh.json")  # Fallback al genérico
 
             if mesh_file.exists():
                 try:
@@ -62,11 +62,24 @@ class SpatialVisualizer:
                         if len(pts) >= 3:
                             polys = []
                             for i in range(0, len(indices), 3):
-                                if i+2 < len(indices):
-                                    polys.append([pts[indices[i]], pts[indices[i+1]], pts[indices[i+2]]])
+                                if i + 2 < len(indices):
+                                    polys.append([pts[indices[i]], pts[indices[i + 1]], pts[indices[i + 2]]])
                             if polys:
-                                collection = mcoll.PolyCollection(polys, facecolors='lightgray', edgecolors='black', linewidths=0.5, alpha=0.4, zorder=1)
+                                collection = mcoll.PolyCollection(polys, facecolors='lightgray', edgecolors='black',
+                                                                  linewidths=0.5, alpha=0.4, zorder=1)
                                 ax.add_collection(collection)
+
+                    # Dibujar marcadores de inicio y fin si están presentes en el JSON del mapa
+                    if "start_point" in mesh_data:
+                        sp = mesh_data["start_point"]
+                        if "x" in sp and "z" in sp:
+                            ax.scatter(sp["x"], sp["z"], color="blue", marker="o", s=150, label="Start Point", zorder=5,
+                                       edgecolors='white', linewidths=2)
+                    if "end_point" in mesh_data:
+                        ep = mesh_data["end_point"]
+                        if "x" in ep and "z" in ep:
+                            ax.scatter(ep["x"], ep["z"], color="red", marker="*", s=250, label="End Point", zorder=5,
+                                       edgecolors='white', linewidths=2)
                 except Exception as e:
                     print(f"[SpatialVisualizer] Aviso: No se pudo dibujar la malla {mesh_file.name}: {e}")
 
@@ -74,7 +87,7 @@ class SpatialVisualizer:
         if draw_ideal_path:
             ideal_file = Path(f"ideal_path_{scenario_id}.json") if scenario_id else Path("ideal_path.json")
             if not ideal_file.exists():
-                ideal_file = Path("ideal_path.json") # Fallback genérico
+                ideal_file = Path("ideal_path.json")  # Fallback genérico
 
             if ideal_file.exists():
                 try:
@@ -96,7 +109,8 @@ class SpatialVisualizer:
                 if isinstance(val, str):
                     try:
                         val = json.loads(val.replace("'", '"'))
-                    except: pass
+                    except:
+                        pass
                 if isinstance(val, dict) and "vertices_x" in val and "vertices_z" in val:
                     vx = val["vertices_x"]
                     vz = val["vertices_z"]
@@ -160,7 +174,7 @@ class SpatialVisualizer:
             self.plot_position_heatmap()
             self.plot_gaze_heatmap()
             self.plot_gaze_targets()  # <-- NUEVO GRAFICO DE BARRAS DE OBJETOS
-            self.plot_eye_targets()   # <-- GRAFICO DE BARRAS DE EYE TRACKING
+            self.plot_eye_targets()  # <-- GRAFICO DE BARRAS DE EYE TRACKING
             self.plot_pupilometry()
 
             self.plot_hand_heatmap()
