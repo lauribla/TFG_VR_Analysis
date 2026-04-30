@@ -29,12 +29,30 @@ class SpatialVisualizer:
         import json
         from pathlib import Path
 
+        # --- NUEVO: Extraer la Variable Independiente o el Experiment ID del DataFrame ---
+        # Buscamos en el log de config de esta sesión para saber qué laberinto estamos jugando
+        scenario_id = ""
+        config_logs = self.df[self.df["event_name"] == "experiment_config"]
+        if not config_logs.empty:
+            try:
+                first_val = config_logs.iloc[0]["event_context"]
+                if isinstance(first_val, str):
+                    first_val = json.loads(first_val.replace("'", '"'))
+                # Intentamos sacar la variable independiente (ideal para poner "Laberinto1", "Laberinto2")
+                scenario_id = first_val.get("session", {}).get("independent_variable", "")
+            except:
+                pass
+
         # -2. Dibujar la geometría interna del Labyrinth (Malla del suelo) si existe
         if draw_labyrinth_mesh:
-            labyrinth_mesh_file = Path("labyrinth_mesh.json")
-            if labyrinth_mesh_file.exists():
+            # Buscamos primero el fichero con el nombre del escenario (ej: labyrinth_mesh_Laberinto1.json)
+            mesh_file = Path(f"labyrinth_mesh_{scenario_id}.json") if scenario_id else Path("labyrinth_mesh.json")
+            if not mesh_file.exists():
+                mesh_file = Path("labyrinth_mesh.json") # Fallback al genérico
+
+            if mesh_file.exists():
                 try:
-                    with open(labyrinth_mesh_file, 'r', encoding='utf-8') as f:
+                    with open(mesh_file, 'r', encoding='utf-8') as f:
                         mesh_data = json.load(f)
                     if "vertices" in mesh_data and "indices" in mesh_data:
                         import matplotlib.collections as mcoll
@@ -50,14 +68,17 @@ class SpatialVisualizer:
                                 collection = mcoll.PolyCollection(polys, facecolors='lightgray', edgecolors='black', linewidths=0.5, alpha=0.4, zorder=1)
                                 ax.add_collection(collection)
                 except Exception as e:
-                    print(f"[SpatialVisualizer] Aviso: No se pudo dibujar la malla labyrinth_mesh.json: {e}")
+                    print(f"[SpatialVisualizer] Aviso: No se pudo dibujar la malla {mesh_file.name}: {e}")
 
         # -1. Dibujar el Labyrinth Ideal Path si existe y si fue solicitado
         if draw_ideal_path:
-            ideal_path_file = Path("ideal_path.json")
-            if ideal_path_file.exists():
+            ideal_file = Path(f"ideal_path_{scenario_id}.json") if scenario_id else Path("ideal_path.json")
+            if not ideal_file.exists():
+                ideal_file = Path("ideal_path.json") # Fallback genérico
+
+            if ideal_file.exists():
                 try:
-                    with open(ideal_path_file, 'r', encoding='utf-8') as f:
+                    with open(ideal_file, 'r', encoding='utf-8') as f:
                         ideal_data = json.load(f)
                     if isinstance(ideal_data, list) and len(ideal_data) > 1:
                         ix = [pt["x"] for pt in ideal_data if "x" in pt and "z" in pt]
