@@ -331,18 +331,18 @@ class PDFReport:
         # self.figures_dir apuntaba a 'agrupado' o 'global', subimos un nivel si es necesario
         root_figs = self.figures_dir.parent if self.figures_dir.name in ["agrupado", "global"] else self.figures_dir
         spatial_dir = root_figs / "spatial"
-        
+
         if spatial_dir.exists():
             spatial_charts = list(spatial_dir.glob("*.png"))
             if spatial_charts:
                 elements.append(Paragraph("Análisis Espacial y de Mirada", styles["Heading1"]))
                 elements.append(Spacer(1, 10))
-                
-                # Mapeo de nombres de archivo a títulos amigables
+
                 titles = {
                     "Spatial_Trajectories.png": "Trayectorias de Jugadores",
                     "Spatial_Heatmap_Global.png": "Mapa de Calor: Ocupación del Espacio",
                     "Gaze_Heatmap.png": "Mapa de Calor: Atención Visual (Mirada)",
+                    "Gaze_Targets_BarChart.png": "Objetos Más Mirados (Gaze Targets)",
                     "Eye_Pupilometry_OverTime.png": "Evolución del Diámetro Pupilar",
                     "Hand_Heatmap.png": "Mapa de Calor: Manos",
                     "Foot_Heatmap.png": "Mapa de Calor: Pies"
@@ -354,7 +354,7 @@ class PDFReport:
                     elements.append(Spacer(1, 5))
                     elements.append(Image(str(chart), width=450, height=350))
                     elements.append(Spacer(1, 15))
-                
+
                 elements.append(PageBreak())
 
         # ============================================================

@@ -159,6 +159,7 @@ class SpatialVisualizer:
             self.plot_trajectories()
             self.plot_position_heatmap()
             self.plot_gaze_heatmap()
+            self.plot_gaze_targets()  # <-- NUEVO GRAFICO DE BARRAS DE OBJETOS
             self.plot_pupilometry()
 
             self.plot_hand_heatmap()
@@ -372,6 +373,34 @@ class SpatialVisualizer:
         plt.grid(True, alpha=0.3)
 
         plt.savefig(self.output_dir / "Gaze_Heatmap.png", bbox_inches="tight")
+        plt.close()
+
+    def plot_gaze_targets(self):
+        """Gráfico de barras con los objetos (targets) más mirados."""
+        gazes = self.df[self.df["event_name"] == "gaze_frame"].copy()
+
+        if "target" not in gazes.columns or gazes.empty:
+            return
+
+        # Filtrar valores no útiles
+        gazes = gazes[~gazes["target"].isin(["none", "null", "", "Ground", "Floor", "Suelo"])]
+        if gazes.empty:
+            return
+
+        # Contar cuántas veces se ha mirado cada objeto
+        # Como cada frame es checkInterval (ej. 100ms), la cuenta es proporcional al tiempo
+        target_counts = gazes["target"].value_counts().head(10).reset_index()
+        target_counts.columns = ["Objeto", "Frames (Frecuencia)"]
+
+        plt.figure(figsize=(10, 6))
+        sns.barplot(data=target_counts, x="Frames (Frecuencia)", y="Objeto", palette="magma")
+
+        plt.title("Objetos de Interés (Gaze Targets) Más Mirados")
+        plt.xlabel("Cantidad de registros (proporcional al tiempo)")
+        plt.ylabel("Nombre del Objeto en Unity")
+        plt.grid(True, axis="x", linestyle="--", alpha=0.7)
+
+        plt.savefig(self.output_dir / "Gaze_Targets_BarChart.png", bbox_inches="tight")
         plt.close()
 
     def plot_gaze_heatmap_gif(self, max_frames=60):
