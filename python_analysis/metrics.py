@@ -357,19 +357,19 @@ class MetricsCalculator:
 
         ideal_file = Path("ideal_path.json")
         if not ideal_file.exists():
-            return np.nan  # Null seguro (no rompe la puntuación si no es un laberinto)
+            return None  # Return None para que compute_category lo salte por completo sin penalizar con 0
 
         try:
             with open(ideal_file, "r", encoding="utf-8") as f:
                 ideal_data = json.load(f)
 
             if not isinstance(ideal_data, list) or len(ideal_data) < 2:
-                return np.nan
+                return None
 
             # Calcular distancia euclidiana total del ideal_path
             ix = [pt["x"] for pt in ideal_data if "x" in pt and "z" in pt]
             iz = [pt["z"] for pt in ideal_data if "x" in pt and "z" in pt]
-            if len(ix) < 2: return np.nan
+            if len(ix) < 2: return None
 
             ideal_pts = np.column_stack((ix, iz))
             ideal_dist = np.sum(np.sqrt(np.sum(np.diff(ideal_pts, axis=0) ** 2, axis=1)))
@@ -377,7 +377,7 @@ class MetricsCalculator:
             # 2. Calcular distancia euclidiana total caminada por el participante
             moves = df[df["event_name"] == "movement_frame"]
             if "position_x" not in moves.columns or "position_z" not in moves.columns or len(moves) < 2:
-                return np.nan
+                return None
 
             rx = pd.to_numeric(moves["position_x"], errors="coerce")
             rz = pd.to_numeric(moves["position_z"], errors="coerce")
@@ -385,7 +385,7 @@ class MetricsCalculator:
             rx = rx[valid].values
             rz = rz[valid].values
 
-            if len(rx) < 2: return np.nan
+            if len(rx) < 2: return None
 
             real_pts = np.column_stack((rx, rz))
             real_dist = np.sum(np.sqrt(np.sum(np.diff(real_pts, axis=0) ** 2, axis=1)))
@@ -398,7 +398,7 @@ class MetricsCalculator:
 
         except Exception as e:
             print(f"[Metrics] Aviso calculando path_efficiency: {e}")
-            return np.nan
+            return None
 
     # ----------------------------------------------------------------------
     # MAPEO dinámico de nombres → funciones internas
