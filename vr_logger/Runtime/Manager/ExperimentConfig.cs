@@ -150,6 +150,7 @@ namespace VRLogger
             public MetricConfig Progression;
             public MetricConfig SuccessAfterRestart;
             public MetricConfig PathEfficiency;
+            public MetricConfig GazeOnPathRatio;
 
             public MetricConfig AvgReactionTimeMs;
             public MetricConfig AvgTaskDurationMs;
@@ -179,6 +180,7 @@ namespace VRLogger
             Progression = new MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 10, Invert = false },
             SuccessAfterRestart = new MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 1, Invert = false },
             PathEfficiency = new MetricConfig { Enabled = false, Weight = 0.20f, Min = 0, Max = 1, Invert = false },
+            GazeOnPathRatio = new MetricConfig { Enabled = false, Weight = 0.20f, Min = 0, Max = 1, Invert = false },
 
             AvgReactionTimeMs = new MetricConfig { Enabled = true, Weight = 0.40f, Min = 100, Max = 5000, Invert = true },
             AvgTaskDurationMs = new MetricConfig { Enabled = true, Weight = 0.30f, Min = 1000, Max = 30000, Invert = true },
@@ -330,7 +332,8 @@ namespace VRLogger
                         { "learning_curve_mean", MetricToJson(met.LearningCurveMean) },
                         { "progression", MetricToJson(met.Progression) },
                         { "success_after_restart", MetricToJson(met.SuccessAfterRestart) },
-                        { "path_efficiency", MetricToJson(met.PathEfficiency) }
+                        { "path_efficiency", MetricToJson(met.PathEfficiency) },
+                        { "gaze_on_path_ratio", MetricToJson(met.GazeOnPathRatio) }
                     } 
                 },
                 { "eficiencia", new JObject 

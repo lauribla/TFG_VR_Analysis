@@ -337,7 +337,8 @@ spatial_viz = SpatialVisualizer(
     df, 
     output_dir=figures_dir / "spatial",
     play_area_width=play_area_w,
-    play_area_depth=play_area_d
+    play_area_depth=play_area_d,
+    experiment_config=experiment_config
 )
 spatial_viz.generate_all()
 print("\n")

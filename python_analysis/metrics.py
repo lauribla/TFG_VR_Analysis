@@ -400,6 +400,72 @@ class MetricsCalculator:
             print(f"[Metrics] Aviso calculando path_efficiency: {e}")
             return None
 
+    def gaze_on_path_ratio(self, df=None, threshold=0.3):
+        if df is None: df = self.df
+        
+        ideal_file = Path("ideal_path.json")
+        if not ideal_file.exists():
+            return None
+            
+        try:
+            import json
+            import numpy as np
+            with open(ideal_file, "r", encoding="utf-8") as f:
+                ideal_data = json.load(f)
+                
+            if not isinstance(ideal_data, list) or len(ideal_data) < 2:
+                return None
+                
+            gazes = df[df["event_name"] == "gaze_frame"]
+            bx = "hit_position_x" if "hit_position_x" in gazes.columns else "hit_point_x"
+            bz = "hit_position_z" if "hit_position_z" in gazes.columns else "hit_point_z"
+            
+            if bx not in gazes.columns or bz not in gazes.columns:
+                return None
+                
+            gx = pd.to_numeric(gazes[bx], errors="coerce").values
+            gz = pd.to_numeric(gazes[bz], errors="coerce").values
+            valid = ~np.isnan(gx) & ~np.isnan(gz)
+            gx = gx[valid]
+            gz = gz[valid]
+            
+            if len(gx) == 0:
+                return 0.0
+                
+            path_pts = np.array([[pt["x"], pt["z"]] for pt in ideal_data if "x" in pt and "z" in pt])
+            if len(path_pts) < 2: return None
+            
+            P1 = path_pts[:-1]
+            P2 = path_pts[1:]
+            
+            hits = 0
+            total = len(gx)
+            
+            for i in range(total):
+                px, pz = gx[i], gz[i]
+                
+                AB = P2 - P1
+                AP = np.column_stack((np.full(len(P1), px) - P1[:, 0], np.full(len(P1), pz) - P1[:, 1]))
+                
+                ab_sq = np.sum(AB**2, axis=1)
+                ap_dot_ab = np.sum(AP * AB, axis=1)
+                
+                t = ap_dot_ab / np.maximum(ab_sq, 1e-8)
+                t = np.clip(t, 0.0, 1.0)
+                
+                closest_x = P1[:, 0] + t * AB[:, 0]
+                closest_z = P1[:, 1] + t * AB[:, 1]
+                
+                dists = np.sqrt((px - closest_x)**2 + (pz - closest_z)**2)
+                if np.min(dists) <= threshold:
+                    hits += 1
+                    
+            return float(hits / total)
+            
+        except Exception as e:
+            print(f"[Metrics] Aviso calculando gaze_on_path_ratio: {e}")
+            return None
+
     # ----------------------------------------------------------------------
     # MAPEO dinámico de nombres → funciones internas
     # ----------------------------------------------------------------------
@@ -434,7 +500,8 @@ class MetricsCalculator:
             "learning_stability": self.learning_stability,
             "error_reduction_rate": self.error_reduction_rate,
             "audio_performance_gain": self.audio_performance_gain,
-            "path_efficiency": self.path_efficiency
+            "path_efficiency": self.path_efficiency,
+            "gaze_on_path_ratio": self.gaze_on_path_ratio
         }
 
     def audio_performance_gain(self, df=None):

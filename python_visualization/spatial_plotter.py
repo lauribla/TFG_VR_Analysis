@@ -11,7 +11,7 @@ from PIL import Image
 
 
 class SpatialVisualizer:
-    def __init__(self, df, output_dir, play_area_width=None, play_area_depth=None):
+    def __init__(self, df, output_dir, play_area_width=None, play_area_depth=None, experiment_config=None):
         """
         df: DataFrame RAW con eventos (debe tener event_name, timestamp, y columnas de posición expandidas)
         output_dir: ruta donde guardar las imágenes
@@ -21,6 +21,7 @@ class SpatialVisualizer:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.play_area_width = play_area_width
         self.play_area_depth = play_area_depth
+        self.experiment_config = experiment_config
 
     def _draw_play_area(self, ax=None, draw_ideal_path=False, draw_labyrinth_mesh=False):
         ax = ax or plt.gca()
@@ -390,57 +391,107 @@ class SpatialVisualizer:
         plt.savefig(self.output_dir / "Gaze_Heatmap.png", bbox_inches="tight")
         plt.close()
 
+    def _calculate_gaze_on_path_time(self, event_type, df_frames, median_delta, threshold=0.3):
+        if not self.experiment_config:
+            return 0.0
+        gaze_config = self.experiment_config.get("metrics", {}).get("efectividad", {}).get("gaze_on_path_ratio", {})
+        if not gaze_config.get("enabled", False):
+            return 0.0
+            
+        import json
+        scenario_id = self.experiment_config.get("session", {}).get("independent_variable", "")
+        ideal_file = Path(f"ideal_path_{scenario_id}.json") if scenario_id else Path("ideal_path.json")
+        if not ideal_file.exists():
+            ideal_file = Path("ideal_path.json")
+            
+        if not ideal_file.exists():
+            return 0.0
+            
+        try:
+            with open(ideal_file, "r", encoding="utf-8") as f:
+                ideal_data = json.load(f)
+            
+            bx = "hit_position_x" if "hit_position_x" in df_frames.columns else "hit_point_x"
+            bz = "hit_position_z" if "hit_position_z" in df_frames.columns else "hit_point_z"
+            if bx not in df_frames.columns or bz not in df_frames.columns:
+                return 0.0
+                
+            gx = pd.to_numeric(df_frames[bx], errors="coerce").values
+            gz = pd.to_numeric(df_frames[bz], errors="coerce").values
+            valid = ~np.isnan(gx) & ~np.isnan(gz)
+            gx, gz = gx[valid], gz[valid]
+            if len(gx) == 0: return 0.0
+            
+            path_pts = np.array([[pt["x"], pt["z"]] for pt in ideal_data if "x" in pt and "z" in pt])
+            if len(path_pts) < 2: return 0.0
+            
+            P1 = path_pts[:-1]
+            P2 = path_pts[1:]
+            hits = 0
+            
+            for i in range(len(gx)):
+                px, pz = gx[i], gz[i]
+                AB = P2 - P1
+                AP = np.column_stack((np.full(len(P1), px) - P1[:, 0], np.full(len(P1), pz) - P1[:, 1]))
+                ab_sq = np.sum(AB**2, axis=1)
+                ap_dot_ab = np.sum(AP * AB, axis=1)
+                t = np.clip(ap_dot_ab / np.maximum(ab_sq, 1e-8), 0.0, 1.0)
+                closest_x = P1[:, 0] + t * AB[:, 0]
+                closest_z = P1[:, 1] + t * AB[:, 1]
+                dists = np.sqrt((px - closest_x)**2 + (pz - closest_z)**2)
+                if np.min(dists) <= threshold:
+                    hits += 1
+            return float(hits * median_delta)
+        except:
+            return 0.0
+
     def plot_gaze_targets(self):
         """Gráfico de barras con los objetos (targets) más mirados."""
-        gazes = self.df[self.df["event_name"] == "gaze_frame"].copy()
-
-        if "target" not in gazes.columns or gazes.empty:
-            return
-
-        # Filtrar valores no útiles
-        gazes = gazes[~gazes["target"].isin(["none", "null", "", "Ground", "Floor", "Suelo"])]
-        if gazes.empty:
-            return
-
-        # Contar cuántas veces se ha mirado cada objeto
-        # Como cada frame es checkInterval (ej. 100ms), la cuenta es proporcional al tiempo
-        target_counts = gazes["target"].value_counts().head(10).reset_index()
-        target_counts.columns = ["Objeto", "Frames (Frecuencia)"]
-
-        plt.figure(figsize=(10, 6))
-        sns.barplot(data=target_counts, x="Frames (Frecuencia)", y="Objeto", palette="magma")
-
-        plt.title("Objetos de Interés (Gaze Targets) Más Mirados")
-        plt.xlabel("Cantidad de registros (proporcional al tiempo)")
-        plt.ylabel("Nombre del Objeto en Unity")
-        plt.grid(True, axis="x", linestyle="--", alpha=0.7)
-
-        plt.savefig(self.output_dir / "Gaze_Targets_BarChart.png", bbox_inches="tight")
-        plt.close()
+        self._plot_targets_base("gaze_frame", "Gaze_Targets_BarChart.png", "Objetos de Interés (Gaze Targets) Más Mirados", "magma")
 
     def plot_eye_targets(self):
         """Gráfico de barras con los objetos más mirados usando Eye Tracking (Pupilas)."""
-        eyes = self.df[self.df["event_name"] == "eye_frame"].copy()
+        self._plot_targets_base("eye_frame", "Eye_Targets_BarChart.png", "Objetos Más Mirados (Eye Tracking Real)", "mako")
 
-        if "target" not in eyes.columns or eyes.empty:
+    def _plot_targets_base(self, event_name, filename, title, palette):
+        frames = self.df[self.df["event_name"] == event_name].copy()
+
+        if "target" not in frames.columns or frames.empty:
             return
 
-        eyes = eyes[~eyes["target"].isin(["none", "null", "", "Ground", "Floor", "Suelo"])]
-        if eyes.empty:
-            return
+        frames_filtered = frames[~frames["target"].isin(["none", "null", "", "Ground", "Floor", "Suelo"])]
+        
+        median_delta = 0.1 
+        if pd.api.types.is_datetime64_any_dtype(frames["timestamp"]):
+            frames_sorted = frames.sort_values("timestamp")
+            diffs = frames_sorted.groupby("session_id")["timestamp"].diff().dt.total_seconds()
+            calc_median = diffs.median()
+            if not pd.isna(calc_median) and calc_median > 0:
+                median_delta = calc_median
 
-        target_counts = eyes["target"].value_counts().head(10).reset_index()
+        target_counts = frames_filtered["target"].value_counts().reset_index()
         target_counts.columns = ["Objeto", "Frames (Frecuencia)"]
+        target_counts["Tiempo Total (s)"] = target_counts["Frames (Frecuencia)"] * median_delta
+        
+        path_time = self._calculate_gaze_on_path_time(event_name, frames, median_delta)
+        if path_time > 0:
+            path_row = pd.DataFrame([{"Objeto": "Guide Line (Path)", "Frames (Frecuencia)": path_time/median_delta, "Tiempo Total (s)": path_time}])
+            target_counts = pd.concat([target_counts, path_row], ignore_index=True)
+            
+        if target_counts.empty:
+            return
+            
+        target_counts = target_counts.sort_values(by="Tiempo Total (s)", ascending=False).head(10)
 
         plt.figure(figsize=(10, 6))
-        sns.barplot(data=target_counts, x="Frames (Frecuencia)", y="Objeto", palette="mako")
+        sns.barplot(data=target_counts, x="Tiempo Total (s)", y="Objeto", palette=palette)
 
-        plt.title("Objetos Más Mirados (Eye Tracking Real)")
-        plt.xlabel("Cantidad de registros (proporcional al tiempo)")
+        plt.title(title)
+        plt.xlabel("Tiempo Total Mirado (Segundos)")
         plt.ylabel("Nombre del Objeto en Unity")
         plt.grid(True, axis="x", linestyle="--", alpha=0.7)
 
-        plt.savefig(self.output_dir / "Eye_Targets_BarChart.png", bbox_inches="tight")
+        plt.savefig(self.output_dir / filename, bbox_inches="tight")
         plt.close()
 
     def plot_gaze_heatmap_gif(self, max_frames=60):
