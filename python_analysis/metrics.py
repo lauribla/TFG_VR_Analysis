@@ -354,8 +354,22 @@ class MetricsCalculator:
         from pathlib import Path
         import json
         import numpy as np
+        
+        scenario_id = ""
+        config_logs = df[df["event_name"] == "experiment_config"]
+        if not config_logs.empty:
+            try:
+                first_val = config_logs.iloc[0]["event_context"]
+                if isinstance(first_val, str):
+                    first_val = json.loads(first_val.replace("'", '"'))
+                scenario_id = first_val.get("session", {}).get("independent_variable", "")
+            except:
+                pass
 
-        ideal_file = Path("ideal_path.json")
+        ideal_file = Path(f"ideal_path_{scenario_id}.json") if scenario_id else Path("ideal_path.json")
+        if not ideal_file.exists():
+            ideal_file = Path("ideal_path.json")
+
         if not ideal_file.exists():
             return None  # Return None para que compute_category lo salte por completo sin penalizar con 0
 
@@ -403,7 +417,22 @@ class MetricsCalculator:
     def gaze_on_path_ratio(self, df=None, threshold=0.3):
         if df is None: df = self.df
         
-        ideal_file = Path("ideal_path.json")
+        scenario_id = ""
+        config_logs = df[df["event_name"] == "experiment_config"]
+        if not config_logs.empty:
+            try:
+                import json
+                first_val = config_logs.iloc[0]["event_context"]
+                if isinstance(first_val, str):
+                    first_val = json.loads(first_val.replace("'", '"'))
+                scenario_id = first_val.get("session", {}).get("independent_variable", "")
+            except:
+                pass
+                
+        ideal_file = Path(f"ideal_path_{scenario_id}.json") if scenario_id else Path("ideal_path.json")
+        if not ideal_file.exists():
+            ideal_file = Path("ideal_path.json")
+            
         if not ideal_file.exists():
             return None
             
