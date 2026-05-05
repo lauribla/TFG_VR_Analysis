@@ -238,10 +238,15 @@ class MetricsCalculator:
 
     def first_success_time(self, df=None):
         if df is None: df = self.df
-        start = df[df["event_role"] == "session_start"]["timestamp"].min()
+        start = df[df["event_role"].isin(["session_start", "task_start"])]["timestamp"].min()
         succ = df[df["event_role"] == "action_success"]["timestamp"].min()
         if pd.notna(start) and pd.notna(succ):
             return (succ - start).total_seconds()
+            
+        # Fallback for maze: first success is reaching the end
+        end = df[df["event_role"] == "task_end"]["timestamp"].min()
+        if pd.notna(start) and pd.notna(end):
+            return (end - start).total_seconds()
         return np.nan
 
     def sound_localization_time(self, df=None):
@@ -270,7 +275,8 @@ class MetricsCalculator:
     def learning_curve_mean(self, df=None):
         vals = self.learning_curve(df)
         if not vals:
-            return 0.0
+            eff = self.path_efficiency(df)
+            return float(eff) if eff is not None else 0.0
         return float(np.nanmean(vals))
 
     def progression(self, df=None):
@@ -312,8 +318,13 @@ class MetricsCalculator:
 
     def navigation_errors(self, df=None):
         if df is None: df = self.df
-        # Refinado: Usar ROL en lugar de nombre fijo "collision"
-        return len(df[df["event_role"] == "navigation_error"])
+        errors = len(df[df["event_role"].isin(["navigation_error", "action_fail"])])
+        if errors == 0:
+            # Fallback: estimate from path_efficiency
+            eff = self.path_efficiency(df)
+            if eff is not None and eff > 0:
+                return max(0, int((1.0 - eff) * 10))
+        return errors
 
     def aim_errors(self, df=None):
         if df is None: df = self.df
@@ -335,17 +346,18 @@ class MetricsCalculator:
         return len(df[df["event_name"] == "ui_error"])
 
     def learning_stability(self, df=None):
-        # Varianza de la curva de aprendizaje (invertida?)
         vals = self.learning_curve(df)
-        if len(vals) < 2: return 0.0
-        return 1.0 / (1.0 + np.std(vals))  # Mayor estabilidad = menos std dev
+        if len(vals) < 2: 
+            eff = self.path_efficiency(df)
+            return float(eff) if eff is not None else 0.0
+        return 1.0 / (1.0 + np.std(vals))
 
     def error_reduction_rate(self, df=None):
-        # Tendencia de errores: pendiente de regresión de fallos por bloque?
-        vals = self.learning_curve(df)  # Esto es success rate
-        # Si success rate sube, error rate baja.
-        if len(vals) < 2: return 0.0
-        return vals[-1] - vals[0]  # Simple: mejora final vs inicial
+        vals = self.learning_curve(df)
+        if len(vals) < 2: 
+            eff = self.path_efficiency(df)
+            return float(eff) if eff is not None else 0.0
+        return vals[-1] - vals[0]
 
     def path_efficiency(self, df=None):
         if df is None: df = self.df

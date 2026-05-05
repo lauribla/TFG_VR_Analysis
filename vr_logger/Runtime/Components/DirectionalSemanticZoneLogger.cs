@@ -18,6 +18,10 @@ namespace VRLogger.Components
         [Tooltip("Las capas que activan el trigger (ej: Player)")]
         public LayerMask validTriggerMask;
 
+        [Tooltip("Si est activado, este cruce solo registrar la PRIMERA vez que el jugador pase por l. Muy til para no duplicar datos si el jugador se pierde y da vueltas.")]
+        public bool logOnlyOnce = true;
+        private bool _hasLogged = false;
+
         [System.Serializable]
         public struct CustomDirectionalExit
         {
@@ -58,6 +62,8 @@ namespace VRLogger.Components
 
         private void OnTriggerEnter(Collider other)
         {
+            if (logOnlyOnce && _hasLogged) return;
+
             if (((1 << other.gameObject.layer) & validTriggerMask) != 0)
             {
                 // Registramos que el jugador ha llegado al punto de cruce (punto neutro)
@@ -72,6 +78,8 @@ namespace VRLogger.Components
 
         private void OnTriggerExit(Collider other)
         {
+            if (logOnlyOnce && _hasLogged) return;
+
             if (((1 << other.gameObject.layer) & validTriggerMask) != 0)
             {
                 SemanticZoneType resultType = SemanticZoneType.Decision;
@@ -135,12 +143,12 @@ namespace VRLogger.Components
                 string eventNameToLog = "zone_decision_point";
                 switch (resultType)
                 {
-                    case SemanticZoneType.Success: 
-                        eventNameToLog = "action_success"; 
+                    case SemanticZoneType.Success:
+                        eventNameToLog = "action_success";
                         break;
                     case SemanticZoneType.Fail:
-                    case SemanticZoneType.Backtrack: 
-                        eventNameToLog = "action_fail"; 
+                    case SemanticZoneType.Backtrack:
+                        eventNameToLog = "action_fail";
                         break;
                 }
 
@@ -148,13 +156,15 @@ namespace VRLogger.Components
                 LoggerService.LogEvent(
                     eventType: "metrics",
                     eventName: eventNameToLog,
-                    eventValue: new { 
-                        zoneId = this.zoneId, 
+                    eventValue: new {
+                        zoneId = this.zoneId,
                         zoneType = resultType.ToString(),
                         exitFace = exitFace
                     },
                     eventContext: null
                 );
+
+                _hasLogged = true;
             }
         }
     }
