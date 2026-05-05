@@ -10,6 +10,7 @@ namespace VRLogger
         public string SessionName = "Dia_1";
         public string GroupName = "Grupo_A";
         public string IndependentVariable = "";
+        public string MapName = "";
         public float TurnDurationSeconds = 60f;
 
         [Header("Participants")]

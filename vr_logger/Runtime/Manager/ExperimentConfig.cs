@@ -18,6 +18,7 @@ namespace VRLogger
         public string SessionName = "Dia_1";
         public string GroupName = "Grupo_A";
         public string IndependentVariable = "";
+        public string MapName = "";
         public float TurnDurationSeconds = 60f;
         [HideInInspector] public float PlayAreaWidth = 0f;
         [HideInInspector] public float PlayAreaDepth = 0f;
@@ -25,7 +26,7 @@ namespace VRLogger
         [Header("Participants")]
         public int ParticipantCount = 4;
         public List<string> ParticipantOrder = new List<string> { "U001", "U002", "U003", "U004" };
-        
+
         [Tooltip("If set, overrides the Participant list for a single-user run.")]
         public string ManualParticipantName = "";
 
@@ -48,7 +49,7 @@ namespace VRLogger
 
         [System.Serializable]
         public enum FlowModeType { Turns, Manual }
-        
+
         [System.Serializable]
         public enum EndConditionType { Timer, GM }
 
@@ -169,7 +170,7 @@ namespace VRLogger
             public MetricConfig SoundLocalizationTimeS;
             public MetricConfig AudioPerformanceGain;
         }
-        
+
         [Header("Metrics")]
         public MetricsCategory Metrics = new MetricsCategory
         {
@@ -186,7 +187,7 @@ namespace VRLogger
             AvgTaskDurationMs = new MetricConfig { Enabled = true, Weight = 0.30f, Min = 1000, Max = 30000, Invert = true },
             TimePerSuccessS = new MetricConfig { Enabled = true, Weight = 0.20f, Min = 0, Max = 60, Invert = true },
             NavigationErrors = new MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 10, Invert = true },
-            
+
             LearningStability = new MetricConfig { Enabled = true, Weight = 0.30f, Min = 0, Max = 1, Invert = false },
             ErrorReductionRate = new MetricConfig { Enabled = true, Weight = 0.25f, Min = 0, Max = 1, Invert = false },
             VoluntaryPlayTimeS = new MetricConfig { Enabled = true, Weight = 0.25f, Min = 0, Max = 60, Invert = false },
@@ -224,28 +225,29 @@ namespace VRLogger
             string sName = p ? p.SessionName : SessionName;
             string gName = p ? p.GroupName : GroupName;
             string iv = p ? p.IndependentVariable : IndependentVariable;
+            string mName = p ? p.MapName : MapName;
             float tDuration = p ? p.TurnDurationSeconds : TurnDurationSeconds;
             // Since ExperimentProfile doesn't have PlayArea yet, we fallback to local for now
-            float pAWidth = PlayAreaWidth; 
+            float pAWidth = PlayAreaWidth;
             float pADepth = PlayAreaDepth;
-            
+
             // MANUAL USER ID LOGIC
             string manualUser = p ? p.ManualParticipantName : ManualParticipantName;
-            
+
             int pCount = p ? p.ParticipantCount : ParticipantCount;
             List<string> pOrder = p ? p.ParticipantOrder : ParticipantOrder;
-            
+
             if (!string.IsNullOrEmpty(manualUser))
             {
                 pCount = 1;
                 pOrder = new List<string> { manualUser };
                 Debug.Log($"[ExperimentConfig] ⚠️ Using Manual Participant Override: {manualUser}");
             }
-            
+
             string exId = p ? p.ExperimentId : ExperimentId;
             string fProf = p ? p.FormulaProfile : FormulaProfile;
             string desc = p ? p.Description : Description;
-            
+
             bool useGaze = p ? p.UseGazeTracker : UseGazeTracker;
             bool useEye = p ? p.UseEyeTracker : UseEyeTracker;
             bool useMove = p ? p.UseMovementTracker : UseMovementTracker;
@@ -253,13 +255,13 @@ namespace VRLogger
             bool useFoot = p ? p.UseFootTracker : UseFootTracker;
             bool useRay = p ? p.UseRaycastLogger : UseRaycastLogger;
             bool useCol = p ? p.UseCollisionLogger : UseCollisionLogger;
-            
+
             FlowModeType fMode = p ? p.FlowMode : FlowMode;
             EndConditionType eCond = p ? p.EndCondition : EndCondition;
             bool gmEnable = p ? p.EnableGMControls : EnableGMControls;
 
             MetricsCategory met = p ? p.Metrics : Metrics;
-            
+
             // Custom Roles Source
             List<EventRoleMapping> customRoles = p ? p.CustomEventRoles : CustomEventRoles;
             // Custom Metrics Source
@@ -277,6 +279,7 @@ namespace VRLogger
                 { "session_name", sName },
                 { "group_name", gName },
                 { "independent_variable", iv },
+                { "map_name", mName },
                 { "turn_duration_seconds", tDuration },
                 { "play_area_width", pAWidth },
                 { "play_area_depth", pADepth }
@@ -325,7 +328,7 @@ namespace VRLogger
             // Metrics
             jsonConfig["metrics"] = new JObject
             {
-                { "efectividad", new JObject 
+                { "efectividad", new JObject
                     {
                         { "hit_ratio", MetricToJson(met.HitRatio) },
                         { "success_rate", MetricToJson(met.SuccessRate) },
@@ -334,33 +337,33 @@ namespace VRLogger
                         { "success_after_restart", MetricToJson(met.SuccessAfterRestart) },
                         { "path_efficiency", MetricToJson(met.PathEfficiency) },
                         { "gaze_on_path_ratio", MetricToJson(met.GazeOnPathRatio) }
-                    } 
+                    }
                 },
-                { "eficiencia", new JObject 
+                { "eficiencia", new JObject
                     {
                         { "avg_reaction_time_ms", MetricToJson(met.AvgReactionTimeMs) },
                         { "avg_task_duration_ms", MetricToJson(met.AvgTaskDurationMs) },
                         { "time_per_success_s", MetricToJson(met.TimePerSuccessS) },
                         { "navigation_errors", MetricToJson(met.NavigationErrors) }
-                    } 
+                    }
                 },
-                { "satisfaccion", new JObject 
+                { "satisfaccion", new JObject
                     {
                         { "learning_stability", MetricToJson(met.LearningStability) },
                         { "error_reduction_rate", MetricToJson(met.ErrorReductionRate) },
                         { "voluntary_play_time_s", MetricToJson(met.VoluntaryPlayTimeS) },
                         { "aid_usage", MetricToJson(met.AidUsage) },
                         { "interface_errors", MetricToJson(met.InterfaceErrors) }
-                    } 
+                    }
                 },
-                { "presencia", new JObject 
+                { "presencia", new JObject
                     {
                         { "activity_level_per_min", MetricToJson(met.ActivityLevelPerMin) },
                         { "first_success_time_s", MetricToJson(met.FirstSuccessTimeS) },
                         { "inactivity_time_s", MetricToJson(met.InactivityTimeS) },
                         { "sound_localization_time_s", MetricToJson(met.SoundLocalizationTimeS) },
                         { "audio_performance_gain", MetricToJson(met.AudioPerformanceGain) }
-                    } 
+                    }
                 }
             };
 
@@ -380,7 +383,7 @@ namespace VRLogger
                         // Add extra fields for Python parser
                         metricJson["target_event"] = cm.TargetEventName;
                         metricJson["aggregation"] = cm.Aggregation.ToString().ToLower();
-                        
+
                         // Prevent duplicates
                         string safeName = cm.MetricName.Replace(" ", "_").ToLower();
                         catObj[safeName] = metricJson;
@@ -507,7 +510,7 @@ namespace VRLogger
         JObject MetricToJson(MetricConfig m)
         {
             // Heuristic: If min/max are effectively integers, serialize as such to match original JSON
-            // But JSONL parser in Python might not care about 0 vs 0.0. 
+            // But JSONL parser in Python might not care about 0 vs 0.0.
             // However, sticking to float is safer for generic MetricConfig.
             return new JObject
             {
@@ -575,16 +578,17 @@ namespace VRLogger
             SessionName = activeProfile.SessionName;
             GroupName = activeProfile.GroupName;
             IndependentVariable = activeProfile.IndependentVariable;
+            MapName = activeProfile.MapName;
             TurnDurationSeconds = activeProfile.TurnDurationSeconds;
-            
+
             ParticipantCount = activeProfile.ParticipantCount;
             ParticipantOrder = new List<string>(activeProfile.ParticipantOrder);
             ManualParticipantName = activeProfile.ManualParticipantName;
-            
+
             ExperimentId = activeProfile.ExperimentId;
             FormulaProfile = activeProfile.FormulaProfile;
             Description = activeProfile.Description;
-            
+
             UseGazeTracker = activeProfile.UseGazeTracker;
             UseEyeTracker = activeProfile.UseEyeTracker;
             UseMovementTracker = activeProfile.UseMovementTracker;
@@ -592,11 +596,11 @@ namespace VRLogger
             UseFootTracker = activeProfile.UseFootTracker;
             UseRaycastLogger = activeProfile.UseRaycastLogger;
             UseCollisionLogger = activeProfile.UseCollisionLogger;
-            
+
             FlowMode = activeProfile.FlowMode;
             EndCondition = activeProfile.EndCondition;
             EnableGMControls = activeProfile.EnableGMControls;
-            
+
             Metrics = activeProfile.Metrics;
             CustomEventRoles = new List<EventRoleMapping>(activeProfile.CustomEventRoles);
             CustomMetrics = new List<CustomMetricDefinition>(activeProfile.CustomMetrics);
@@ -617,16 +621,17 @@ namespace VRLogger
             activeProfile.SessionName = SessionName;
             activeProfile.GroupName = GroupName;
             activeProfile.IndependentVariable = IndependentVariable;
+            activeProfile.MapName = MapName;
             activeProfile.TurnDurationSeconds = TurnDurationSeconds;
-            
+
             activeProfile.ParticipantCount = ParticipantCount;
             activeProfile.ParticipantOrder = new List<string>(ParticipantOrder);
             activeProfile.ManualParticipantName = ManualParticipantName;
-            
+
             activeProfile.ExperimentId = ExperimentId;
             activeProfile.FormulaProfile = FormulaProfile;
             activeProfile.Description = Description;
-            
+
             activeProfile.UseGazeTracker = UseGazeTracker;
             activeProfile.UseEyeTracker = UseEyeTracker;
             activeProfile.UseMovementTracker = UseMovementTracker;
@@ -634,12 +639,12 @@ namespace VRLogger
             activeProfile.UseFootTracker = UseFootTracker;
             activeProfile.UseRaycastLogger = UseRaycastLogger;
             activeProfile.UseCollisionLogger = UseCollisionLogger;
-            
+
             activeProfile.FlowMode = FlowMode;
             activeProfile.EndCondition = EndCondition;
             activeProfile.EnableGMControls = EnableGMControls;
-            
-            
+
+
             activeProfile.Metrics = Metrics;
             activeProfile.CustomEventRoles = new List<EventRoleMapping>(CustomEventRoles);
             activeProfile.CustomMetrics = new List<CustomMetricDefinition>(CustomMetrics);
@@ -658,7 +663,7 @@ namespace VRLogger
             string col = usm != null && !string.IsNullOrEmpty(usm.collectionName) ? usm.collectionName : "tfg";
 
             Debug.Log($"[ExperimentConfig] Connecting to Mongo to pull config from: {uri} -> {db}.{col}");
-            
+
             try
             {
                 var client = new MongoClient(uri);
@@ -684,7 +689,7 @@ namespace VRLogger
                     Debug.LogError("[ExperimentConfig] Latest config doc missing event_context.");
                     return;
                 }
-                
+
                 // Read Bson to JSON string and parse
                 string jsonString = latestConfigDoc["event_context"].ToJson();
                 JObject cfg = JObject.Parse(jsonString);
@@ -693,6 +698,7 @@ namespace VRLogger
                 SessionName = (string)cfg["session"]?["session_name"] ?? SessionName;
                 GroupName = (string)cfg["session"]?["group_name"] ?? GroupName;
                 IndependentVariable = (string)cfg["session"]?["independent_variable"] ?? IndependentVariable;
+                MapName = (string)cfg["session"]?["map_name"] ?? MapName;
                 
                 if (cfg["session"]?["turn_duration_seconds"] != null)
                     TurnDurationSeconds = (float)cfg["session"]["turn_duration_seconds"];

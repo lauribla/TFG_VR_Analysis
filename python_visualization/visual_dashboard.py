@@ -371,42 +371,50 @@ def main():
     figures_dir = results_dir.parent / "figures" / "spatial"
 
     if figures_dir.exists():
+        subdirs = [d for d in figures_dir.iterdir() if d.is_dir()]
+        if not subdirs:
+            subdirs = [figures_dir]  # fallback if no subdirectories
 
-        # Define tuples: (Title, Static Filename, Animated Filename)
-        visualizations = [
-            ("Trayectorias (Todos)", "Spatial_Trajectories.png", "Spatial_Trajectories.gif"),
-            ("Mapa de Calor: Posición", "Spatial_Heatmap_Global.png", None),
-            ("Mapa de Calor: Mirada", "Gaze_Heatmap.png", "Gaze_Heatmap.gif"),
-            ("Objetos Mirados (Gaze)", "Gaze_Targets_BarChart.png", None),
-            ("Objetos Mirados (Eye Tracking)", "Eye_Targets_BarChart.png", None),
-            ("Pupilometría (Tiempo)", "Eye_Pupilometry_OverTime.png", "Eye_Pupilometry_OverTime.gif"),
-            ("Mapa de Calor: Manos", "Hand_Heatmap.png", "Hand_Heatmap.gif"),
-            ("Mapa de Calor: Pies", "Foot_Heatmap.png", "Foot_Heatmap.gif")
-        ]
+        for d in subdirs:
+            if len(subdirs) > 1 or d != figures_dir:
+                st.subheader(f"📍 Entorno: {d.name}")
 
-        # Create tabs dynamically
-        tabs = st.tabs([v[0] for v in visualizations])
+            # Define tuples: (Title, Static Filename, Animated Filename)
+            visualizations = [
+                ("Trayectorias (Todos)", "Spatial_Trajectories.png", "Spatial_Trajectories.gif"),
+                ("Mapa de Calor: Posición", "Spatial_Heatmap_Global.png", None),
+                ("Mapa de Calor: Mirada", "Gaze_Heatmap.png", "Gaze_Heatmap.gif"),
+                ("Objetos Mirados (Gaze)", "Gaze_Targets_BarChart.png", None),
+                ("Objetos Mirados (Eye Tracking)", "Eye_Targets_BarChart.png", None),
+                ("Pupilometría (Tiempo)", "Eye_Pupilometry_OverTime.png", "Eye_Pupilometry_OverTime.gif"),
+                ("Mapa de Calor: Manos", "Hand_Heatmap.png", "Hand_Heatmap.gif"),
+                ("Mapa de Calor: Pies", "Foot_Heatmap.png", "Foot_Heatmap.gif")
+            ]
 
-        for tab, (title, static_file, gif_file) in zip(tabs, visualizations):
-            with tab:
-                # Default to static
-                img_path = figures_dir / static_file
-                gif_path = figures_dir / gif_file if gif_file else None
+            # Create tabs dynamically
+            tabs = st.tabs([v[0] for v in visualizations])
 
-                # Check availability
-                has_static = img_path.exists()
-                has_gif = gif_path and gif_path.exists()
+            for tab, (title, static_file, gif_file) in zip(tabs, visualizations):
+                with tab:
+                    # Default to static
+                    img_path = d / static_file
+                    gif_path = d / gif_file if gif_file else None
 
-                if has_gif:
-                    st.markdown(f"**🎬 Animación: {title}**")
-                    st.image(str(gif_path), caption=f"{title} (Animación)", use_column_width=True)
-                    st.markdown("---")
+                    # Check availability
+                    has_static = img_path.exists()
+                    has_gif = gif_path and gif_path.exists()
 
-                if has_static:
-                    st.image(str(img_path), caption=f"{title} (Estático)", use_column_width=True)
+                    if has_gif:
+                        st.markdown(f"**🎬 Animación: {title}**")
+                        st.image(str(gif_path), caption=f"{title} (Animación)", use_column_width=True)
+                        st.markdown("---")
 
-                if not has_static and not has_gif:
-                    st.info(f"Visualización no disponible: {title}")
+                    if has_static:
+                        st.image(str(img_path), caption=f"{title} (Estático)", use_column_width=True)
+
+                    if not has_static and not has_gif:
+                        st.info(f"Visualización no disponible: {title}")
+            st.markdown("---")
     else:
         st.info("No se han encontrado figuras espaciales generadas. Ejecuta vr_analysis.py para crearlas.")
 

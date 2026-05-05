@@ -334,7 +334,7 @@ class PDFReport:
         spatial_dir = root_figs / "spatial"
 
         if spatial_dir.exists():
-            spatial_charts = list(spatial_dir.glob("*.png"))
+            spatial_charts = list(spatial_dir.rglob("*.png"))
             if spatial_charts:
                 elements.append(Paragraph("Análisis Espacial y de Mirada", styles["Heading1"]))
                 elements.append(Spacer(1, 10))
@@ -351,7 +351,11 @@ class PDFReport:
                 }
 
                 for chart in spatial_charts:
-                    title = titles.get(chart.name, chart.stem.replace("_", " ").title())
+                    # Incluimos el nombre de la carpeta (ej: "Audio_MapaA") en el título para diferenciar
+                    folder_name = chart.parent.name
+                    base_title = titles.get(chart.name, chart.stem.replace("_", " ").title())
+                    title = f"{base_title} - {folder_name}" if folder_name != "spatial" else base_title
+
                     elements.append(Paragraph(title, styles["Heading2"]))
                     elements.append(Spacer(1, 5))
                     elements.append(Image(str(chart), width=450, height=350))

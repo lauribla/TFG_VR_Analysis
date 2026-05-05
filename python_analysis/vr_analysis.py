@@ -327,20 +327,64 @@ print(f"📊 Figuras generadas: {generated_figures}\n")
 # 8.1️⃣  Generar figuras espaciales (Mapas de calor / Trayectorias)
 # ============================================================
 print("🗺️ Generando visualizaciones espaciales (si existen datos de tracking)...")
-play_area_w = None
-play_area_d = None
-if experiment_config is not None:
-    play_area_w = experiment_config.get("session", {}).get("play_area_width")
-    play_area_d = experiment_config.get("session", {}).get("play_area_depth")
 
-spatial_viz = SpatialVisualizer(
-    df, 
-    output_dir=figures_dir / "spatial",
-    play_area_width=play_area_w,
-    play_area_depth=play_area_d,
-    experiment_config=experiment_config
-)
-spatial_viz.generate_all()
+config_events = df[df["event_name"] == "experiment_config"]
+session_groups = {} # (iv, map_name) -> list of session_ids
+
+if not config_events.empty:
+    for _, row in config_events.iterrows():
+        sid = row["session_id"]
+        ctx = row["event_context"]
+        if isinstance(ctx, str):
+            try:
+                import json
+                ctx = json.loads(ctx.replace("'", '"'))
+            except:
+                pass
+        if isinstance(ctx, dict):
+            iv = ctx.get("session", {}).get("independent_variable", "Unknown")
+            m_name = ctx.get("session", {}).get("map_name", "")
+            key = (iv, m_name)
+            if key not in session_groups:
+                session_groups[key] = []
+            if sid not in session_groups[key]:
+                session_groups[key].append(sid)
+
+if not session_groups:
+    # Fallback if no config logs found in df, just run globally
+    session_groups[("Global", "")] = df["session_id"].unique()
+
+for (iv, m_name), sids in session_groups.items():
+    folder_name = f"{iv}"
+    if m_name:
+        folder_name += f"_{m_name}"
+    
+    print(f"   -> Generando mapas para {folder_name} ({len(sids)} sesiones)...")
+    df_group = df[df["session_id"].isin(sids)]
+    
+    group_config = experiment_config
+    try:
+        group_config_row = df_group[df_group["event_name"] == "experiment_config"].iloc[0]["event_context"]
+        if isinstance(group_config_row, str):
+            import json
+            group_config_row = json.loads(group_config_row.replace("'", '"'))
+        if isinstance(group_config_row, dict):
+            group_config = group_config_row
+    except:
+        pass
+
+    play_area_w = group_config.get("session", {}).get("play_area_width") if group_config else None
+    play_area_d = group_config.get("session", {}).get("play_area_depth") if group_config else None
+
+    spatial_viz = SpatialVisualizer(
+        df_group, 
+        output_dir=figures_dir / "spatial" / folder_name,
+        play_area_width=play_area_w,
+        play_area_depth=play_area_d,
+        experiment_config=group_config
+    )
+    spatial_viz.generate_all()
+
 print("\n")
 
 
