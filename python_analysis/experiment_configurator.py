@@ -130,6 +130,7 @@ with tabs[0]:
         play_area_w = float(get_val(["session", "play_area_width"], 0.0))
     with colC:
         indep_var = st.text_input("Independent Variable", value=get_val(["session", "independent_variable"], ""))
+        map_name = st.text_input("Map Name", value=get_val(["session", "map_name"], ""))
         play_area_d = float(get_val(["session", "play_area_depth"], 0.0))
 
     # 2. Participants
@@ -335,6 +336,7 @@ with tabs[0]:
             "session_name": session_name,
             "group_name": group_name,
             "independent_variable": indep_var,
+            "map_name": map_name,
             "turn_duration_seconds": turn_duration,
             "play_area_width": play_area_w,
             "play_area_depth": play_area_d
