@@ -47,6 +47,8 @@ namespace VRLogger
             LearningCurveMean = new ExperimentConfig.MetricConfig { Enabled = true, Weight = 0.15f, Min = 0, Max = 1, Invert = false },
             Progression = new ExperimentConfig.MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 10, Invert = false },
             SuccessAfterRestart = new ExperimentConfig.MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 1, Invert = false },
+            PathEfficiency = new ExperimentConfig.MetricConfig { Enabled = false, Weight = 0.20f, Min = 0, Max = 1, Invert = false },
+            GazeOnPathRatio = new ExperimentConfig.MetricConfig { Enabled = false, Weight = 0.20f, Min = 0, Max = 1, Invert = false },
 
             AvgReactionTimeMs = new ExperimentConfig.MetricConfig { Enabled = true, Weight = 0.40f, Min = 100, Max = 5000, Invert = true },
             AvgTaskDurationMs = new ExperimentConfig.MetricConfig { Enabled = true, Weight = 0.30f, Min = 1000, Max = 30000, Invert = true },
