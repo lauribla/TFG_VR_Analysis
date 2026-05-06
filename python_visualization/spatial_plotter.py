@@ -407,7 +407,7 @@ class SpatialVisualizer:
             return 0.0
 
         import json
-        scenario_id = self.experiment_config.get("session", {}).get("independent_variable", "")
+        scenario_id = self.experiment_config.get("session", {}).get("map_name", "")
         ideal_file = Path(f"ideal_path_{scenario_id}.json") if scenario_id else Path("ideal_path.json")
         if not ideal_file.exists():
             ideal_file = Path("ideal_path.json")
