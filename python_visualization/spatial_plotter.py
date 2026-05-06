@@ -30,21 +30,27 @@ class SpatialVisualizer:
         import json
         from pathlib import Path
 
-        # --- NUEVO: Extraer la Variable Independiente o el Experiment ID del DataFrame ---
-        # Buscamos en el log de config de esta sesión para saber qué laberinto estamos jugando
         scenario_id = ""
-        config_logs = self.df[self.df["event_name"] == "experiment_config"]
-        if not config_logs.empty:
-            try:
-                first_val = config_logs.iloc[0]["event_context"]
-                if isinstance(first_val, str):
-                    first_val = json.loads(first_val.replace("'", '"'))
-                # Intentamos sacar el map_name (ideal para poner "Maze1", "Maze2")
-                if isinstance(first_val, dict):
-                    session_ctx = first_val.get("session", first_val)
-                    scenario_id = session_ctx.get("map_name", "")
-            except:
-                pass
+        if getattr(self, "experiment_config", None):
+            session_ctx = self.experiment_config.get("session", self.experiment_config)
+            scenario_id = session_ctx.get("map_name", "")
+        else:
+            config_logs = self.df[self.df["event_name"] == "experiment_config"]
+            if not config_logs.empty:
+                try:
+                    if "event_context" in config_logs.columns:
+                        first_val = config_logs.iloc[0]["event_context"]
+                        if isinstance(first_val, str):
+                            first_val = json.loads(first_val.replace("'", '"'))
+                        if isinstance(first_val, dict):
+                            session_ctx = first_val.get("session", first_val)
+                            scenario_id = session_ctx.get("map_name", "")
+                    elif "session.map_name" in config_logs.columns:
+                        scenario_id = config_logs.iloc[0]["session.map_name"]
+                    elif "map_name" in config_logs.columns:
+                        scenario_id = config_logs.iloc[0]["map_name"]
+                except:
+                    pass
 
         # -2. Dibujar la geometría interna del Labyrinth (Malla del suelo) si existe
         if draw_labyrinth_mesh:

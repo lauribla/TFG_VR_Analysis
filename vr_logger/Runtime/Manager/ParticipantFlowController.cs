@@ -1,5 +1,6 @@
 using UnityEngine;
 using Newtonsoft.Json.Linq;
+using VRLogger.Components;
 
 namespace VRLogger
 {
@@ -190,6 +191,13 @@ namespace VRLogger
             timer = turnDurationSeconds; 
             experimentRunning = true;
             paused = false;
+
+            // Reset semantic zones so the new participant can trigger them
+            DirectionalSemanticZoneLogger[] zones = FindObjectsOfType<DirectionalSemanticZoneLogger>();
+            foreach (var zone in zones)
+            {
+                zone.ResetLogState();
+            }
         }
 
         private void EndCurrentParticipant(string reason)

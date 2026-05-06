@@ -22,6 +22,11 @@ namespace VRLogger.Components
         public bool logOnlyOnce = true;
         private bool _hasLogged = false;
 
+        public void ResetLogState()
+        {
+            _hasLogged = false;
+        }
+
         [System.Serializable]
         public struct CustomDirectionalExit
         {
