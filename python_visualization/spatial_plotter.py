@@ -39,8 +39,10 @@ class SpatialVisualizer:
                 first_val = config_logs.iloc[0]["event_context"]
                 if isinstance(first_val, str):
                     first_val = json.loads(first_val.replace("'", '"'))
-                # Intentamos sacar la variable independiente (ideal para poner "Laberinto1", "Laberinto2")
-                scenario_id = first_val.get("session", {}).get("independent_variable", "")
+                # Intentamos sacar el map_name (ideal para poner "Maze1", "Maze2")
+                if isinstance(first_val, dict):
+                    session_ctx = first_val.get("session", first_val)
+                    scenario_id = session_ctx.get("map_name", "")
             except:
                 pass
 

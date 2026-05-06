@@ -39,11 +39,10 @@ class MetricsCalculator:
         roles_cfg = self.config.get("event_roles", {})
 
         def resolve_role(ev):
-            return roles_cfg.get(ev, "custom_event")
-
-        self.df["event_role"] = self.df["event_name"].apply(resolve_role)
-
-        def resolve_role(ev):
+            core_roles = ["action_success", "action_fail", "task_start", "task_end", "task_restart", "navigation_error",
+                          "session_start", "session_end"]
+            if ev in core_roles:
+                return ev
             return roles_cfg.get(ev, "custom_event")
 
         self.df["event_role"] = self.df["event_name"].apply(resolve_role)
@@ -242,7 +241,7 @@ class MetricsCalculator:
         succ = df[df["event_role"] == "action_success"]["timestamp"].min()
         if pd.notna(start) and pd.notna(succ):
             return (succ - start).total_seconds()
-            
+
         # Fallback for maze: first success is reaching the end
         end = df[df["event_role"] == "task_end"]["timestamp"].min()
         if pd.notna(start) and pd.notna(end):
@@ -347,14 +346,14 @@ class MetricsCalculator:
 
     def learning_stability(self, df=None):
         vals = self.learning_curve(df)
-        if len(vals) < 2: 
+        if len(vals) < 2:
             eff = self.path_efficiency(df)
             return float(eff) if eff is not None else 0.0
         return 1.0 / (1.0 + np.std(vals))
 
     def error_reduction_rate(self, df=None):
         vals = self.learning_curve(df)
-        if len(vals) < 2: 
+        if len(vals) < 2:
             eff = self.path_efficiency(df)
             return float(eff) if eff is not None else 0.0
         return vals[-1] - vals[0]
@@ -366,7 +365,7 @@ class MetricsCalculator:
         from pathlib import Path
         import json
         import numpy as np
-        
+
         scenario_id = ""
         config_logs = df[df["event_name"] == "experiment_config"]
         if not config_logs.empty:
@@ -374,7 +373,9 @@ class MetricsCalculator:
                 first_val = config_logs.iloc[0]["event_context"]
                 if isinstance(first_val, str):
                     first_val = json.loads(first_val.replace("'", '"'))
-                scenario_id = first_val.get("session", {}).get("independent_variable", "")
+                if isinstance(first_val, dict):
+                    session_ctx = first_val.get("session", first_val)
+                    scenario_id = session_ctx.get("map_name", "")
             except:
                 pass
 
@@ -428,7 +429,8 @@ class MetricsCalculator:
 
     def gaze_on_path_ratio(self, df=None, threshold=0.3):
         if df is None: df = self.df
-        
+        from pathlib import Path
+
         scenario_id = ""
         config_logs = df[df["event_name"] == "experiment_config"]
         if not config_logs.empty:
@@ -437,72 +439,74 @@ class MetricsCalculator:
                 first_val = config_logs.iloc[0]["event_context"]
                 if isinstance(first_val, str):
                     first_val = json.loads(first_val.replace("'", '"'))
-                scenario_id = first_val.get("session", {}).get("independent_variable", "")
+                if isinstance(first_val, dict):
+                    session_ctx = first_val.get("session", first_val)
+                    scenario_id = session_ctx.get("map_name", "")
             except:
                 pass
-                
+
         ideal_file = Path(f"ideal_path_{scenario_id}.json") if scenario_id else Path("ideal_path.json")
         if not ideal_file.exists():
             ideal_file = Path("ideal_path.json")
-            
+
         if not ideal_file.exists():
             return None
-            
+
         try:
             import json
             import numpy as np
             with open(ideal_file, "r", encoding="utf-8") as f:
                 ideal_data = json.load(f)
-                
+
             if not isinstance(ideal_data, list) or len(ideal_data) < 2:
                 return None
-                
+
             gazes = df[df["event_name"] == "gaze_frame"]
             bx = "hit_position_x" if "hit_position_x" in gazes.columns else "hit_point_x"
             bz = "hit_position_z" if "hit_position_z" in gazes.columns else "hit_point_z"
-            
+
             if bx not in gazes.columns or bz not in gazes.columns:
                 return None
-                
+
             gx = pd.to_numeric(gazes[bx], errors="coerce").values
             gz = pd.to_numeric(gazes[bz], errors="coerce").values
             valid = ~np.isnan(gx) & ~np.isnan(gz)
             gx = gx[valid]
             gz = gz[valid]
-            
+
             if len(gx) == 0:
                 return 0.0
-                
+
             path_pts = np.array([[pt["x"], pt["z"]] for pt in ideal_data if "x" in pt and "z" in pt])
             if len(path_pts) < 2: return None
-            
+
             P1 = path_pts[:-1]
             P2 = path_pts[1:]
-            
+
             hits = 0
             total = len(gx)
-            
+
             for i in range(total):
                 px, pz = gx[i], gz[i]
-                
+
                 AB = P2 - P1
                 AP = np.column_stack((np.full(len(P1), px) - P1[:, 0], np.full(len(P1), pz) - P1[:, 1]))
-                
-                ab_sq = np.sum(AB**2, axis=1)
+
+                ab_sq = np.sum(AB ** 2, axis=1)
                 ap_dot_ab = np.sum(AP * AB, axis=1)
-                
+
                 t = ap_dot_ab / np.maximum(ab_sq, 1e-8)
                 t = np.clip(t, 0.0, 1.0)
-                
+
                 closest_x = P1[:, 0] + t * AB[:, 0]
                 closest_z = P1[:, 1] + t * AB[:, 1]
-                
-                dists = np.sqrt((px - closest_x)**2 + (pz - closest_z)**2)
+
+                dists = np.sqrt((px - closest_x) ** 2 + (pz - closest_z) ** 2)
                 if np.min(dists) <= threshold:
                     hits += 1
-                    
+
             return float(hits / total)
-            
+
         except Exception as e:
             print(f"[Metrics] Aviso calculando gaze_on_path_ratio: {e}")
             return None
