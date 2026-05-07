@@ -410,9 +410,19 @@ def main():
                         st.markdown("---")
 
                     if has_static:
-                        st.image(str(img_path), caption=f"{title} (Estático)", use_column_width=True)
+                        st.image(str(img_path), caption=f"{title} (Agregado)", use_column_width=True)
 
-                    if not has_static and not has_gif:
+                    # ── Gráficos individuales por usuario (Gaze/Eye BarCharts) ──
+                    stem = Path(static_file).stem  # ej: "Gaze_Targets_BarChart"
+                    per_user_files = sorted(d.glob(f"{stem}_*.png"))
+                    if per_user_files:
+                        st.markdown("##### 👤 Por usuario")
+                        for pu_path in per_user_files:
+                            # Extraer el user_id del nombre del archivo
+                            user_label = pu_path.stem.replace(stem + "_", "", 1)
+                            st.image(str(pu_path), caption=f"{title} — {user_label}", use_column_width=True)
+
+                    if not has_static and not has_gif and not per_user_files:
                         st.info(f"Visualización no disponible: {title}")
             st.markdown("---")
     else:

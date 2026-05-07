@@ -353,7 +353,23 @@ class PDFReport:
                 for chart in spatial_charts:
                     # Incluimos el nombre de la carpeta (ej: "Audio_MapaA") en el título para diferenciar
                     folder_name = chart.parent.name
-                    base_title = titles.get(chart.name, chart.stem.replace("_", " ").title())
+
+                    # Títulos explícitos para archivos conocidos
+                    base_title = titles.get(chart.name)
+
+                    # Si no está en el dict, intentar detectar bar charts por usuario
+                    # Patrón: Gaze_Targets_BarChart_<uid>.png / Eye_Targets_BarChart_<uid>.png
+                    if base_title is None:
+                        stem = chart.stem  # ej: "Gaze_Targets_BarChart_U001"
+                        if stem.startswith("Gaze_Targets_BarChart_"):
+                            uid = stem.replace("Gaze_Targets_BarChart_", "", 1)
+                            base_title = f"Objetos Más Mirados (Gaze) — {uid}"
+                        elif stem.startswith("Eye_Targets_BarChart_"):
+                            uid = stem.replace("Eye_Targets_BarChart_", "", 1)
+                            base_title = f"Objetos Más Mirados (Eye Tracking) — {uid}"
+                        else:
+                            base_title = stem.replace("_", " ").title()
+
                     title = f"{base_title} - {folder_name}" if folder_name != "spatial" else base_title
 
                     elements.append(Paragraph(title, styles["Heading2"]))

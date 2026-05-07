@@ -463,13 +463,30 @@ class SpatialVisualizer:
         self._plot_targets_base("eye_frame", "Eye_Targets_BarChart.png", "Objetos Más Mirados (Eye Tracking Real)",
                                 "mako")
 
+    # Targets a ignorar siempre en los bar charts de mirada.
+    # Los "Cube (N)" son colliders invisibles del DirectionalSemanticZoneLogger.
+    _GAZE_IGNORE_TARGETS = {"none", "null", "", "Ground", "Floor", "Suelo"}
+    _CUBE_FILTER_PATTERN = None  # se inicializa en el primer uso (ver _filter_gaze_targets)
+
+    @staticmethod
+    def _filter_gaze_targets(df_targets):
+        """Elimina targets que no tienen interés visual (suelo, nulos, Cube (N)…)."""
+        import re
+        # Compilar el patrón sólo una vez
+        cube_re = re.compile(r"^Cube\s*\(\d+\)$", re.IGNORECASE)
+
+        mask_trivial = df_targets["target"].isin(SpatialVisualizer._GAZE_IGNORE_TARGETS)
+        mask_cube    = df_targets["target"].str.match(cube_re, na=False)
+        return df_targets[~mask_trivial & ~mask_cube]
+
     def _plot_targets_base(self, event_name, filename, title, palette):
         frames = self.df[self.df["event_name"] == event_name].copy()
 
         if "target" not in frames.columns or frames.empty:
             return
 
-        frames_filtered = frames[~frames["target"].isin(["none", "null", "", "Ground", "Floor", "Suelo"])]
+        # ── FILTRO 1: targets sin interés (suelo, nulos, Cube (N)) ──────────
+        frames_filtered = self._filter_gaze_targets(frames)
 
         median_delta = 0.1
         if pd.api.types.is_datetime64_any_dtype(frames["timestamp"]):
@@ -479,6 +496,7 @@ class SpatialVisualizer:
             if not pd.isna(calc_median) and calc_median > 0:
                 median_delta = calc_median
 
+        # ── GRÁFICO GLOBAL (igual que antes, para compatibilidad) ─────────────
         target_counts = frames_filtered["target"].value_counts().reset_index()
         target_counts.columns = ["Objeto", "Frames (Frecuencia)"]
         target_counts["Tiempo Total (s)"] = target_counts["Frames (Frecuencia)"] * median_delta
@@ -496,14 +514,42 @@ class SpatialVisualizer:
 
         plt.figure(figsize=(10, 6))
         sns.barplot(data=target_counts, x="Tiempo Total (s)", y="Objeto", palette=palette)
-
         plt.title(title)
         plt.xlabel("Tiempo Total Mirado (Segundos)")
         plt.ylabel("Nombre del Objeto en Unity")
         plt.grid(True, axis="x", linestyle="--", alpha=0.7)
-
         plt.savefig(self.output_dir / filename, bbox_inches="tight")
         plt.close()
+
+        # ── GRÁFICO INDIVIDUAL POR USUARIO ────────────────────────────────────
+        if "user_id" not in frames_filtered.columns:
+            return  # sin columna user_id no podemos separar
+
+        stem   = Path(filename).stem    # ej: "Gaze_Targets_BarChart"
+        suffix = Path(filename).suffix  # ej: ".png"
+
+        for user_id, user_frames in frames_filtered.groupby("user_id"):
+            tc = user_frames["target"].value_counts().reset_index()
+            tc.columns = ["Objeto", "Frames (Frecuencia)"]
+            tc["Tiempo Total (s)"] = tc["Frames (Frecuencia)"] * median_delta
+            tc = tc.sort_values(by="Tiempo Total (s)", ascending=False).head(10)
+
+            if tc.empty:
+                continue
+
+            # Nombre seguro para el archivo (reemplaza caracteres problemáticos)
+            safe_uid = str(user_id).replace("/", "_").replace("\\", "_")
+            out_file = self.output_dir / f"{stem}_{safe_uid}{suffix}"
+
+            plt.figure(figsize=(10, 6))
+            sns.barplot(data=tc, x="Tiempo Total (s)", y="Objeto", palette=palette)
+            plt.title(f"{title} — {user_id}")
+            plt.xlabel("Tiempo Total Mirado (Segundos)")
+            plt.ylabel("Nombre del Objeto en Unity")
+            plt.grid(True, axis="x", linestyle="--", alpha=0.7)
+            plt.savefig(out_file, bbox_inches="tight")
+            plt.close()
+            print(f"[SpatialVisualizer] 📊 Bar chart individual guardado: {out_file.name}")
 
     def plot_gaze_heatmap_gif(self, max_frames=60):
         """Genera GIF de la evolución de la mirada."""
