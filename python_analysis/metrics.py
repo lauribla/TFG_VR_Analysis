@@ -668,13 +668,19 @@ class MetricsCalculator:
     # ----------------------------------------------------------------------
     # PUNTUACIÓN GLOBAL (usa perfiles)
     # ----------------------------------------------------------------------
-    def compute_global_score(self, cat_scores):
+    def compute_global_score(self, cat_scores, valid_cats=None):
         profile = self.profiles_cfg.get(self.user_profile, {})
 
-        eff_w = profile.get("efectividad_weight", 1)
-        efi_w = profile.get("eficiencia_weight", 1)
-        sat_w = profile.get("satisfaccion_weight", 1)
-        pre_w = profile.get("presencia_weight", 1)
+        if valid_cats is None:
+            valid_cats = {k: True for k in ["efectividad", "eficiencia", "satisfaccion", "presencia"]}
+
+        eff_w = profile.get("efectividad_weight", 1) if valid_cats.get("efectividad", False) else 0
+        efi_w = profile.get("eficiencia_weight", 1) if valid_cats.get("eficiencia", False) else 0
+        sat_w = profile.get("satisfaccion_weight", 1) if valid_cats.get("satisfaccion", False) else 0
+        pre_w = profile.get("presencia_weight", 1) if valid_cats.get("presencia", False) else 0
+
+        total_w = eff_w + efi_w + sat_w + pre_w
+        if total_w == 0: return 0.0
 
         final = (
                 cat_scores["efectividad"]["score"] * eff_w +
@@ -683,7 +689,7 @@ class MetricsCalculator:
                 cat_scores["presencia"]["score"] * pre_w
         )
 
-        return final / (eff_w + efi_w + sat_w + pre_w)
+        return final / total_w
 
     # ----------------------------------------------------------------------
     # MÉTRICAS AGRUPADAS POR USUARIO Y SESIÓN
@@ -706,9 +712,13 @@ class MetricsCalculator:
 
             # Añadir categorías normalizadas Y métricas individuales
             cat_scores = {}
+            valid_cats = {}
             for cat_name in ["efectividad", "eficiencia", "satisfaccion", "presencia"]:
                 cat_result = self.compute_category(cat_name, subdf)
                 cat_scores[f"{cat_name}_score"] = cat_result["score"]
+                
+                # Una categoría es válida si evaluó al menos una métrica (tiene más keys que solo 'score')
+                valid_cats[cat_name] = len(cat_result) > 1
 
                 # Desempaquetar cada métrica de la categoría para que esté disponible en el JSON plano
                 for metric_key, val_dict in cat_result.items():
@@ -717,11 +727,8 @@ class MetricsCalculator:
                     # Guardamos el valor raw para visualización
                     if isinstance(val_dict, dict) and "raw" in val_dict:
                         # CRITICAL FIX: Ensure custom metrics are prefixed with category so Visualizer can find them
-                        # Standard metrics are usually unique or already handled. Custom metrics need context.
-                        # If metric_name is NOT in standard functions, it's likely custom.
                         final_key = metric_key
                         if metric_key not in metric_funcs:
-                            # It's a custom/generic metric. Prefix it if not already prefixed.
                             if not metric_key.startswith(cat_name):
                                 final_key = f"{cat_name}_{metric_key}"
 
@@ -735,7 +742,7 @@ class MetricsCalculator:
                 "eficiencia": {"score": cat_scores["eficiencia_score"]},
                 "satisfaccion": {"score": cat_scores["satisfaccion_score"]},
                 "presencia": {"score": cat_scores["presencia_score"]},
-            })
+            }, valid_cats)
 
             # Retrieve independent_variable from context
             # Strategy: Logic updated to handle nested 'session' object from config logs
