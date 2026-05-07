@@ -375,16 +375,22 @@ for (iv, m_name), sids in session_groups.items():
     print(f"   -> Generando mapas para {folder_name} ({len(sids)} sesiones)...")
     df_group = df[df["session_id"].isin(sids)]
     
-    group_config = experiment_config
+    group_config = experiment_config.copy() if isinstance(experiment_config, dict) else {}
     try:
         group_config_row = df_group[df_group["event_name"] == "experiment_config"].iloc[0]["event_context"]
         if isinstance(group_config_row, str):
             import json
-            group_config_row = json.loads(group_config_row.replace("'", '"'))
+            group_config_row = json.loads(group_config_row.replace("'", '"').replace("True", "true").replace("False", "false"))
         if isinstance(group_config_row, dict):
             group_config = group_config_row
     except:
         pass
+        
+    # FORCE the correct map_name and independent_variable for this specific session group
+    if "session" not in group_config:
+        group_config["session"] = {}
+    group_config["session"]["map_name"] = m_name
+    group_config["session"]["independent_variable"] = iv
 
     play_area_w = group_config.get("session", {}).get("play_area_width") if group_config else None
     play_area_d = group_config.get("session", {}).get("play_area_depth") if group_config else None
