@@ -334,22 +334,34 @@ session_groups = {} # (iv, map_name) -> list of session_ids
 if not config_events.empty:
     for _, row in config_events.iterrows():
         sid = row["session_id"]
-        ctx = row.get("event_context", row.get("context", {}))
-        if isinstance(ctx, str):
-            try:
-                import json
-                ctx = json.loads(ctx.replace("'", '"'))
-            except:
-                pass
-        if isinstance(ctx, dict):
-            session_ctx = ctx.get("session", ctx)
-            iv = session_ctx.get("independent_variable", "Unknown")
-            m_name = session_ctx.get("map_name", "")
-            key = (iv, m_name)
-            if key not in session_groups:
-                session_groups[key] = []
-            if sid not in session_groups[key]:
-                session_groups[key].append(sid)
+        
+        iv = "Unknown"
+        m_name = ""
+        
+        # En el df expandido, 'session' suele ser una columna que contiene el diccionario
+        session_dict = row.get("session")
+        if isinstance(session_dict, dict):
+            iv = session_dict.get("independent_variable", "Unknown")
+            m_name = session_dict.get("map_name", "")
+        # Fallback si por alguna razón no está expandido así
+        else:
+            ctx = row.get("event_context", row.get("context", {}))
+            if isinstance(ctx, str):
+                try:
+                    import json
+                    ctx = json.loads(ctx.replace("'", '"').replace("True", "true").replace("False", "false"))
+                except:
+                    pass
+            if isinstance(ctx, dict):
+                session_ctx = ctx.get("session", ctx)
+                iv = session_ctx.get("independent_variable", "Unknown")
+                m_name = session_ctx.get("map_name", "")
+
+        key = (iv, m_name)
+        if key not in session_groups:
+            session_groups[key] = []
+        if sid not in session_groups[key]:
+            session_groups[key].append(sid)
 
 if not session_groups:
     # Fallback if no config logs found in df, just run globally
