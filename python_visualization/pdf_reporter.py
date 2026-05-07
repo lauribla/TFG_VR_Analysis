@@ -147,22 +147,27 @@ class PDFReport:
                 for col in ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score",
                             "total_score", "global_score", "sus_score"]:
                     if col in df.columns:
-                        mean_scores[col] = round(df[col].mean(), 2)
+                        val = pd.to_numeric(df[col], errors="coerce").fillna(0).mean()
+                        if val != 0:  # Omitir métricas sin datos
+                            mean_scores[col] = round(val, 2)
 
-                data = [["Categoría", "Puntuación promedio (%)"]] + [
-                    [k.replace("_score", "").capitalize(), v] for k, v in mean_scores.items()
-                ]
+                if not mean_scores:
+                    pass  # Nada que mostrar en la tabla resumen
+                else:
+                    data = [["Categoría", "Puntuación promedio (%)"]] + [
+                        [k.replace("_score", "").capitalize(), v] for k, v in mean_scores.items()
+                    ]
 
-                table = Table(data, hAlign="LEFT")
-                table.setStyle([
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("ALIGN", (1, 1), (-1, -1), "CENTER")
-                ])
-                elements.append(table)
-                elements.append(Spacer(1, 12))
-                elements.append(PageBreak())
+                    table = Table(data, hAlign="LEFT")
+                    table.setStyle([
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("ALIGN", (1, 1), (-1, -1), "CENTER")
+                    ])
+                    elements.append(table)
+                    elements.append(Spacer(1, 12))
+                    elements.append(PageBreak())
 
             for _, row in df.iterrows():
                 uid = row.get("user_id", "N/A")
@@ -200,15 +205,13 @@ class PDFReport:
 
                 for label, key in score_keys:
                     if key in row and not pd.isna(row[key]):
+                        raw_val = float(row[key])
+                        if raw_val == 0:
+                            continue  # Omitir scores sin datos
                         if key in ["sus_score", "presence_score", "satisfaction_score"]:
-                            val = round(float(row[key]), 2)
-                            data.append([label, f"{val} / 100"])
-                        elif key != "global_score":
-                            val = round(float(row[key]) * 100, 2)
-                            data.append([label, f"{val}%"])
+                            data.append([label, f"{round(raw_val, 2)} / 100"])
                         else:
-                            val = round(float(row[key]) * 100, 2)
-                            data.append([label, f"{val}%"])
+                            data.append([label, f"{round(raw_val * 100, 2)}%"])
 
                 score_table = Table(data, hAlign="LEFT")
                 score_table.setStyle([
@@ -220,13 +223,20 @@ class PDFReport:
                 elements.append(score_table)
                 elements.append(Spacer(1, 10))
 
-                # 🔹 Para cada categoría principal
+                # 🔹 Para cada categoría principal (solo si tiene métricas con datos reales)
                 for cat, keys in category_blocks.items():
+                    # Filtrar métricas que existen Y tienen valor != 0 / != NaN para este usuario
+                    real_keys = [
+                        key for key in keys
+                        if key in row and not pd.isna(row[key]) and float(row[key]) != 0
+                    ]
+                    if not real_keys:
+                        continue  # Saltar categorías vacías
+
                     elements.append(Paragraph(cat, styles["Heading2"]))
                     data = [["Métrica", "Valor"]]
-                    for key in keys:
-                        if key in row:
-                            data.append([key.replace("_", " ").title(), str(row[key])])
+                    for key in real_keys:
+                        data.append([key.replace("_", " ").title(), str(row[key])])
 
                     table = Table(data, repeatRows=1, colWidths=[250, 150])
                     table.setStyle(TableStyle([

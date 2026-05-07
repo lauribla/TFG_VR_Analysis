@@ -224,11 +224,15 @@ def main():
     # 🔹 Mostrar gráficas por categoría
     # ============================================================
     for cat_name, cols in cat_cols.items():
-        st.header(cat_name)
-        found = [c for c in cols if c in df.columns]
+        # Filtrar columnas que existen Y tienen al menos un valor != 0 / != NaN
+        found = [
+            c for c in cols
+            if c in df.columns
+            and pd.to_numeric(df[c], errors="coerce").fillna(0).gt(0).any()
+        ]
         if not found:
-            st.info(f"No hay métricas de {cat_name}.")
-            continue
+            continue  # Ocultar categorías enteras sin datos reales
+        st.header(cat_name)
         for col in found:
             if detected_mode == "agrupado" and "user_id" in df.columns:
                 fig = px.bar(
@@ -273,18 +277,21 @@ def main():
         "sus_score": "SUS Score (Cuestionario)"
     }
 
-    present = [c for c in score_candidates.keys() if c in df.columns]
+    # Solo mostrar columnas que existen Y tienen al menos un valor != 0 y != NaN
+    present = [
+        c for c in score_candidates.keys()
+        if c in df.columns
+        and pd.to_numeric(df[c], errors="coerce").fillna(0).gt(0).any()
+    ]
 
     if not present:
-        st.info("No se encontraron puntuaciones ponderadas en los resultados.")
+        st.info("No se encontraron puntuaciones ponderadas con datos en los resultados.")
     else:
         # --- Tabla por fila (usuario/grupo) con nombres bonitos ---
         pretty_df = pd.DataFrame({score_candidates[c]: pd.to_numeric(df[c], errors="coerce") for c in present})
-
-        # Si quieres que se vea por usuario/grupo:
         st.dataframe(pretty_df)
 
-        # --- Promedio por categoría (una barra por categoría) ---
+        # --- Promedio por categoría (una barra por categoría, solo las que tienen datos) ---
         mean_scores = pd.DataFrame({
             "Categoría": [score_candidates[c] for c in present],
             "Score": [pd.to_numeric(df[c], errors="coerce").mean() for c in present]
