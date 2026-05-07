@@ -45,7 +45,11 @@ namespace VRLogger
             userId = UserSessionManager.Instance.GetUserId();
             sessionId = UserSessionManager.Instance.GetSessionId();
 
-            // 1. Intentar buscar referencias dinámicamente si faltan
+            // 1. Forzar re-búsqueda de referencias en cada inicio de tracking.
+            //    Esto evita que referencias "stale" (objetos destruidos/reemplazados del XR Origin)
+            //    persistan entre rondas. En Desktop no hay impacto porque la cámara persiste.
+            vrCamera = null;
+            playerTransform = null;
             TryFindReferences();
 
             // 2. Inicializar Logger
@@ -198,7 +202,12 @@ namespace VRLogger
             {
                 vrCamera = Camera.main;
                 if (vrCamera == null) vrCamera = Object.FindFirstObjectByType<Camera>(); // Fallback agresivo
-                if (vrCamera != null) Debug.Log("[VRTracking] 🔍 Auto-asignada Main Camera (o primera cámara encontrada).");
+                if (vrCamera != null)
+                    Debug.Log("[VRTracking] 🔍 Auto-asignada Main Camera (o primera cámara encontrada).");
+                else
+                    Debug.LogError("[VRTracking] ❌ No se encontró ninguna cámara en la escena. " +
+                                   "Si estás en VR, asegúrate de que el XR Origin y su cámara están activos " +
+                                   "cuando se llama BeginTrackingForUser().");
             }
 
             // 2. XR Origin / Player
@@ -253,6 +262,11 @@ namespace VRLogger
             SafeRemove<RaycastLogger>(gameObject);
             SafeRemove<CollisionLogger>(gameObject);
 
+            // Limpiar referencias para que la próxima llamada a BeginTrackingForUser
+            // siempre haga una re-búsqueda fresca (especialmente crítico en VR entre rondas).
+            vrCamera = null;
+            playerTransform = null;
+
             Debug.Log($"[VRTracking] Tracking OFF → {userId} / {sessionId}");
         }
 
@@ -267,7 +281,13 @@ namespace VRLogger
             for (int i = 0; i < comps.Length; i++)
             {
                 if (comps[i] != null)
-                    Destroy(comps[i]);
+                    // DestroyImmediate es necesario aquí: Destroy() es diferido (end-of-frame).
+                    // Si EndTracking() y BeginTrackingForUser() se llaman en el mismo frame
+                    // (modo GM secuencial), GetComponent<T>() devuelve el componente marcado-
+                    // para-destruir (no null), así que el tracker "zombie" persiste hasta que
+                    // el frame acaba y entonces se destruye, dejando el tracking muerto.
+                    // Con DestroyImmediate, el componente desaparece antes de cualquier GetComponent.
+                    DestroyImmediate(comps[i]);
             }
         }
 
