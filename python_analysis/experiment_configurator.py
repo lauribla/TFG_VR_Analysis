@@ -53,7 +53,7 @@ st.title("VR Logger & Experiment Configurator")
 
 # Configuración de conexión DB en la barra lateral
 st.sidebar.header("Conexión MongoDB")
-default_uri = os.getenv("MONGO_URI", "mongodb+srv://mllhzhz_db_user:M0YVBvSUMwTVvnMq@vranalysis.0uwi8nl.mongodb.net/?appName=vrAnalysis")
+default_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 default_db = os.getenv("DB_NAME", "test")
 default_col = os.getenv("COLLECTION_NAME", "tfg")
 
