@@ -357,7 +357,7 @@ class SpatialVisualizer:
         plt.title("Mapa de Calor: Ocupación del Espacio (Global)")
         plt.xlabel("X (m)")
         plt.ylabel("Z (m)")
-        self._draw_play_area()
+        # Borde de escena omitido intencionalmente: solo se muestra en el mapa de trayectorias.
         plt.axis("equal")
         plt.grid(True, alpha=0.3)
 
@@ -392,7 +392,7 @@ class SpatialVisualizer:
         plt.title("Mapa de Calor: Atención Visual (Gaze Fixations)")
         plt.xlabel("World X (m)")
         plt.ylabel("World Z (m)")
-        self._draw_play_area()
+        # Borde de escena omitido intencionalmente: solo se muestra en el mapa de trayectorias.
         plt.axis("equal")
         plt.grid(True, alpha=0.3)
 
@@ -473,7 +473,8 @@ class SpatialVisualizer:
         """Elimina targets que no tienen interés visual (suelo, nulos, Cube (N)…)."""
         import re
         # Compilar el patrón sólo una vez
-        cube_re = re.compile(r"^Cube\s*\(\d+\)$", re.IGNORECASE)
+        # Coincide con "Cube" (sin número) Y "Cube (N)" (con número entre paréntesis)
+        cube_re = re.compile(r"^Cube(\s*\(\d+\))?$", re.IGNORECASE)
 
         mask_trivial = df_targets["target"].isin(SpatialVisualizer._GAZE_IGNORE_TARGETS)
         mask_cube    = df_targets["target"].str.match(cube_re, na=False)
