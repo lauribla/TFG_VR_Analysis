@@ -200,7 +200,10 @@ def main():
         # Calculate means for comparison
         numeric_cols = ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score",
                         "global_score", "sus_score"]
-        available_cols = [c for c in numeric_cols if c in df.columns]
+        available_cols = [
+            c for c in numeric_cols 
+            if c in df.columns and pd.to_numeric(df[c], errors="coerce").fillna(0).gt(0).any()
+        ]
 
         if available_cols and len(selected_vars) > 0:
             comp_df = df.groupby("independent_variable")[available_cols].mean().reset_index()

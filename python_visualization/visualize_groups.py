@@ -118,6 +118,10 @@ class Visualizer:
             # Silencioso para no saturar logs si no existe la métrica
             return False
 
+        # Filtrar si la métrica no tiene datos reales (solo 0 o NaN)
+        if not pd.to_numeric(self.df[y_col], errors="coerce").fillna(0).gt(0).any():
+            return False
+
         x_col = self._get_x_col()
         if x_col not in self.df.columns:
             print(f"[Visualizer] ⚠️ No se encontró columna de eje X ({x_col}).")
@@ -143,6 +147,10 @@ class Visualizer:
         """Versión de graficado con control directo del nombre de archivo output."""
         if y_col not in self.df.columns: return False
         
+        # Filtrar si la métrica no tiene datos reales (solo 0 o NaN)
+        if not pd.to_numeric(self.df[y_col], errors="coerce").fillna(0).gt(0).any():
+            return False
+            
         x_col = self._get_x_col()
         
         plt.figure(figsize=(8, 5))
@@ -293,6 +301,10 @@ class Visualizer:
 
         for score in main_scores:
             if score in grouped.columns:
+                # Filtrar si la métrica no tiene datos reales (solo 0 o NaN)
+                if not pd.to_numeric(self.df[score], errors="coerce").fillna(0).gt(0).any():
+                    continue
+
                 plt.figure(figsize=(8, 6))
                 sns.barplot(data=grouped, x=iv_col, y=score, hue=iv_col, palette="viridis", legend=False)
                 plt.title(f"Promedio de {score} por {iv_col}")
