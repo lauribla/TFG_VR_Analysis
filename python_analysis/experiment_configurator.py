@@ -203,7 +203,7 @@ with tabs[0]:
 
     with st.expander("Eficiencia", expanded=False):
         metrics_final["eficiencia"]["avg_reaction_time_ms"] = render_metric_config("eficiencia", "avg_reaction_time_ms", 0.40, 100, 5000, True, "Avg Reaction Time(ms)")
-        metrics_final["eficiencia"]["avg_task_duration_ms"] = render_metric_config("eficiencia", "avg_task_duration_ms", 0.30, 1000, 30000, True, "Avg Task Duration(ms)")
+        metrics_final["eficiencia"]["avg_task_duration_ms"] = render_metric_config("eficiencia", "avg_task_duration_ms", 0.30, 10000, 90000, True, "Avg Task Duration(ms)")
         metrics_final["eficiencia"]["time_per_success_s"] = render_metric_config("eficiencia", "time_per_success_s", 0.20, 0, 60, True, "Time Per Success(s)")
         metrics_final["eficiencia"]["navigation_errors"] = render_metric_config("eficiencia", "navigation_errors", 0.10, 0, 10, True, "Navigation Errors")
 
