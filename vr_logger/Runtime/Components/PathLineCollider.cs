@@ -61,7 +61,7 @@ public class PathLineCollider : MonoBehaviour
             float length = Vector3.Distance(a, b);
             if (length < 0.001f) continue;
 
-            GameObject seg = new GameObject("Seg_" + i);
+            GameObject seg = new GameObject(!string.IsNullOrEmpty(segmentTag) ? segmentTag : "PathLine");
             seg.transform.SetParent(_collidersRoot.transform, true);
 
             // Asignar tag (el tag debe existir en el proyecto)
