@@ -106,9 +106,10 @@ class PDFReport:
         metric_to_cat = {
             "hit_ratio": "efectividad", "precision": "efectividad", "success_rate": "efectividad",
             "learning_curve_mean": "efectividad", "progression": "efectividad", "success_after_restart": "efectividad",
-            "path_efficiency": "efectividad", "gaze_on_path_ratio": "efectividad",
+            "gaze_on_path_ratio": "efectividad",
 
             "avg_reaction_time_ms": "eficiencia", "avg_task_duration_ms": "eficiencia",
+            "path_efficiency": "eficiencia",
             "time_per_success_s": "eficiencia",
             "navigation_errors": "eficiencia", "aim_errors": "eficiencia",
 

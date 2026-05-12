@@ -151,9 +151,10 @@ def main():
     metric_to_cat = {
         "hit_ratio": "efectividad", "precision": "efectividad", "success_rate": "efectividad",
         "learning_curve_mean": "efectividad", "progression": "efectividad", "success_after_restart": "efectividad",
-        "path_efficiency": "efectividad", "gaze_on_path_ratio": "efectividad",
+        "gaze_on_path_ratio": "efectividad",
 
         "avg_reaction_time_ms": "eficiencia", "avg_task_duration_ms": "eficiencia", "time_per_success_s": "eficiencia",
+        "path_efficiency": "eficiencia",
         "navigation_errors": "eficiencia", "aim_errors": "eficiencia",
 
         "learning_stability": "satisfaccion", "error_reduction_rate": "satisfaccion",
@@ -201,7 +202,7 @@ def main():
         numeric_cols = ["efectividad_score", "eficiencia_score", "satisfaccion_score", "presencia_score",
                         "global_score", "sus_score"]
         available_cols = [
-            c for c in numeric_cols 
+            c for c in numeric_cols
             if c in df.columns and pd.to_numeric(df[c], errors="coerce").fillna(0).gt(0).any()
         ]
 
@@ -319,7 +320,8 @@ def main():
     # Definimos lo que es "estándar" para excluirlo
     std_metrics = {
         "efectividad": ["hit_ratio", "success_rate", "learning_curve_mean", "progression", "success_after_restart"],
-        "eficiencia": ["avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s", "navigation_errors"],
+        "eficiencia": ["avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s", "navigation_errors",
+                       "path_efficiency"],
         "satisfaccion": ["learning_stability", "error_reduction_rate", "voluntary_play_time_s", "aid_usage",
                          "interface_errors"],
         "presencia": ["activity_level_per_min", "first_success_time_s", "inactivity_time_s",

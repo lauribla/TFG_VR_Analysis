@@ -20,7 +20,7 @@ class Visualizer:
         ],
         "Eficiencia": [
             "avg_reaction_time_ms", "avg_task_duration_ms", "time_per_success_s",
-            "navigation_errors", "aim_errors", "task_duration_success", "task_duration_fail",
+            "path_efficiency", "navigation_errors", "aim_errors", "task_duration_success", "task_duration_fail",
             "eficiencia_score"
         ],
         "Satisfacción": [

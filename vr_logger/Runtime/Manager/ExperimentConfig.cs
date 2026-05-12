@@ -175,16 +175,16 @@ namespace VRLogger
         public MetricsCategory Metrics = new MetricsCategory
         {
             // Default Values matching original JSON
-            HitRatio = new MetricConfig { Enabled = true, Weight = 0.35f, Min = 0, Max = 1, Invert = false },
-            SuccessRate = new MetricConfig { Enabled = true, Weight = 0.30f, Min = 0, Max = 1, Invert = false },
+            HitRatio = new MetricConfig { Enabled = true, Weight = 0.5f, Min = 0, Max = 1, Invert = false },
+            SuccessRate = new MetricConfig { Enabled = true, Weight = 0.5f, Min = 0, Max = 1, Invert = false },
             LearningCurveMean = new MetricConfig { Enabled = true, Weight = 0.15f, Min = 0, Max = 1, Invert = false },
             Progression = new MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 10, Invert = false },
             SuccessAfterRestart = new MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 1, Invert = false },
-            PathEfficiency = new MetricConfig { Enabled = false, Weight = 0.20f, Min = 0, Max = 1, Invert = false },
+            PathEfficiency = new MetricConfig { Enabled = true, Weight = 0.5f, Min = 0, Max = 1, Invert = false },
             GazeOnPathRatio = new MetricConfig { Enabled = false, Weight = 0.20f, Min = 0, Max = 1, Invert = false },
 
             AvgReactionTimeMs = new MetricConfig { Enabled = true, Weight = 0.40f, Min = 100, Max = 5000, Invert = true },
-            AvgTaskDurationMs = new MetricConfig { Enabled = true, Weight = 0.30f, Min = 10000, Max = 90000, Invert = true },
+            AvgTaskDurationMs = new MetricConfig { Enabled = true, Weight = 0.5f, Min = 10000, Max = 90000, Invert = true },
             TimePerSuccessS = new MetricConfig { Enabled = true, Weight = 0.20f, Min = 0, Max = 60, Invert = true },
             NavigationErrors = new MetricConfig { Enabled = true, Weight = 0.10f, Min = 0, Max = 10, Invert = true },
 
@@ -335,14 +335,14 @@ namespace VRLogger
                         { "learning_curve_mean", MetricToJson(met.LearningCurveMean) },
                         { "progression", MetricToJson(met.Progression) },
                         { "success_after_restart", MetricToJson(met.SuccessAfterRestart) },
-                        { "path_efficiency", MetricToJson(met.PathEfficiency) },
                         { "gaze_on_path_ratio", MetricToJson(met.GazeOnPathRatio) }
                     }
                 },
                 { "eficiencia", new JObject
                     {
-                        { "avg_reaction_time_ms", MetricToJson(met.AvgReactionTimeMs) },
                         { "avg_task_duration_ms", MetricToJson(met.AvgTaskDurationMs) },
+                        { "path_efficiency", MetricToJson(met.PathEfficiency) },
+                        { "avg_reaction_time_ms", MetricToJson(met.AvgReactionTimeMs) },
                         { "time_per_success_s", MetricToJson(met.TimePerSuccessS) },
                         { "navigation_errors", MetricToJson(met.NavigationErrors) }
                     }

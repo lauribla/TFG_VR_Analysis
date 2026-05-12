@@ -99,14 +99,14 @@
   "metrics": {
     "efectividad": {
       "hit_ratio": {
-        "weight": 0.35,
+        "weight": 0.5,
         "min": 0,
         "max": 1,
         "invert": false,
         "enabled": true
       },
       "success_rate": {
-        "weight": 0.30,
+        "weight": 0.5,
         "min": 0,
         "max": 1,
         "invert": false,
@@ -135,17 +135,24 @@
       }
     },
     "eficiencia": {
+      "avg_task_duration_ms": {
+        "weight": 0.5,
+        "min": 1000,
+        "max": 30000,
+        "invert": true,
+        "enabled": true
+      },
+      "path_efficiency": {
+        "weight": 0.5,
+        "min": 0,
+        "max": 1,
+        "invert": false,
+        "enabled": true
+      },
       "avg_reaction_time_ms": {
         "weight": 0.40,
         "min": 100,
         "max": 2000,
-        "invert": true,
-        "enabled": true
-      },
-      "avg_task_duration_ms": {
-        "weight": 0.30,
-        "min": 1000,
-        "max": 30000,
         "invert": true,
         "enabled": true
       },
