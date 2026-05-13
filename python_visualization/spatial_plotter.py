@@ -74,9 +74,31 @@ class SpatialVisualizer:
                                 if i + 2 < len(indices):
                                     polys.append([pts[indices[i]], pts[indices[i + 1]], pts[indices[i + 2]]])
                             if polys:
-                                collection = mcoll.PolyCollection(polys, facecolors='lightgray', edgecolors='black',
-                                                                  linewidths=0.5, alpha=0.4, zorder=1)
+                                # 1. Dibujar el relleno de los triángulos sin bordes internos
+                                collection = mcoll.PolyCollection(polys, facecolors='lightgray', edgecolors='none',
+                                                                  alpha=0.4, zorder=1)
                                 ax.add_collection(collection)
+
+                                # 2. Extraer y dibujar solo los bordes exteriores (boundary edges)
+                                edges = {}
+                                for i in range(0, len(indices), 3):
+                                    if i + 2 < len(indices):
+                                        tri = [indices[i], indices[i + 1], indices[i + 2]]
+                                        for j in range(3):
+                                            # Ordenar índices para que (A,B) y (B,A) sean la misma arista
+                                            edge = tuple(sorted((tri[j], tri[(j + 1) % 3])))
+                                            edges[edge] = edges.get(edge, 0) + 1
+
+                                # Las aristas que aparecen solo una vez son los bordes del mesh
+                                boundary_lines = []
+                                for (v1, v2), count in edges.items():
+                                    if count == 1:
+                                        boundary_lines.append([pts[v1], pts[v2]])
+
+                                if boundary_lines:
+                                    line_collection = mcoll.LineCollection(boundary_lines, colors='black',
+                                                                           linewidths=1.0, zorder=2)
+                                    ax.add_collection(line_collection)
 
                     # Dibujar marcadores de inicio y fin si están presentes en el JSON del mapa
                     if "start_point" in mesh_data:
